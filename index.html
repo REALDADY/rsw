@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Alrawdah Springs - Water Delivery Tracker</title>
     <style>
-        /* (Your existing CSS here, unchanged) */
+        /* Your existing CSS here (unchanged) */
+        /* ... */
         * {
             margin: 0;
             padding: 0;
@@ -273,7 +274,7 @@
         <!-- Header -->
         <div class="header">
             <div class="logo-section">
-                <div class="logo"><img src="Header-Logo.png" alt="logo" style="height: 40px; vertical-align: middle; margin-right: 10px;"> Alrawdah Springs</div>
+                <div class="logo"><img src="Header-Logo.png" alt="logo" style="height:30px; vertical-align: middle;"> Alrawdah Springs</div>
                 <div class="tagline">Shape Your Life</div>
             </div>
         </div>
@@ -450,24 +451,35 @@
 
         <!-- Data Collection Tab -->
         <div id="dataCollection" class="tab-content">
-            <h2 style="margin-bottom: 25px; color: #333;">Data Collection</h2>
-            
+            <h2 style="margin-bottom: 25px; color: #333;">Data Collection - Search Orders</h2>
+
             <div style="margin-bottom: 20px;">
-                <label for="searchClientName" style="font-weight: 600; color: #333;">Search by Client Name:</label>
-                <input type="text" id="searchClientName" placeholder="Enter client name..." style="padding: 10px; width: 100%; border-radius: 8px; border: 2px solid #e1e5e9;" />
+                <label for="searchClientName">Search by Client Name:</label>
+                <input type="text" id="searchClientName" placeholder="Enter client name to search..." style="padding: 10px; width: 100%; max-width: 400px; margin-top: 5px; border-radius: 8px; border: 1px solid #ccc;" />
             </div>
-            
-            <div id="searchResults">
-                <div class="empty-state">🔍 Start typing a client name to search orders.</div>
-            </div>
+
+            <div id="searchResults"></div>
         </div>
     </div>
 
     <script>
-        // Data storage
-        let orders = [];
-        let drivers = [];
-        let deliveries = [];
+        // Load saved data or initialize empty arrays
+        let orders = JSON.parse(localStorage.getItem('orders') || '[]');
+        let drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+        let deliveries = JSON.parse(localStorage.getItem('deliveries') || '[]');
+
+        // Save functions
+        function saveOrders() {
+            localStorage.setItem('orders', JSON.stringify(orders));
+        }
+
+        function saveDrivers() {
+            localStorage.setItem('drivers', JSON.stringify(drivers));
+        }
+
+        function saveDeliveries() {
+            localStorage.setItem('deliveries', JSON.stringify(deliveries));
+        }
 
         // Tab switching functionality
         function switchTab(tabName) {
@@ -475,18 +487,18 @@
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
-            
+
             // Remove active class from all buttons
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            
+
             // Show selected tab
             document.getElementById(tabName).classList.add('active');
-            
+
             // Add active class to clicked button
             event.target.classList.add('active');
-            
+
             // Update dashboard when switching to it
             if (tabName === 'dashboard') {
                 updateDashboard();
@@ -496,283 +508,285 @@
         // Order management
         document.getElementById('orderForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const order = {
                 id: Date.now(),
-                clientName: document.getElementById('clientName').value,
-                clientPhone: document.getElementById('clientPhone').value,
+                clientName: document.getElementById('clientName').value.trim(),
+                clientPhone: document.getElementById('clientPhone').value.trim(),
                 bottleQuantity: parseInt(document.getElementById('bottleQuantity').value),
                 bottleSize: document.getElementById('bottleSize').value,
-                deliveryAddress: document.getElementById('deliveryAddress').value,
+                deliveryAddress: document.getElementById('deliveryAddress').value.trim(),
                 orderDate: document.getElementById('orderDate').value,
                 preferredTime: document.getElementById('preferredTime').value,
                 status: 'pending',
                 createdAt: new Date().toLocaleString()
             };
-            
+
             orders.push(order);
+            saveOrders();
+
             this.reset();
             renderOrdersTable();
             updateOrdersDropdown();
             updateDashboard();
-            
+
             alert('Order added successfully!');
         });
 
         function renderOrdersTable() {
             const container = document.getElementById('ordersTable');
             if (orders.length === 0) {
-                container.innerHTML = '<div class="empty-state">No orders yet.</div>';
+                container.innerHTML = '<p class="empty-state">No orders found.</p>';
                 return;
             }
-            
-            const table = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Client Name</th>
-                            <th>Phone</th>
-                            <th>Quantity</th>
-                            <th>Size</th>
-                            <th>Address</th>
-                            <th>Order Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${orders.map(order => `
-                            <tr>
-                                <td>#${order.id}</td>
-                                <td>${order.clientName}</td>
-                                <td>${order.clientPhone}</td>
-                                <td>${order.bottleQuantity}</td>
-                                <td>${order.bottleSize}</td>
-                                <td>${order.deliveryAddress.substring(0, 30)}...</td>
-                                <td>${order.orderDate}</td>
-                                <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-            container.innerHTML = table;
+
+            let html = '<table class="data-table">';
+            html += '<thead><tr><th>Client Name</th><th>Phone</th><th>Quantity</th><th>Size</th><th>Address</th><th>Order Date</th><th>Delivery Time</th><th>Status</th></tr></thead><tbody>';
+
+            orders.forEach(order => {
+                html += `<tr>
+                    <td>${order.clientName}</td>
+                    <td>${order.clientPhone}</td>
+                    <td>${order.bottleQuantity}</td>
+                    <td>${order.bottleSize}</td>
+                    <td>${order.deliveryAddress}</td>
+                    <td>${order.orderDate}</td>
+                    <td>${order.preferredTime || '-'}</td>
+                    <td><span class="status-badge status-${order.status.replace(/\s+/g, '-')}">${order.status}</span></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
-        // Driver management
+        // Drivers management
         document.getElementById('driverForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const driver = {
                 id: Date.now(),
-                name: document.getElementById('driverName').value,
-                phone: document.getElementById('driverPhone').value,
-                vehicleNumber: document.getElementById('vehicleNumber').value,
+                name: document.getElementById('driverName').value.trim(),
+                phone: document.getElementById('driverPhone').value.trim(),
+                vehicleNumber: document.getElementById('vehicleNumber').value.trim(),
                 vehicleType: document.getElementById('vehicleType').value,
-                status: 'available'
+                status: 'available',
+                createdAt: new Date().toLocaleString()
             };
-            
+
             drivers.push(driver);
+            saveDrivers();
+
             this.reset();
             renderDriversTable();
             updateDriversDropdown();
             updateDashboard();
-            
+
             alert('Driver added successfully!');
         });
 
         function renderDriversTable() {
             const container = document.getElementById('driversTable');
             if (drivers.length === 0) {
-                container.innerHTML = '<div class="empty-state">No drivers added yet.</div>';
+                container.innerHTML = '<p class="empty-state">No drivers found.</p>';
                 return;
             }
-            
-            const table = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Phone</th>
-                            <th>Vehicle Number</th>
-                            <th>Vehicle Type</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${drivers.map(driver => `
-                            <tr>
-                                <td>${driver.name}</td>
-                                <td>${driver.phone}</td>
-                                <td>${driver.vehicleNumber}</td>
-                                <td>${driver.vehicleType}</td>
-                                <td><span class="status-badge status-${driver.status}">${driver.status}</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-            container.innerHTML = table;
+
+            let html = '<table class="data-table">';
+            html += '<thead><tr><th>Name</th><th>Phone</th><th>Vehicle Number</th><th>Vehicle Type</th><th>Status</th></tr></thead><tbody>';
+
+            drivers.forEach(driver => {
+                html += `<tr>
+                    <td>${driver.name}</td>
+                    <td>${driver.phone}</td>
+                    <td>${driver.vehicleNumber}</td>
+                    <td>${driver.vehicleType}</td>
+                    <td><span class="status-badge status-${driver.status}">${driver.status}</span></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
-        // Delivery management
+        // Deliveries management
         document.getElementById('deliveryForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
+            const selectedOrderId = parseInt(document.getElementById('selectOrder').value);
+            const selectedDriverId = parseInt(document.getElementById('selectDriver').value);
+
+            if (isNaN(selectedOrderId) || isNaN(selectedDriverId)) {
+                alert('Please select both an order and a driver.');
+                return;
+            }
+
+            const orderIndex = orders.findIndex(o => o.id === selectedOrderId);
+            const driverIndex = drivers.findIndex(d => d.id === selectedDriverId);
+
+            if (orderIndex === -1 || driverIndex === -1) {
+                alert('Selected order or driver not found.');
+                return;
+            }
+
+            // Assign delivery
             const delivery = {
                 id: Date.now(),
-                orderId: parseInt(document.getElementById('selectOrder').value),
-                driverId: parseInt(document.getElementById('selectDriver').value),
+                orderId: selectedOrderId,
+                driverId: selectedDriverId,
                 deliveryDate: document.getElementById('deliveryDate').value,
                 estimatedTime: document.getElementById('estimatedTime').value,
-                status: 'in-progress'
+                status: 'in progress',
+                assignedAt: new Date().toLocaleString()
             };
-            
+
             deliveries.push(delivery);
+            saveDeliveries();
+
+            // Update order status
+            orders[orderIndex].status = 'in progress';
+            saveOrders();
+
+            // Update driver status
+            drivers[driverIndex].status = 'busy';
+            saveDrivers();
+
             this.reset();
             renderDeliveriesTable();
+            renderOrdersTable();
+            renderDriversTable();
+            updateOrdersDropdown();
+            updateDriversDropdown();
             updateDashboard();
-            
+
             alert('Delivery assigned successfully!');
         });
 
         function renderDeliveriesTable() {
             const container = document.getElementById('deliveriesTable');
             if (deliveries.length === 0) {
-                container.innerHTML = '<div class="empty-state">No deliveries assigned yet.</div>';
+                container.innerHTML = '<p class="empty-state">No deliveries found.</p>';
                 return;
             }
-            
-            const table = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Delivery ID</th>
-                            <th>Order ID</th>
-                            <th>Client</th>
-                            <th>Driver</th>
-                            <th>Delivery Date</th>
-                            <th>Estimated Time</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${deliveries.map(delivery => {
-                            const order = orders.find(o => o.id === delivery.orderId);
-                            const driver = drivers.find(d => d.id === delivery.driverId);
-                            return `
-                                <tr>
-                                    <td>#${delivery.id}</td>
-                                    <td>#${delivery.orderId}</td>
-                                    <td>${order ? order.clientName : 'Unknown'}</td>
-                                    <td>${driver ? driver.name : 'Unknown'}</td>
-                                    <td>${delivery.deliveryDate}</td>
-                                    <td>${delivery.estimatedTime}</td>
-                                    <td><span class="status-badge status-${delivery.status}">${delivery.status}</span></td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
-            container.innerHTML = table;
+
+            let html = '<table class="data-table">';
+            html += '<thead><tr><th>Client</th><th>Driver</th><th>Delivery Date</th><th>Estimated Time</th><th>Status</th></tr></thead><tbody>';
+
+            deliveries.forEach(delivery => {
+                const order = orders.find(o => o.id === delivery.orderId);
+                const driver = drivers.find(d => d.id === delivery.driverId);
+
+                html += `<tr>
+                    <td>${order ? order.clientName : 'N/A'}</td>
+                    <td>${driver ? driver.name : 'N/A'}</td>
+                    <td>${delivery.deliveryDate}</td>
+                    <td>${delivery.estimatedTime}</td>
+                    <td><span class="status-badge status-${delivery.status.replace(/\s+/g, '-')}">${delivery.status}</span></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
-        // Update dropdowns for deliveries
+        // Dropdown updates
         function updateOrdersDropdown() {
-            const select = document.getElementById('selectOrder');
-            select.innerHTML = '<option value="">Choose an order...</option>';
-            orders.forEach(order => {
-                if(order.status === 'pending'){
-                    select.innerHTML += `<option value="${order.id}">#${order.id} - ${order.clientName}</option>`;
-                }
+            const selectOrder = document.getElementById('selectOrder');
+            selectOrder.innerHTML = '<option value="">Choose an order...</option>';
+
+            orders.filter(o => o.status === 'pending' || o.status === 'in progress').forEach(order => {
+                selectOrder.innerHTML += `<option value="${order.id}">${order.clientName} - ${order.orderDate}</option>`;
             });
         }
 
         function updateDriversDropdown() {
-            const select = document.getElementById('selectDriver');
-            select.innerHTML = '<option value="">Choose a driver...</option>';
-            drivers.forEach(driver => {
-                if(driver.status === 'available'){
-                    select.innerHTML += `<option value="${driver.id}">${driver.name} (${driver.vehicleType})</option>`;
-                }
+            const selectDriver = document.getElementById('selectDriver');
+            selectDriver.innerHTML = '<option value="">Choose a driver...</option>';
+
+            drivers.filter(d => d.status === 'available').forEach(driver => {
+                selectDriver.innerHTML += `<option value="${driver.id}">${driver.name} (${driver.vehicleNumber})</option>`;
             });
         }
 
-        // Dashboard stats update
+        // Dashboard update
         function updateDashboard() {
             document.getElementById('totalOrders').textContent = orders.length;
             document.getElementById('pendingOrders').textContent = orders.filter(o => o.status === 'pending').length;
-            document.getElementById('totalDrivers').textContent = drivers.length;
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('totalDeliveries').textContent = deliveries.filter(d => d.deliveryDate === today).length;
+            document.getElementById('totalDrivers').textContent = drivers.filter(d => d.status === 'available').length;
+            document.getElementById('totalDeliveries').textContent = deliveries.length;
 
-            // Recent Activity (simplified: show last 5 orders)
-            const recent = orders.slice(-5).reverse();
+            // Recent Activity
             const recentActivity = document.getElementById('recentActivity');
-            if (recent.length === 0) {
-                recentActivity.innerHTML = '<div class="empty-state">No recent orders.</div>';
+            let activityHtml = '';
+
+            if (orders.length === 0 && deliveries.length === 0) {
+                recentActivity.innerHTML = '<div>📊 Recent orders and deliveries will appear here</div>';
                 return;
             }
-            recentActivity.innerHTML = recent.map(order => `
-                <div style="margin-bottom: 15px; padding: 15px; background: #f0f4ff; border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.05);">
-                    <strong>${order.clientName}</strong> ordered <em>${order.bottleQuantity}</em> boxes of <em>${order.bottleSize}</em> on <em>${order.orderDate}</em>.
-                </div>
-            `).join('');
+
+            // Show last 5 orders
+            const recentOrders = [...orders].sort((a,b) => b.id - a.id).slice(0,5);
+            if (recentOrders.length > 0) {
+                activityHtml += '<h4>Recent Orders</h4><ul>';
+                recentOrders.forEach(order => {
+                    activityHtml += `<li>${order.clientName} ordered ${order.bottleQuantity} boxes (${order.bottleSize}) on ${order.orderDate} - Status: <strong>${order.status}</strong></li>`;
+                });
+                activityHtml += '</ul>';
+            }
+
+            // Show last 5 deliveries
+            const recentDeliveries = [...deliveries].sort((a,b) => b.id - a.id).slice(0,5);
+            if (recentDeliveries.length > 0) {
+                activityHtml += '<h4>Recent Deliveries</h4><ul>';
+                recentDeliveries.forEach(delivery => {
+                    const order = orders.find(o => o.id === delivery.orderId);
+                    const driver = drivers.find(d => d.id === delivery.driverId);
+                    activityHtml += `<li>Order for ${order ? order.clientName : 'N/A'} delivered by ${driver ? driver.name : 'N/A'} on ${delivery.deliveryDate}</li>`;
+                });
+                activityHtml += '</ul>';
+            }
+
+            recentActivity.innerHTML = activityHtml || '<div>📊 Recent orders and deliveries will appear here</div>';
         }
 
-        // Data Collection Search functionality
+        // Data Collection - Search Orders by Client Name
         document.getElementById('searchClientName').addEventListener('input', function() {
             const query = this.value.trim().toLowerCase();
-            const container = document.getElementById('searchResults');
-            
+            const resultsContainer = document.getElementById('searchResults');
+
             if (!query) {
-                container.innerHTML = '<div class="empty-state">🔍 Start typing a client name to search orders.</div>';
+                resultsContainer.innerHTML = '<p class="empty-state">Enter a client name above to search orders.</p>';
                 return;
             }
-            
-            const filteredOrders = orders.filter(order => order.clientName.toLowerCase().includes(query));
-            
-            if (filteredOrders.length === 0) {
-                container.innerHTML = '<div class="empty-state">❌ No matching orders found.</div>';
+
+            const matchedOrders = orders.filter(order => order.clientName.toLowerCase().includes(query));
+
+            if (matchedOrders.length === 0) {
+                resultsContainer.innerHTML = '<p class="empty-state">No orders found matching that client name.</p>';
                 return;
             }
-            
-            const table = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Client Name</th>
-                            <th>Phone</th>
-                            <th>Quantity</th>
-                            <th>Size</th>
-                            <th>Address</th>
-                            <th>Order Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filteredOrders.map(order => `
-                            <tr>
-                                <td>#${order.id}</td>
-                                <td>${order.clientName}</td>
-                                <td>${order.clientPhone}</td>
-                                <td>${order.bottleQuantity}</td>
-                                <td>${order.bottleSize}</td>
-                                <td>${order.deliveryAddress.substring(0, 30)}...</td>
-                                <td>${order.orderDate}</td>
-                                <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-            
-            container.innerHTML = table;
+
+            let html = '<table class="data-table">';
+            html += '<thead><tr><th>Client Name</th><th>Phone</th><th>Quantity</th><th>Size</th><th>Address</th><th>Order Date</th><th>Delivery Time</th><th>Status</th></tr></thead><tbody>';
+
+            matchedOrders.forEach(order => {
+                html += `<tr>
+                    <td>${order.clientName}</td>
+                    <td>${order.clientPhone}</td>
+                    <td>${order.bottleQuantity}</td>
+                    <td>${order.bottleSize}</td>
+                    <td>${order.deliveryAddress}</td>
+                    <td>${order.orderDate}</td>
+                    <td>${order.preferredTime || '-'}</td>
+                    <td><span class="status-badge status-${order.status.replace(/\s+/g, '-')}">${order.status}</span></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            resultsContainer.innerHTML = html;
         });
 
-        // Initialize app (render tables and dashboard stats)
+        // Initialize app
         function initApp() {
             renderOrdersTable();
             renderDriversTable();
@@ -780,9 +794,13 @@
             updateOrdersDropdown();
             updateDriversDropdown();
             updateDashboard();
+
+            // Initially clear search results
+            document.getElementById('searchResults').innerHTML = '<p class="empty-state">Enter a client name above to search orders.</p>';
         }
 
-        initApp();
+        // Run initialization on page load
+        window.onload = initApp;
     </script>
 </body>
 </html>
