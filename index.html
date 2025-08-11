@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RS Water - Delivery Management</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f7f9fc;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    background: #0099cc;
+    color: white;
+    padding: 1em;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.3rem;
+  }
+  nav {
+    display: flex;
+    justify-content: center;
+    background: #0077aa;
+  }
+  nav button {
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 1em 2em;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s;
+  }
+  nav button.active, nav button:hover {
+    background: #005f7f;
+  }
+  main {
+    max-width: 960px;
+    margin: 2em auto;
+    padding: 0 1em 3em;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 12px #ccc;
+  }
+  section {
+    display: none;
+  }
+  section.active {
+    display: block;
+  }
+  form {
+    margin-bottom: 2em;
+  }
+  form label {
+    display: block;
+    margin: 0.5em 0 0.2em;
+  }
+  form input, form select {
+    padding: 0.4em 0.6em;
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 1em;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+  form button {
+    background: #0099cc;
+    border: none;
+    color: white;
+    padding: 0.6em 1.2em;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+  }
+  form button:hover {
+    background: #0077aa;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5em;
+  }
+  table th, table td {
+    border: 1px solid #ddd;
+    padding: 0.5em;
+    text-align: left;
+  }
+  table th {
+    background: #0077aa;
+    color: white;
+  }
+  .btn {
+    border: none;
+    padding: 0.3em 0.6em;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+  .btn-danger {
+    background: #cc0000;
+    color: white;
+  }
+  .btn-danger:hover {
+    background: #990000;
+  }
+  .status-badge {
+    padding: 0.2em 0.6em;
+    border-radius: 15px;
+    color: white;
+    font-weight: bold;
+    font-size: 0.85rem;
+    text-transform: capitalize;
+  }
+  .status-pending {
+    background: #f0ad4e;
+  }
+  .status-assigned {
+    background: #5bc0de;
+  }
+  .status-busy {
+    background: #d9534f;
+  }
+  .status-available {
+    background: #5cb85c;
+  }
+  .status-in-progress {
+    background: #337ab7;
+  }
+  .status-delivered {
+    background: #4cae4c;
+  }
+  /* Search input style */
+  #ordersSearch {
+    width: 100%;
+    max-width: 300px;
+    padding: 0.6em 0.8em;
+    margin-bottom: 1em;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
+  .empty-state {
+    padding: 1em;
+    font-style: italic;
+    color: #666;
+    text-align: center;
+  }
+  @media (max-width: 600px) {
+    nav button {
+      padding: 0.7em 1em;
+      font-size: 0.9rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>RS Water Delivery Management</header>
+<nav>
+  <button id="tabOrders" class="active">Client Orders</button>
+  <button id="tabDrivers">Drivers</button>
+  <button id="tabDeliveries">Deliveries</button>
+</nav>
+
+<main>
+  <!-- Orders Tab -->
+  <section id="ordersSection" class="active">
+    <h2>Add New Order</h2>
+    <form id="orderForm">
+      <label for="clientName">Client Name</label>
+      <input type="text" id="clientName" required />
+      
+      <label for="clientPhone">Client Phone</label>
+      <input type="tel" id="clientPhone" required placeholder="+9715xxxxxxx" pattern="^\+971[0-9]{7,9}$" title="Enter UAE phone number starting with +971" />
+      
+      <label for="bottleQuantity">Bottle Quantity</label>
+      <input type="number" id="bottleQuantity" min="1" value="1" required />
+      
+      <label for="bottleSize">Bottle Size</label>
+      <select id="bottleSize" required>
+        <option value="0.5L">0.5L</option>
+        <option value="1.5L" selected>1.5L</option>
+        <option value="5L">5L</option>
+      </select>
+      
+      <label for="deliveryAddress">Delivery Address</label>
+      <input type="text" id="deliveryAddress" required />
+      
+      <label for="orderDate">Order Date</label>
+      <input type="date" id="orderDate" required />
+      
+      <label for="preferredTime">Preferred Delivery Time</label>
+      <input type="time" id="preferredTime" />
+      
+      <button type="submit">Add Order</button>
+    </form>
+    
+    <h3>Search Orders</h3>
+    <input type="search" id="ordersSearch" placeholder="Search by client name or phone" />
+    
+    <div id="ordersTable" aria-live="polite"></div>
+  </section>
+
+  <!-- Drivers Tab -->
+  <section id="driversSection">
+    <h2>Add New Driver</h2>
+    <form id="driverForm">
+      <label for="driverName">Driver Name</label>
+      <input type="text" id="driverName" required />
+      
+      <label for="driverPhone">Driver Phone</label>
+      <input type="tel" id="driverPhone" required placeholder="+9715xxxxxxx" pattern="^\+971[0-9]{7,9}$" title="Enter UAE phone number starting with +971" />
+      
+      <label for="vehicleNumber">Vehicle Number</label>
+      <input type="text" id="vehicleNumber" required />
+      
+      <label for="vehicleType">Vehicle Type</label>
+      <select id="vehicleType" required>
+        <option value="Van">Van</option>
+        <option value="Truck">Truck</option>
+        <option value="Car">Car</option>
+      </select>
+      
+      <button type="submit">Add Driver</button>
+    </form>
+    
+    <div id="driversTable" aria-live="polite"></div>
+  </section>
+
+  <!-- Deliveries Tab -->
+  <section id="deliveriesSection">
+    <h2>Assign Delivery</h2>
+    <form id="deliveryForm">
+      <label for="selectOrder">Select Order</label>
+      <select id="selectOrder" required></select>
+      
+      <label for="selectDriver">Select Driver</label>
+      <select id="selectDriver" required></select>
+      
+      <label for="deliveryDate">Delivery Date</label>
+      <input type="date" id="deliveryDate" required />
+      
+      <label for="estimatedTime">Estimated Delivery Time</label>
+      <input type="time" id="estimatedTime" required />
+      
+      <button type="submit">Assign Delivery</button>
+    </form>
+    
+    <div id="deliveriesTable" aria-live="polite"></div>
+  </section>
+</main>
+
+<script>
+  // Data arrays with LocalStorage persistence
+  let orders = JSON.parse(localStorage.getItem('orders')) || [];
+  let drivers = JSON.parse(localStorage.getItem('drivers')) || [];
+  let deliveries = JSON.parse(localStorage.getItem('deliveries')) || [];
+
+  // Save all data
+  function saveData() {
+    localStorage.setItem('orders', JSON.stringify(orders));
+    localStorage.setItem('drivers', JSON.stringify(drivers));
+    localStorage.setItem('deliveries', JSON.stringify(deliveries));
+  }
+
+  // Tab navigation
+  const tabOrdersBtn = document.getElementById('tabOrders');
+  const tabDriversBtn = document.getElementById('tabDrivers');
+  const tabDeliveriesBtn = document.getElementById('tabDeliveries');
+
+  const ordersSection = document.getElementById('ordersSection');
+  const driversSection = document.getElementById('driversSection');
+  const deliveriesSection = document.getElementById('deliveriesSection');
+
+  tabOrdersBtn.addEventListener('click', () => {
+    setActiveTab('orders');
+  });
+  tabDriversBtn.addEventListener('click', () => {
+    setActiveTab('drivers');
+  });
+  tabDeliveriesBtn.addEventListener('click', () => {
+    setActiveTab('deliveries');
+  });
+
+  function setActiveTab(tab) {
+    tabOrdersBtn.classList.remove('active');
+    tabDriversBtn.classList.remove('active');
+    tabDeliveriesBtn.classList.remove('active');
+
+    ordersSection.classList.remove('active');
+    driversSection.classList.remove('active');
+    deliveriesSection.classList.remove('active');
+
+    if (tab === 'orders') {
+      tabOrdersBtn.classList.add('active');
+      ordersSection.classList.add('active');
+    } else if (tab === 'drivers') {
+      tabDriversBtn.classList.add('active');
+      driversSection.classList.add('active');
+    } else if (tab === 'deliveries') {
+      tabDeliveriesBtn.classList.add('active');
+      deliveriesSection.classList.add('active');
+    }
+  }
+
+  // Render Orders Table with optional search filter
+  function renderOrdersTable(searchQuery = '') {
+    const container = document.getElementById('ordersTable');
+    let filteredOrders = orders;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filteredOrders = orders.filter(order =>
+        order.clientName.toLowerCase().includes(q) ||
+        order.clientPhone.toLowerCase().includes(q)
+      );
+    }
+
+    if (filteredOrders.length === 0) {
+      container.innerHTML = '<div class="empty-state">📋 No orders found.</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <table aria-label="Orders Table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Client Name</th>
+            <th>Phone</th>
+            <th>Quantity</th>
+            <th>Size</th>
+            <th>Address</th>
+            <th>Order Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredOrders.map(order => `
+            <tr>
+              <td>#${order.id}</td>
+              <td>${order.clientName}</td>
+              <td>${order.clientPhone}</td>
+              <td>${order.bottleQuantity}</td>
+              <td>${order.bottleSize}</td>
+              <td>${order.deliveryAddress.length > 30 ? order.deliveryAddress.substring(0, 30) + '...' : order.deliveryAddress}</td>
+              <td>${order.orderDate}</td>
+              <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+              <td>
+                <button class="btn btn-danger" onclick="deleteOrder(${order.id})" aria-label="Delete order #${order.id}">Delete</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Render Drivers Table
+  function renderDriversTable() {
+    const container = document.getElementById('driversTable');
+    if (drivers.length === 0) {
+      container.innerHTML = '<div class="empty-state">🚚 No drivers added yet.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table aria-label="Drivers Table">
+        <thead>
+          <tr>
+            <th>Driver ID</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Vehicle Number</th>
+            <th>Vehicle Type</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${drivers.map(driver => `
+            <tr>
+              <td>#${driver.id}</td>
+              <td>${driver.name}</td>
+              <td>${driver.phone}</td>
+              <td>${driver.vehicleNumber}</td>
+              <td>${driver.vehicleType}</td>
+              <td><span class="status-badge status-${driver.status}">${driver.status}</span></td>
+              <td>
+                <button class="btn btn-danger" onclick="deleteDriver(${driver.id})" aria-label="Delete driver #${driver.id}">Delete</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Render Deliveries Table
+  function renderDeliveriesTable() {
+    const container = document.getElementById('deliveriesTable');
+    if (deliveries.length === 0) {
+      container.innerHTML = '<div class="empty-state">🚚 No deliveries assigned yet.</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <table aria-label="Deliveries Table">
+        <thead>
+          <tr>
+            <th>Delivery ID</th>
+            <th>Order ID</th>
+            <th>Client</th>
+            <th>Driver</th>
+            <th>Delivery Date</th>
+            <th>Estimated Time</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${deliveries.map(delivery => {
+            const order = orders.find(o => o.id === delivery.orderId);
+            const driver = drivers.find(d => d.id === delivery.driverId);
+            return `
+            <tr>
+              <td>#${delivery.id}</td>
+              <td>#${delivery.orderId}</td>
+              <td>${order ? order.clientName : 'Unknown'}</td>
+              <td>${driver ? driver.name : 'Unknown'}</td>
+              <td>${delivery.deliveryDate}</td>
+              <td>${delivery.estimatedTime}</td>
+              <td><span class="status-badge status-${delivery.status}">${delivery.status}</span></td>
+              <td>
+                ${delivery.status !== 'delivered' ? `<button class="btn" onclick="updateDeliveryStatus(${delivery.id}, 'delivered')" aria-label="Mark delivery #${delivery.id} as delivered">Mark Delivered</button>` : ''}
+                <button class="btn btn-danger" onclick="deleteDelivery(${delivery.id})" aria-label="Delete delivery #${delivery.id}">Delete</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Update order select dropdown in deliveries form (only pending or assigned orders)
+  function updateOrdersDropdown() {
+    const select = document.getElementById('selectOrder');
+    select.innerHTML = '';
+    // Only orders that are pending or assigned can be assigned
+    const availableOrders = orders.filter(o => o.status === 'pending' || o.status === 'assigned');
+    if (availableOrders.length === 0) {
+      select.innerHTML = '<option disabled>No available orders</option>';
+      return;
+    }
+    for (const order of availableOrders) {
+      select.innerHTML += `<option value="${order.id}">#${order.id} - ${order.clientName} (${order.clientPhone})</option>`;
+    }
+  }
+
+  // Update driver select dropdown (only available drivers)
+  function updateDriversDropdown() {
+    const select = document.getElementById('selectDriver');
+    select.innerHTML = '';
+    const availableDrivers = drivers.filter(d => d.status === 'available');
+    if (availableDrivers.length === 0) {
+      select.innerHTML = '<option disabled>No available drivers</option>';
+      return;
+    }
+    for (const driver of availableDrivers) {
+      select.innerHTML += `<option value="${driver.id}">${driver.name} (${driver.vehicleNumber})</option>`;
+    }
+  }
+
+  // Delete functions
+  function deleteOrder(orderId) {
+    if (!confirm('Are you sure you want to delete this order?')) return;
+    // Remove any deliveries linked to this order
+    deliveries = deliveries.filter(d => d.orderId !== orderId);
+    orders = orders.filter(o => o.id !== orderId);
+    saveData();
+    renderOrdersTable();
+    renderDeliveriesTable();
+    updateOrdersDropdown();
+  }
+  function deleteDriver(driverId) {
+    if (!confirm('Are you sure you want to delete this driver?')) return;
+    // Remove deliveries linked to this driver and free up orders
+    deliveries = deliveries.filter(d => d.driverId !== driverId);
+    drivers = drivers.filter(d => d.id !== driverId);
+    saveData();
+    renderDriversTable();
+    renderDeliveriesTable();
+    updateDriversDropdown();
+  }
+  function deleteDelivery(deliveryId) {
+    if (!confirm('Are you sure you want to delete this delivery?')) return;
+    const delivery = deliveries.find(d => d.id === deliveryId);
+    if (delivery) {
+      // Free driver and order
+      const driver = drivers.find(d => d.id === delivery.driverId);
+      const order = orders.find(o => o.id === delivery.orderId);
+      if (driver) driver.status = 'available';
+      if (order) order.status = 'pending';
+    }
+    deliveries = deliveries.filter(d => d.id !== deliveryId);
+    saveData();
+    renderDeliveriesTable();
+    renderDriversTable();
+    renderOrdersTable();
+    updateDriversDropdown();
+    updateOrdersDropdown();
+  }
+
+  // Update delivery status
+  function updateDeliveryStatus(deliveryId, status) {
+    const delivery = deliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    delivery.status = status;
+    if (status === 'delivered') {
+      const driver = drivers.find(d => d.id === delivery.driverId);
+      const order = orders.find(o => o.id === delivery.orderId);
+      if (driver) driver.status = 'available';
+      if (order) order.status = 'delivered';
+    }
+    saveData();
+    renderDeliveriesTable();
+    renderDriversTable();
+    renderOrdersTable();
+    updateDriversDropdown();
+    updateOrdersDropdown();
+  }
+
+  // Event listeners for form submissions
+  document.getElementById('orderForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const order = {
+      id: Date.now(),
+      clientName: e.target.clientName.value.trim(),
+      clientPhone: e.target.clientPhone.value.trim(),
+      bottleQuantity: parseInt(e.target.bottleQuantity.value),
+      bottleSize: e.target.bottleSize.value,
+      deliveryAddress: e.target.deliveryAddress.value.trim(),
+      orderDate: e.target.orderDate.value,
+      preferredTime: e.target.preferredTime.value,
+      status: 'pending',
+      createdAt: new Date().toLocaleString()
+    };
+    orders.push(order);
+    saveData();
+    e.target.reset();
+    setTodayDateInputs();
+    renderOrdersTable(document.getElementById('ordersSearch').value);
+    updateOrdersDropdown();
+    alert('Order added successfully!');
+  });
+
+  document.getElementById('driverForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const driver = {
+      id: Date.now(),
+      name: e.target.driverName.value.trim(),
+      phone: e.target.driverPhone.value.trim(),
+      vehicleNumber: e.target.vehicleNumber.value.trim(),
+      vehicleType: e.target.vehicleType.value,
+      status: 'available',
+      createdAt: new Date().toLocaleString()
+    };
+    drivers.push(driver);
+    saveData();
+    e.target.reset();
+    renderDriversTable();
+    updateDriversDropdown();
+    alert('Driver added successfully!');
+  });
+
+  document.getElementById('deliveryForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const orderId = parseInt(e.target.selectOrder.value);
+    const driverId = parseInt(e.target.selectDriver.value);
+    const delivery = {
+      id: Date.now(),
+      orderId,
+      driverId,
+      deliveryDate: e.target.deliveryDate.value,
+      estimatedTime: e.target.estimatedTime.value,
+      status: 'in-progress',
+      createdAt: new Date().toLocaleString()
+    };
+    deliveries.push(delivery);
+    // Update order and driver status
+    const order = orders.find(o => o.id === orderId);
+    if (order) order.status = 'assigned';
+    const driver = drivers.find(d => d.id === driverId);
+    if (driver) driver.status = 'busy';
+    saveData();
+    e.target.reset();
+    setTodayDateInputs();
+    renderDeliveriesTable();
+    renderOrdersTable(document.getElementById('ordersSearch').value);
+    renderDriversTable();
+    updateOrdersDropdown();
+    updateDriversDropdown();
+    alert('Delivery assigned successfully!');
+  });
+
+  // Search input for orders
+  document.getElementById('ordersSearch').addEventListener('input', e => {
+    renderOrdersTable(e.target.value);
+  });
+
+  // Set default dates to today
+  function setTodayDateInputs() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('orderDate').value = today;
+    document.getElementById('deliveryDate').value = today;
+  }
+
+  // Load sample data if no data in localStorage
+  function loadSampleData() {
+    if (orders.length === 0 && drivers.length === 0) {
+      const today = new Date().toISOString().split('T')[0];
+      orders.push({
+        id: 1001,
+        clientName: "Ahmed Al-Mansouri",
+        clientPhone: "+971501234567",
+        bottleQuantity: 24,
+        bottleSize: "1.5L",
+        deliveryAddress: "Villa 123, Al Reef Community, Abu Dhabi",
+        orderDate: today,
+        preferredTime: "14:00",
+        status: 'pending',
+        createdAt: new Date().toLocaleString()
+      });
+      drivers.push({
+        id: 2001,
+        name: "Mohammed Hassan",
+        phone: "+971509876543",
+        vehicleNumber: "AD-12345",
+        vehicleType: "Van",
+        status: 'available',
+        createdAt: new Date().toLocaleString()
+      });
+      saveData();
+    }
+  }
+
+  // Initialization
+  function init() {
+    setTodayDateInputs();
+    loadSampleData();
+    renderOrdersTable();
+    renderDriversTable();
+    renderDeliveriesTable();
+    updateOrdersDropdown();
+    updateDriversDropdown();
+  }
+
+  // Expose delete and update functions globally for buttons
+  window.deleteOrder = deleteOrder;
+  window.deleteDriver = deleteDriver;
+  window.deleteDelivery = deleteDelivery;
+  window.updateDeliveryStatus = updateDeliveryStatus;
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
