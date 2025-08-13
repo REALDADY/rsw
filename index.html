@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Alrawdah Springs - Water Delivery Tracker</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -142,6 +147,11 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
         .btn-danger {
             background: linear-gradient(135deg, #ff6b6b, #ee5a52);
         }
@@ -232,6 +242,25 @@
             opacity: 0.5;
             margin-bottom: 15px;
         }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -291,9 +320,7 @@
             </div>
 
             <h3 style="margin-bottom: 15px; color: #333;">Recent Activity</h3>
-            <div id="recentActivity" class="empty-state">
-                <div>📊 Recent orders and deliveries will appear here</div>
-            </div>
+            <div id="recentActivity" class="loading">Loading recent activity...</div>
         </div>
 
         <!-- Client Orders Tab -->
@@ -364,11 +391,11 @@
                         <input type="time" id="preferredTime" />
                     </div>
                 </div>
-                <button type="submit" class="btn">Add Order</button>
+                <button type="submit" class="btn" id="addOrderBtn">Add Order</button>
             </form>
 
             <h3 style="margin-bottom: 15px; color: #333;">Orders List</h3>
-            <div id="ordersTable"></div>
+            <div id="ordersTable" class="loading">Loading orders...</div>
         </div>
 
         <!-- Drivers Tab -->
@@ -403,11 +430,11 @@
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="btn">Add Driver</button>
+                <button type="submit" class="btn" id="addDriverBtn">Add Driver</button>
             </form>
 
             <h3 style="margin-bottom: 15px; color: #333;">Drivers List</h3>
-            <div id="driversTable"></div>
+            <div id="driversTable" class="loading">Loading drivers...</div>
         </div>
 
         <!-- Deliveries Tab -->
@@ -440,11 +467,11 @@
                         <input type="time" id="estimatedTime" required />
                     </div>
                 </div>
-                <button type="submit" class="btn">Assign Delivery</button>
+                <button type="submit" class="btn" id="assignDeliveryBtn">Assign Delivery</button>
             </form>
 
             <h3 style="margin-bottom: 15px; color: #333;">Delivery Tracking</h3>
-            <div id="deliveriesTable"></div>
+            <div id="deliveriesTable" class="loading">Loading deliveries...</div>
         </div>
 
         <!-- Search Orders Tab -->
@@ -494,25 +521,195 @@
     </div>
 
     <script>
-        // Data storage keys
-        const ORDERS_KEY = 'orders';
-        const DRIVERS_KEY = 'drivers';
-        const DELIVERIES_KEY = 'deliveries';
+        // Firebase Configuration - REPLACE WITH YOUR CONFIG
+         const firebaseConfig = {
+    apiKey: "AIzaSyCp8P8eS9_aA9J6KtRP8XHj0aYmQ0fWXq0",
+    authDomain: "rsw1-57ef2.firebaseapp.com",
+    projectId: "rsw1-57ef2",
+    storageBucket: "rsw1-57ef2.firebasestorage.app",
+    messagingSenderId: "392691346004",
+    appId: "1:392691346004:web:354dff9d40a987e9595bc1"
+  };
 
-        // Load data from localStorage or empty arrays
-        let orders = JSON.parse(localStorage.getItem(ORDERS_KEY)) || [];
-        let drivers = JSON.parse(localStorage.getItem(DRIVERS_KEY)) || [];
-        let deliveries = JSON.parse(localStorage.getItem(DELIVERIES_KEY)) || [];
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        // Save data helpers
-        function saveOrders() {
-            localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+        // Collections references
+        const ordersCollection = db.collection('orders');
+        const driversCollection = db.collection('drivers');
+        const deliveriesCollection = db.collection('deliveries');
+
+        // Data arrays
+        let orders = [];
+        let drivers = [];
+        let deliveries = [];
+        let isDataLoaded = false;
+
+        // Utility functions
+        function showMessage(type, message, containerId = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            
+            if (containerId) {
+                const container = document.getElementById(containerId);
+                container.insertBefore(messageDiv, container.firstChild);
+            } else {
+                document.body.appendChild(messageDiv);
+            }
+            
+            setTimeout(() => messageDiv.remove(), 3000);
         }
-        function saveDrivers() {
-            localStorage.setItem(DRIVERS_KEY, JSON.stringify(drivers));
+
+        function setButtonLoading(buttonId, isLoading) {
+            const button = document.getElementById(buttonId);
+            button.disabled = isLoading;
+            if (isLoading) {
+                button.textContent = 'Loading...';
+            } else {
+                // Reset button text based on ID
+                if (buttonId === 'addOrderBtn') button.textContent = 'Add Order';
+                if (buttonId === 'addDriverBtn') button.textContent = 'Add Driver';
+                if (buttonId === 'assignDeliveryBtn') button.textContent = 'Assign Delivery';
+            }
         }
-        function saveDeliveries() {
-            localStorage.setItem(DELIVERIES_KEY, JSON.stringify(deliveries));
+
+        // Firebase CRUD Operations
+        async function loadAllData() {
+            try {
+                console.log('Loading data from Firebase...');
+                
+                // Load orders
+                const ordersSnapshot = await ordersCollection.orderBy('createdAt', 'desc').get();
+                orders = ordersSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load drivers
+                const driversSnapshot = await driversCollection.get();
+                drivers = driversSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Load deliveries
+                const deliveriesSnapshot = await deliveriesCollection.get();
+                deliveries = deliveriesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                isDataLoaded = true;
+                console.log('Data loaded successfully:', { orders: orders.length, drivers: drivers.length, deliveries: deliveries.length });
+                
+                // Update UI
+                updateAllUI();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showMessage('error', 'Failed to load data from Firebase: ' + error.message);
+            }
+        }
+
+        async function addOrder(orderData) {
+            try {
+                const docRef = await ordersCollection.add({
+                    ...orderData,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'pending'
+                });
+                
+                const newOrder = { id: docRef.id, ...orderData, status: 'pending' };
+                orders.unshift(newOrder); // Add to beginning of array
+                
+                return newOrder;
+            } catch (error) {
+                console.error('Error adding order:', error);
+                throw error;
+            }
+        }
+
+        async function addDriver(driverData) {
+            try {
+                const docRef = await driversCollection.add({
+                    ...driverData,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'available'
+                });
+                
+                const newDriver = { id: docRef.id, ...driverData, status: 'available' };
+                drivers.push(newDriver);
+                
+                return newDriver;
+            } catch (error) {
+                console.error('Error adding driver:', error);
+                throw error;
+            }
+        }
+
+        async function addDelivery(deliveryData) {
+            try {
+                const docRef = await deliveriesCollection.add({
+                    ...deliveryData,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'assigned'
+                });
+                
+                const newDelivery = { id: docRef.id, ...deliveryData, status: 'assigned' };
+                deliveries.push(newDelivery);
+                
+                return newDelivery;
+            } catch (error) {
+                console.error('Error adding delivery:', error);
+                throw error;
+            }
+        }
+
+        async function updateOrder(orderId, updateData) {
+            try {
+                await ordersCollection.doc(orderId).update(updateData);
+                
+                // Update local array
+                const orderIndex = orders.findIndex(o => o.id === orderId);
+                if (orderIndex !== -1) {
+                    orders[orderIndex] = { ...orders[orderIndex], ...updateData };
+                }
+            } catch (error) {
+                console.error('Error updating order:', error);
+                throw error;
+            }
+        }
+
+        async function updateDriver(driverId, updateData) {
+            try {
+                await driversCollection.doc(driverId).update(updateData);
+                
+                // Update local array
+                const driverIndex = drivers.findIndex(d => d.id === driverId);
+                if (driverIndex !== -1) {
+                    drivers[driverIndex] = { ...drivers[driverIndex], ...updateData };
+                }
+            } catch (error) {
+                console.error('Error updating driver:', error);
+                throw error;
+            }
+        }
+
+        async function updateDelivery(deliveryId, updateData) {
+            try {
+                await deliveriesCollection.doc(deliveryId).update(updateData);
+                
+                // Update local array
+                const deliveryIndex = deliveries.findIndex(d => d.id === deliveryId);
+                if (deliveryIndex !== -1) {
+                    deliveries[deliveryIndex] = { ...deliveries[deliveryIndex], ...updateData };
+                }
+            } catch (error) {
+                console.error('Error updating delivery:', error);
+                throw error;
+            }
         }
 
         // Tab switching functionality
@@ -530,66 +727,233 @@
                 renderDriversTable();
             } else if (tabName === 'deliveries') {
                 renderDeliveriesTable();
+                updateOrdersDropdown();
+                updateDriversDropdown();
             } else if (tabName === 'search') {
                 clearAllFilters();
             }
         }
 
-        // Unique ID generator helper
-        function generateId() {
-            return Date.now() + Math.floor(Math.random() * 1000);
+        // Form Handlers
+        document.getElementById('orderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setButtonLoading('addOrderBtn', true);
+
+            try {
+                const orderData = {
+                    clientName: document.getElementById('clientName').value.trim(),
+                    clientPhone: document.getElementById('clientPhone').value.trim(),
+                    clientEmirate: document.getElementById('clientEmirate').value,
+                    clientCity: document.getElementById('clientCity').value.trim(),
+                    bottleQuantity: parseInt(document.getElementById('bottleQuantity').value),
+                    bottleSize: document.getElementById('bottleSize').value,
+                    deliveryAddress: document.getElementById('deliveryAddress').value.trim(),
+                    orderDate: document.getElementById('orderDate').value,
+                    preferredTime: document.getElementById('preferredTime').value
+                };
+
+                await addOrder(orderData);
+                e.target.reset();
+                renderOrdersTable();
+                updateOrdersDropdown();
+                updateDashboard();
+                showMessage('success', 'Order added successfully!');
+                
+            } catch (error) {
+                showMessage('error', 'Failed to add order: ' + error.message);
+            } finally {
+                setButtonLoading('addOrderBtn', false);
+            }
+        });
+
+        document.getElementById('driverForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setButtonLoading('addDriverBtn', true);
+
+            try {
+                const driverData = {
+                    name: document.getElementById('driverName').value.trim(),
+                    phone: document.getElementById('driverPhone').value.trim(),
+                    vehicleNumber: document.getElementById('vehicleNumber').value.trim(),
+                    vehicleType: document.getElementById('vehicleType').value
+                };
+
+                await addDriver(driverData);
+                e.target.reset();
+                renderDriversTable();
+                updateDriversDropdown();
+                updateDashboard();
+                showMessage('success', 'Driver added successfully!');
+                
+            } catch (error) {
+                showMessage('error', 'Failed to add driver: ' + error.message);
+            } finally {
+                setButtonLoading('addDriverBtn', false);
+            }
+        });
+
+        document.getElementById('deliveryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setButtonLoading('assignDeliveryBtn', true);
+
+            try {
+                const orderId = document.getElementById('selectOrder').value;
+                const driverId = document.getElementById('selectDriver').value;
+                const deliveryDate = document.getElementById('deliveryDate').value;
+                const estimatedTime = document.getElementById('estimatedTime').value;
+
+                if (!orderId || !driverId || !deliveryDate || !estimatedTime) {
+                    throw new Error('Please fill all required fields.');
+                }
+
+                // Check if order already assigned
+                if (deliveries.find(d => d.orderId === orderId)) {
+                    throw new Error('This order is already assigned to a delivery.');
+                }
+
+                const deliveryData = {
+                    orderId,
+                    driverId,
+                    deliveryDate,
+                    estimatedTime
+                };
+
+                // Add delivery to Firebase
+                await addDelivery(deliveryData);
+
+                // Update order status to assigned
+                await updateOrder(orderId, { status: 'assigned' });
+
+                // Update driver status to not available
+                await updateDriver(driverId, { status: 'not available' });
+
+                e.target.reset();
+                renderDeliveriesTable();
+                renderOrdersTable();
+                renderDriversTable();
+                updateOrdersDropdown();
+                updateDriversDropdown();
+                updateDashboard();
+                showMessage('success', 'Delivery assigned successfully!');
+                
+            } catch (error) {
+                showMessage('error', 'Failed to assign delivery: ' + error.message);
+            } finally {
+                setButtonLoading('assignDeliveryBtn', false);
+            }
+        });
+
+        // Mark order as delivered function
+        async function markAsDelivered(orderId) {
+            if (!confirm('Mark this order as delivered?')) return;
+
+            try {
+                const order = orders.find(o => o.id === orderId);
+                if (!order) throw new Error('Order not found');
+
+                // Update order status to delivered
+                await updateOrder(orderId, { status: 'delivered' });
+
+                // Update delivery status and free up the driver
+                const delivery = deliveries.find(d => d.orderId === orderId);
+                if (delivery) {
+                    await updateDelivery(delivery.id, { status: 'delivered' });
+                    
+                    const driver = drivers.find(d => d.id === delivery.driverId);
+                    if (driver) {
+                        await updateDriver(driver.id, { status: 'available' });
+                    }
+                }
+
+                // Update UI
+                renderOrdersTable();
+                renderDeliveriesTable();
+                renderDriversTable();
+                updateOrdersDropdown();
+                updateDriversDropdown();
+                updateDashboard();
+                showMessage('success', 'Order marked as delivered successfully!');
+                
+            } catch (error) {
+                showMessage('error', 'Failed to mark order as delivered: ' + error.message);
+            }
         }
 
-        // ========== ORDERS ==========
+        // Cancel order function
+        async function cancelOrder(orderId) {
+            if (!confirm('Are you sure you want to cancel this order?')) return;
 
-        // Add order form submit handler
-        document.getElementById('orderForm').addEventListener('submit', e => {
-            e.preventDefault();
+            try {
+                const order = orders.find(o => o.id === orderId);
+                if (!order) throw new Error('Order not found');
 
-            const clientName = document.getElementById('clientName').value.trim();
-            const clientPhone = document.getElementById('clientPhone').value.trim();
-            const clientEmirate = document.getElementById('clientEmirate').value;
-            const clientCity = document.getElementById('clientCity').value.trim();
-            const bottleQuantity = parseInt(document.getElementById('bottleQuantity').value);
-            const bottleSize = document.getElementById('bottleSize').value;
-            const deliveryAddress = document.getElementById('deliveryAddress').value.trim();
-            const orderDate = document.getElementById('orderDate').value;
-            const preferredTime = document.getElementById('preferredTime').value;
+                // Update order status to cancelled
+                await updateOrder(orderId, { status: 'cancelled' });
 
-            if (!clientName || !clientPhone || !clientEmirate || !clientCity || !bottleQuantity || !bottleSize || !deliveryAddress || !orderDate) {
-                alert('Please fill all required fields.');
+                // Remove any delivery linked and free driver
+                const deliveryIndex = deliveries.findIndex(d => d.orderId === orderId);
+                if (deliveryIndex !== -1) {
+                    const delivery = deliveries[deliveryIndex];
+                    const driver = drivers.find(d => d.id === delivery.driverId);
+                    if (driver) {
+                        await updateDriver(driver.id, { status: 'available' });
+                    }
+                    
+                    // Delete delivery from Firebase
+                    await deliveriesCollection.doc(delivery.id).delete();
+                    deliveries.splice(deliveryIndex, 1);
+                }
+
+                // Update UI
+                renderOrdersTable();
+                renderDeliveriesTable();
+                renderDriversTable();
+                updateOrdersDropdown();
+                updateDriversDropdown();
+                updateDashboard();
+                showMessage('success', 'Order cancelled successfully!');
+                
+            } catch (error) {
+                showMessage('error', 'Failed to cancel order: ' + error.message);
+            }
+        }
+
+        // Toggle driver status function
+        async function toggleDriverStatus(driverId) {
+            try {
+                const driver = drivers.find(d => d.id === driverId);
+                if (!driver) throw new Error('Driver not found');
+
+                let newStatus;
+                if (driver.status === 'available') {
+                    if (!confirm(`Are you sure you want to set driver "${driver.name}" as busy?`)) return;
+                    newStatus = 'busy';
+                } else {
+                    if (!confirm(`Are you sure you want to set driver "${driver.name}" as available?`)) return;
+                    newStatus = 'available';
+                }
+
+                await updateDriver(driverId, { status: newStatus });
+                
+                renderDriversTable();
+                updateDriversDropdown();
+                updateDashboard();
+                showMessage('success', `Driver status updated to ${newStatus}!`);
+                
+            } catch (error) {
+                showMessage('error', 'Failed to update driver status: ' + error.message);
+            }
+        }
+
+        // Render functions
+        function renderOrdersTable() {
+            const container = document.getElementById('ordersTable');
+            
+            if (!isDataLoaded) {
+                container.innerHTML = '<div class="loading">Loading orders...</div>';
                 return;
             }
 
-            const newOrder = {
-                id: generateId(),
-                clientName,
-                clientPhone,
-                clientEmirate,
-                clientCity,
-                bottleQuantity,
-                bottleSize,
-                deliveryAddress,
-                orderDate,
-                preferredTime,
-                status: 'pending'
-            };
-
-            orders.push(newOrder);
-            saveOrders();
-
-            // Reset form
-            e.target.reset();
-
-            renderOrdersTable();
-            updateOrdersDropdown();
-            updateDashboard();
-            alert('Order added successfully!');
-        });
-
-        // Render Orders Table
-        function renderOrdersTable() {
-            const container = document.getElementById('ordersTable');
             if (orders.length === 0) {
                 container.innerHTML = '<p class="empty-state">No orders found.</p>';
                 return;
@@ -613,17 +977,16 @@
                     <td>`;
 
                 if (order.status === 'assigned') {
-                    html += `<button class="btn" onclick="markAsDelivered(${order.id})" style="background: linear-gradient(135deg, #28a745, #20c997); margin-right: 5px;">Mark Delivered</button>`;
+                    html += `<button class="btn" onclick="markAsDelivered('${order.id}')" style="background: linear-gradient(135deg, #28a745, #20c997); margin-right: 5px;">Mark Delivered</button>`;
                 }
                 
                 if (order.status !== 'cancelled' && order.status !== 'delivered') {
-                    html += `<button class="btn btn-danger" onclick="cancelOrder(${order.id})">Cancel</button>`;
+                    html += `<button class="btn btn-danger" onclick="cancelOrder('${order.id}')">Cancel</button>`;
                 } else if (order.status === 'delivered') {
                     html += '<span style="color: #28a745; font-weight: 600;">✓ Delivered</span>';
                 } else {
                     html += '-';
                 }
-                
 
                 html += `</td></tr>`;
             });
@@ -632,108 +995,14 @@
             container.innerHTML = html;
         }
 
-        // Mark order as delivered function
-        function markAsDelivered(orderId) {
-            if (!confirm('Mark this order as delivered?')) return;
-
-            const order = orders.find(o => o.id === orderId);
-            if (!order) return;
-
-            order.status = 'delivered';
-            saveOrders();
-
-            // Update delivery status and free up the driver
-            const delivery = deliveries.find(d => d.orderId === orderId);
-            if (delivery) {
-                delivery.status = 'delivered';
-                const driver = drivers.find(d => d.id === delivery.driverId);
-                if (driver) {
-                    driver.status = 'available';
-                    saveDrivers();
-                }
-                saveDeliveries();
-            }
-
-            renderOrdersTable();
-            renderDeliveriesTable();
-            renderDriversTable();
-            updateOrdersDropdown();
-            updateDriversDropdown();
-            updateDashboard();
+        function renderDriversTable() {
+            const container = document.getElementById('driversTable');
             
-            alert('Order marked as delivered successfully!');
-        }
-
-        // Cancel order function
-        function cancelOrder(orderId) {
-            if (!confirm('Are you sure you want to cancel this order?')) return;
-
-            const order = orders.find(o => o.id === orderId);
-            if (!order) return;
-
-            order.status = 'cancelled';
-            saveOrders();
-
-            // Remove any delivery linked and free driver
-            const deliveryIndex = deliveries.findIndex(d => d.orderId === orderId);
-            if (deliveryIndex !== -1) {
-                const delivery = deliveries[deliveryIndex];
-                const driver = drivers.find(d => d.id === delivery.driverId);
-                if (driver) {
-                    driver.status = 'available';
-                    saveDrivers();
-                }
-                deliveries.splice(deliveryIndex, 1);
-                saveDeliveries();
-            }
-
-            renderOrdersTable();
-            renderDeliveriesTable();
-            renderDriversTable();
-            updateOrdersDropdown();
-            updateDriversDropdown();
-            updateDashboard();
-        }
-
-        // ========== DRIVERS ==========
-
-        // Add driver form submit handler
-        document.getElementById('driverForm').addEventListener('submit', e => {
-            e.preventDefault();
-
-            const name = document.getElementById('driverName').value.trim();
-            const phone = document.getElementById('driverPhone').value.trim();
-            const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
-            const vehicleType = document.getElementById('vehicleType').value;
-
-            if (!name || !phone || !vehicleNumber || !vehicleType) {
-                alert('Please fill all required fields.');
+            if (!isDataLoaded) {
+                container.innerHTML = '<div class="loading">Loading drivers...</div>';
                 return;
             }
 
-            const newDriver = {
-                id: generateId(),
-                name,
-                phone,
-                vehicleNumber,
-                vehicleType,
-                status: 'available'
-            };
-
-            drivers.push(newDriver);
-            saveDrivers();
-
-            e.target.reset();
-
-            renderDriversTable();
-            updateDriversDropdown();
-            updateDashboard();
-            alert('Driver added successfully!');
-        });
-
-        // Render Drivers Table
-        function renderDriversTable() {
-            const container = document.getElementById('driversTable');
             if (drivers.length === 0) {
                 container.innerHTML = '<p class="empty-state">No drivers found.</p>';
                 return;
@@ -750,7 +1019,7 @@
                     <td>${driver.vehicleType}</td>
                     <td><span class="status-badge status-${driver.status}">${driver.status}</span></td>
                     <td>
-                        <button class="btn" onclick="toggleDriverStatus(${driver.id})">${driver.status === 'available' ? 'Set not available' : 'Set Available'}</button>
+                        <button class="btn" onclick="toggleDriverStatus('${driver.id}')">${driver.status === 'available' ? 'Set not available' : 'Set Available'}</button>
                     </td>
                 </tr>`;
             });
@@ -759,114 +1028,14 @@
             container.innerHTML = html;
         }
 
-        // Toggle driver status function
-        function toggleDriverStatus(driverId) {
-            const driver = drivers.find(d => d.id === driverId);
-            if (!driver) return;
-
-            if (driver.status === 'available') {
-                if (!confirm(`Are you sure you want to set driver "${driver.name}" as busy?`)) return;
-                driver.status = 'busy';
-            } else {
-                if (!confirm(`Are you sure you want to set driver "${driver.name}" as available?`)) return;
-                driver.status = 'available';
-            }
-
-            saveDrivers();
-            renderDriversTable();
-            updateDriversDropdown();
-            updateDashboard();
-        }
-
-        // ========== DELIVERIES ==========
-
-        // Update orders dropdown for delivery assignment (only pending orders)
-        function updateOrdersDropdown() {
-            const selectOrder = document.getElementById('selectOrder');
-            selectOrder.innerHTML = '<option value="">Choose an order...</option>';
-
-            orders.forEach(order => {
-                if (order.status === 'pending') {
-                    const location = (order.clientEmirate && order.clientCity) ? ` - ${order.clientEmirate}, ${order.clientCity}` : '';
-                    selectOrder.innerHTML += `<option value="${order.id}">${order.clientName}${location} (${order.bottleQuantity} boxes, ${order.bottleSize})</option>`;
-                }
-            });
-        }
-
-        // Update drivers dropdown for delivery assignment (only available drivers)
-        function updateDriversDropdown() {
-            const selectDriver = document.getElementById('selectDriver');
-            selectDriver.innerHTML = '<option value="">Choose a driver...</option>';
-
-            drivers.forEach(driver => {
-                if (driver.status === 'available') {
-                    selectDriver.innerHTML += `<option value="${driver.id}">${driver.name} (${driver.vehicleType})</option>`;
-                }
-            });
-        }
-
-        // Add delivery form submit handler
-        document.getElementById('deliveryForm').addEventListener('submit', e => {
-            e.preventDefault();
-
-            const orderId = parseInt(document.getElementById('selectOrder').value);
-            const driverId = parseInt(document.getElementById('selectDriver').value);
-            const deliveryDate = document.getElementById('deliveryDate').value;
-            const estimatedTime = document.getElementById('estimatedTime').value;
-
-            if (!orderId || !driverId || !deliveryDate || !estimatedTime) {
-                alert('Please fill all required fields.');
-                return;
-            }
-
-            // Check if order already assigned
-            if (deliveries.find(d => d.orderId === orderId)) {
-                alert('This order is already assigned to a delivery.');
-                return;
-            }
-
-            const newDelivery = {
-                id: generateId(),
-                orderId,
-                driverId,
-                deliveryDate,
-                estimatedTime,
-                status: 'assigned'
-            };
-
-            deliveries.push(newDelivery);
-
-            // Update order status to assigned
-            const order = orders.find(o => o.id === orderId);
-            if (order) {
-                order.status = 'assigned';
-            }
-
-            // Update driver status to busy
-            const driver = drivers.find(d => d.id === driverId);
-            if (driver) {
-                driver.status = 'not available';
-            }
-
-            saveDeliveries();
-            saveOrders();
-            saveDrivers();
-
-            e.target.reset();
-
-            renderDeliveriesTable();
-            renderOrdersTable();
-            renderDriversTable();
-            updateOrdersDropdown();
-            updateDriversDropdown();
-            updateDashboard();
-
-            alert('Delivery assigned successfully!');
-        });
-
-        // Render Deliveries Table
         function renderDeliveriesTable() {
             const container = document.getElementById('deliveriesTable');
+            
+            if (!isDataLoaded) {
+                container.innerHTML = '<div class="loading">Loading deliveries...</div>';
+                return;
+            }
+
             if (deliveries.length === 0) {
                 container.innerHTML = '<p class="empty-state">No deliveries assigned.</p>';
                 return;
@@ -898,9 +1067,32 @@
             container.innerHTML = html;
         }
 
-        // ========== SEARCH ORDERS ==========
+        // Update orders dropdown for delivery assignment (only pending orders)
+        function updateOrdersDropdown() {
+            const selectOrder = document.getElementById('selectOrder');
+            selectOrder.innerHTML = '<option value="">Choose an order...</option>';
 
-        // Clear all search filters
+            orders.forEach(order => {
+                if (order.status === 'pending') {
+                    const location = (order.clientEmirate && order.clientCity) ? ` - ${order.clientEmirate}, ${order.clientCity}` : '';
+                    selectOrder.innerHTML += `<option value="${order.id}">${order.clientName}${location} (${order.bottleQuantity} boxes, ${order.bottleSize})</option>`;
+                }
+            });
+        }
+
+        // Update drivers dropdown for delivery assignment (only available drivers)
+        function updateDriversDropdown() {
+            const selectDriver = document.getElementById('selectDriver');
+            selectDriver.innerHTML = '<option value="">Choose a driver...</option>';
+
+            drivers.forEach(driver => {
+                if (driver.status === 'available') {
+                    selectDriver.innerHTML += `<option value="${driver.id}">${driver.name} (${driver.vehicleType})</option>`;
+                }
+            });
+        }
+
+        // Search functionality
         function clearAllFilters() {
             document.getElementById('searchInput').value = '';
             document.getElementById('searchEmirate').value = '';
@@ -909,13 +1101,17 @@
             document.getElementById('searchResults').innerHTML = '';
         }
 
-        // Perform search with all filters
         function performSearch() {
             const nameQuery = document.getElementById('searchInput').value.trim().toLowerCase();
             const emirateQuery = document.getElementById('searchEmirate').value;
             const cityQuery = document.getElementById('searchCity').value.trim().toLowerCase();
             const statusQuery = document.getElementById('searchStatus').value;
             const resultsContainer = document.getElementById('searchResults');
+
+            if (!isDataLoaded) {
+                resultsContainer.innerHTML = '<div class="loading">Loading data...</div>';
+                return;
+            }
 
             // If all filters are empty, show nothing
             if (!nameQuery && !emirateQuery && !cityQuery && !statusQuery) {
@@ -964,15 +1160,19 @@
             resultsContainer.innerHTML = html;
         }
 
-        // Add event listeners for all search inputs
+        // Add event listeners for search inputs
         document.getElementById('searchInput').addEventListener('input', performSearch);
         document.getElementById('searchEmirate').addEventListener('change', performSearch);
         document.getElementById('searchCity').addEventListener('input', performSearch);
         document.getElementById('searchStatus').addEventListener('change', performSearch);
 
-        // ========== DASHBOARD UPDATE ==========
-
+        // Dashboard update function
         function updateDashboard() {
+            if (!isDataLoaded) {
+                document.getElementById('recentActivity').innerHTML = '<div class="loading">Loading dashboard...</div>';
+                return;
+            }
+
             document.getElementById('totalOrders').textContent = orders.length;
             document.getElementById('pendingOrders').textContent = orders.filter(o => o.status === 'pending').length;
             document.getElementById('totalDrivers').textContent = drivers.length;
@@ -987,15 +1187,15 @@
 
             let html = '<ul style="list-style:none; padding-left:0;">';
 
-            // Show last 5 orders (descending by date added)
-            const sortedOrders = [...orders].sort((a, b) => b.id - a.id).slice(0, 5);
+            // Show last 5 orders (sorted by creation time)
+            const sortedOrders = [...orders].slice(0, 5);
             sortedOrders.forEach(o => {
                 const location = (o.clientEmirate && o.clientCity) ? ` from ${o.clientEmirate}, ${o.clientCity}` : '';
                 html += `<li style="margin-bottom: 8px;">Order from <strong>${o.clientName}</strong>${location} (${o.status})</li>`;
             });
 
-            // Show last 5 deliveries (descending by id)
-            const sortedDeliveries = [...deliveries].sort((a, b) => b.id - a.id).slice(0, 5);
+            // Show last 5 deliveries
+            const sortedDeliveries = [...deliveries].slice(0, 5);
             sortedDeliveries.forEach(d => {
                 const order = orders.find(o => o.id === d.orderId);
                 const driver = drivers.find(dr => dr.id === d.driverId);
@@ -1008,15 +1208,68 @@
             recentActivity.innerHTML = html;
         }
 
-        // Initialize all dropdowns and tables on page load
-        window.onload = () => {
-            updateOrdersDropdown();
-            updateDriversDropdown();
+        function updateAllUI() {
             renderOrdersTable();
             renderDriversTable();
             renderDeliveriesTable();
+            updateOrdersDropdown();
+            updateDriversDropdown();
             updateDashboard();
+        }
+
+        // Initialize the application
+        window.onload = async () => {
+            console.log('Initializing application...');
+            
+            // Set today's date as default for order date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('orderDate').value = today;
+            document.getElementById('deliveryDate').value = today;
+            
+            // Load all data from Firebase
+            await loadAllData();
         };
+
+        // Real-time listeners (optional - uncomment to enable real-time updates)
+        /*
+        // Listen for real-time updates on orders
+        ordersCollection.onSnapshot((snapshot) => {
+            orders = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            if (isDataLoaded) {
+                renderOrdersTable();
+                updateOrdersDropdown();
+                updateDashboard();
+            }
+        });
+
+        // Listen for real-time updates on drivers
+        driversCollection.onSnapshot((snapshot) => {
+            drivers = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            if (isDataLoaded) {
+                renderDriversTable();
+                updateDriversDropdown();
+                updateDashboard();
+            }
+        });
+
+        // Listen for real-time updates on deliveries
+        deliveriesCollection.onSnapshot((snapshot) => {
+            deliveries = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            if (isDataLoaded) {
+                renderDeliveriesTable();
+                updateDashboard();
+            }
+        });
+        */
     </script>
 </body>
 </html>
