@@ -7,32 +7,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 </head>
 
+<!-- mohamed amin jbari incript -->
+ 
 <body>
-<div id="mobile-nav" style="display:none;position:fixed;top:20px;right:20px;z-index:3000;">
-  <button id="hamburger-btn" class="btn" style="padding:10px 15px;font-size:22px;">
-    ☰
-  </button>
-  <div id="drawer" style="display:none;position:absolute;top:50px;right:0;background:white;border-radius:15px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:180px;">
-    <button class="tab" onclick="showTab(event,'dashboard')">🏠 Dashboard</button>
-    <button class="tab" onclick="showTab(event,'scanner')">📱 Scanner</button>
-    <button class="tab" onclick="showTab(event,'inventory')">📦 Inventory</button>
-    <button class="tab" onclick="showTab(event,'clients')">👥 Clients</button>
-    <button class="tab" onclick="showTab(event,'reports')">📊 Reports</button>
-  </div>
-</div>
-
 <div class="floating-particles"></div>
 <div class="container">
 <div class="header">
-<h1>🚰 Bottle Tracking System</h1>
-<p>Advanced inventory management for your 5-gallon bottles</p>
+<h1> 5 Gallon Tracking System</h1>
+<p>AL Rawdah operation system</p>
 </div>
 
 <div class="tabs">
 <button class="tab active" onclick="showTab(event,'dashboard')">🏠 Dashboard</button>
 <button class="tab" onclick="showTab(event,'scanner')">📱 Scanner</button>
 <button class="tab" onclick="showTab(event,'inventory')">📦 Inventory</button>
-<button class="tab" onclick="showTab(event,'clients')">👥 Clients</button>
 <button class="tab" onclick="showTab(event,'reports')">📊 Reports</button>
 </div>
 
@@ -59,10 +47,6 @@
 <div class="stat-card">
 <div class="stat-number" id="maintenance-bottles">0</div>
 <div class="stat-label">Maintenance</div>
-</div>
-<div class="stat-card">
-<div class="stat-number" id="total-clients">0</div>
-<div class="stat-label">Active Clients</div>
 </div>
 </div>
 
@@ -145,22 +129,6 @@ Waiting for barcode input...
 </div>
 </div>
 
-<!-- Clients Tab -->
-<div id="clients" class="tab-content">
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
-<h2>👥 Client Management</h2>
-<button class="btn btn-success" onclick="addNewClient()">➕ Add New Client</button>
-</div>
-
-<div class="search-row">
-<input type="text" id="search-clients" class="search-input" placeholder="🔍 Search clients by name or phone..." onkeyup="searchClients()">
-</div>
-
-<div id="client-list" class="bottle-grid">
-<!-- Clients will be populated here -->
-</div>
-</div>
-
 <!-- Reports Tab -->
 <div id="reports" class="tab-content">
 <h2>📊 Reports & Analytics</h2>
@@ -187,7 +155,7 @@ Waiting for barcode input...
 <div class="modal-content">
 <span class="close" onclick="closeModal()">&times;</span>
 <h2 id="modal-title">Bottle Actions</h2>
-<div id="modal-bottle-info"></div>
+<p id="modal-bottle-info"></p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
 <button class="btn btn-success" onclick="actionRefill()">🔄 Refill</button>
 <button class="btn btn-warning" onclick="actionDeliver()">🚚 Deliver</button>
@@ -203,9 +171,7 @@ Waiting for barcode input...
 <h2>➕ Add New Bottle</h2>
 <div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
 <input type="text" id="new-bottle-id" placeholder="Bottle Barcode/ID" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<select id="new-bottle-client-select" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<option value="">Select Client (optional)</option>
-</select>
+<input type="text" id="new-bottle-client" placeholder="Client Name (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
 <select id="new-bottle-status" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
 <option value="available">Available</option>
 <option value="with-client">With Client</option>
@@ -213,36 +179,6 @@ Waiting for barcode input...
 <option value="maintenance">Maintenance</option>
 </select>
 <button class="btn btn-success" onclick="createNewBottle()" style="margin-top:10px;">✅ Create Bottle</button>
-</div>
-</div>
-</div>
-
-<div id="add-client-modal" class="modal">
-<div class="modal-content">
-<span class="close" onclick="closeClientModal()">&times;</span>
-<h2>➕ Add New Client</h2>
-<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
-<input type="text" id="new-client-name" placeholder="Client Name" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<input type="tel" id="new-client-phone" placeholder="Phone Number" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<input type="text" id="new-client-address" placeholder="Address (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<textarea id="new-client-notes" placeholder="Notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:80px;"></textarea>
-<button class="btn btn-success" onclick="createNewClient()" style="margin-top:10px;">✅ Create Client</button>
-</div>
-</div>
-</div>
-
-<div id="delivery-modal" class="modal">
-<div class="modal-content">
-<span class="close" onclick="closeDeliveryModal()">&times;</span>
-<h2>🚚 Deliver Bottle</h2>
-<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
-<select id="delivery-client-select" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<option value="">Select Client</option>
-</select>
-<input type="date" id="delivery-date" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<input type="time" id="delivery-time" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<textarea id="delivery-notes" placeholder="Delivery notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:80px;"></textarea>
-<button class="btn btn-success" onclick="confirmDelivery()" style="margin-top:10px;">✅ Confirm Delivery</button>
 </div>
 </div>
 </div>
@@ -288,14 +224,13 @@ console.log('Firebase initialized successfully!');
 // Application State
 const STORAGE_KEY = 'bottleAppData_v3';
 let bottles = [];
-let clients = [];
 let currentBottleId = null;
 let activityLog = [];
 let scannerActive = false;
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Initializing Enhanced Bottle Tracking System...');
+    console.log('Initializing Bottle Tracking System...');
     
     // Wait a moment for Firebase to be available
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -316,16 +251,14 @@ async function saveData() {
         const db = window.firebaseDb;
         await window.setDoc(window.doc(db, 'bottleData', 'main'), {
             bottles: bottles,
-            clients: clients,
             activityLog: activityLog,
             lastUpdated: new Date().toISOString()
         });
-        console.log('data t sevat dir xi 7aja akhra');
+        console.log('✅ Data saved to Firebase successfully');
         
         // Also save to localStorage as backup
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             bottles: bottles,
-            clients: clients,
             activityLog: activityLog,
             lastUpdated: new Date().toISOString()
         }));
@@ -336,7 +269,6 @@ async function saveData() {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 bottles: bottles,
-                clients: clients,
                 activityLog: activityLog,
                 lastUpdated: new Date().toISOString()
             }));
@@ -358,9 +290,8 @@ async function loadData() {
         if (docSnap.exists()) {
             const data = docSnap.data();
             bottles = data.bottles || [];
-            clients = data.clients || [];
             activityLog = data.activityLog || [];
-            console.log(`✅ Loaded ${bottles.length} bottles and ${clients.length} clients from Firebase`);
+            console.log(`✅ Loaded ${bottles.length} bottles from Firebase`);
         } else {
             console.log('No data found in Firebase, checking localStorage...');
             
@@ -369,9 +300,8 @@ async function loadData() {
             if (raw) {
                 const data = JSON.parse(raw);
                 bottles = data.bottles || [];
-                clients = data.clients || [];
                 activityLog = data.activityLog || [];
-                console.log(`✅ Loaded ${bottles.length} bottles and ${clients.length} clients from localStorage`);
+                console.log(`✅ Loaded ${bottles.length} bottles from localStorage`);
                 
                 // Save to Firebase for future use
                 await saveData();
@@ -390,9 +320,8 @@ async function loadData() {
             if (raw) {
                 const data = JSON.parse(raw);
                 bottles = data.bottles || [];
-                clients = data.clients || [];
                 activityLog = data.activityLog || [];
-                console.log(`✅ Loaded ${bottles.length} bottles and ${clients.length} clients from localStorage fallback`);
+                console.log(`✅ Loaded ${bottles.length} bottles from localStorage fallback`);
             } else {
                 console.log('No localStorage data found, initializing with sample data');
                 initializeSampleData();
@@ -405,97 +334,17 @@ async function loadData() {
 }
 
 function initializeSampleData() {
-    // Sample clients
-    clients = [
-        { 
-            id: 'client1', 
-            name: 'ABC Company', 
-            phone: '+1234567890', 
-            address: '123 Business St', 
-            notes: 'Regular customer',
-            created: new Date().toISOString(),
-            bottleCount: 0
-        },
-        { 
-            id: 'client2', 
-            name: 'XYZ Corp', 
-            phone: '+0987654321', 
-            address: '456 Corporate Ave', 
-            notes: 'Monthly delivery',
-            created: new Date().toISOString(),
-            bottleCount: 0
-        }
-    ];
-    
-    // Sample bottles with enhanced details
     bottles = [
-        { 
-            id: '1234567890123', 
-            status: 'available', 
-            clientId: '', 
-            clientName: '',
-            clientPhone: '',
-            refillCount: 3,
-            deliveryCount: 2,
-            lastUpdated: new Date().toISOString(),
-            created: new Date().toISOString(),
-            history: [
-                { action: 'Bottle created', timestamp: new Date().toISOString() },
-                { action: 'Refilled and available', timestamp: new Date().toISOString() }
-            ]
-        },
-        { 
-            id: '9876543210987', 
-            status: 'with-client', 
-            clientId: 'client1',
-            clientName: 'ABC Company',
-            clientPhone: '+1234567890',
-            refillCount: 5,
-            deliveryCount: 4,
-            lastUpdated: new Date().toISOString(),
-            created: new Date().toISOString(),
-            deliveryDate: new Date().toISOString(),
-            deliveryNotes: 'Delivered on schedule',
-            history: [
-                { action: 'Bottle created', timestamp: new Date().toISOString() },
-                { action: 'Delivered to ABC Company', timestamp: new Date().toISOString(), client: 'ABC Company' }
-            ]
-        },
-        { 
-            id: '5555666677778', 
-            status: 'needs-refill', 
-            clientId: 'client2',
-            clientName: 'XYZ Corp',
-            clientPhone: '+0987654321',
-            refillCount: 7,
-            deliveryCount: 6,
-            lastUpdated: new Date().toISOString(),
-            created: new Date().toISOString(),
-            returnDate: new Date().toISOString(),
-            history: [
-                { action: 'Bottle created', timestamp: new Date().toISOString() },
-                { action: 'Returned from XYZ Corp, needs refill', timestamp: new Date().toISOString(), client: 'XYZ Corp' }
-            ]
-        }
+        { id: '1234567890123', status: 'available', client: '', lastUpdated: new Date().toISOString(), refillCount: 5, quality: 'Good' },
+        { id: '9876543210987', status: 'with-client', client: 'ABC Company', lastUpdated: new Date().toISOString(), refillCount: 3, quality: 'Average' },
+        { id: '5555666677778', status: 'needs-refill', client: 'XYZ Corp', lastUpdated: new Date().toISOString(), refillCount: 8, quality: 'Excellent' }
     ];
-    
-    // Update client bottle counts
-    updateClientBottleCounts();
     
     activityLog = [
-        { action: 'System initialized with enhanced sample data', timestamp: new Date().toISOString() },
-        { action: 'Client ABC Company added to system', timestamp: new Date().toISOString() },
-        { action: 'Client XYZ Corp added to system', timestamp: new Date().toISOString() },
+        { action: 'System initialized with sample data', timestamp: new Date().toISOString() },
         { action: 'Bottle 1234567890123 marked as available', timestamp: new Date().toISOString() },
-        { action: 'Bottle 9876543210987 delivered to ABC Company (+1234567890)', timestamp: new Date().toISOString() },
-        { action: 'Bottle 5555666677778 returned from XYZ Corp (+0987654321)', timestamp: new Date().toISOString() }
+        { action: 'Bottle 9876543210987 delivered to ABC Company', timestamp: new Date().toISOString() }
     ];
-}
-
-function updateClientBottleCounts() {
-    clients.forEach(client => {
-        client.bottleCount = bottles.filter(bottle => bottle.clientId === client.id).length;
-    });
 }
 
 // Tab Management
@@ -508,24 +357,20 @@ function showTab(event, tabName) {
     
     if (tabName === 'dashboard') updateDashboard();
     if (tabName === 'inventory') updateInventoryDisplay();
-    if (tabName === 'clients') updateClientDisplay();
     if (tabName === 'reports') updateReports();
 }
 
-// Barcode Scanner Functions (keeping original functionality)
+// Barcode Scanner Functions
 function startBarcodeScanner() {
     if (scannerActive) return;
-
-    // Remove previous listeners to avoid duplicates
-    Quagga.offDetected();
-
+    
     const scannerDiv = document.getElementById('barcode-scanner');
     const placeholder = document.getElementById('scanner-placeholder');
     const startBtn = document.getElementById('start-scanner-btn');
     const stopBtn = document.getElementById('stop-scanner-btn');
-
+    
     placeholder.style.display = 'none';
-
+    
     Quagga.init({
         inputStream: {
             name: "Live",
@@ -541,25 +386,19 @@ function startBarcodeScanner() {
             patchSize: "medium",
             halfSample: false
         },
-        numOfWorkers: 2,
+        numOfWorkers: 4,
         frequency: 5,
         decoder: {
-            readers: [
-                "code_128_reader",
-                "ean_reader",
-                "ean_8_reader",
-                "code_39_reader",
-                "upc_reader",
-                "upc_e_reader"
-            ]
+            readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader", "upc_e_reader"]
         }
     }, function(err) {
         if (err) {
             console.error('QuaggaJS initialization error:', err);
             placeholder.style.display = 'flex';
-            alert('Camera access failed or not found. Please check permissions and device.');
+            alert('Camera access failed. Please ensure camera permissions are granted.');
             return;
         }
+        
         Quagga.start();
         scannerActive = true;
         startBtn.style.display = 'none';
@@ -568,51 +407,62 @@ function startBarcodeScanner() {
 
     let lastScannedCodes = [];
     let confirmationCount = 0;
-    const REQUIRED_CONFIRMATIONS = 2;
+    const REQUIRED_CONFIRMATIONS = 3;
 
     Quagga.onDetected(function(data) {
         const code = data.codeResult.code;
-        if (!isValidBarcode(code)) return;
-
+        
+        if (!isValidBarcode(code)) {
+            return;
+        }
+        
         lastScannedCodes.push(code);
-        if (lastScannedCodes.length > 8) lastScannedCodes.shift();
-
-        // Check if the last 2 codes are the same
-        if (lastScannedCodes.length >= REQUIRED_CONFIRMATIONS &&
-            lastScannedCodes.slice(-REQUIRED_CONFIRMATIONS).every(c => c === code)) {
-
-            document.getElementById('scanned-code').textContent = code;
-            document.getElementById('scan-result').style.display = 'block';
-            document.getElementById('manual-barcode').value = code;
-            updateBarcodeDisplay(code);
-
-            stopBarcodeScanner();
-            lastScannedCodes = [];
+        if (lastScannedCodes.length > 5) {
+            lastScannedCodes.shift();
+        }
+        
+        const consistentCode = getConsistentCode(lastScannedCodes);
+        
+        if (consistentCode) {
+            confirmationCount++;
+            
+            if (confirmationCount >= REQUIRED_CONFIRMATIONS) {
+                document.getElementById('scanned-code').textContent = consistentCode;
+                document.getElementById('scan-result').style.display = 'block';
+                document.getElementById('manual-barcode').value = consistentCode;
+                updateBarcodeDisplay(consistentCode);
+                
+                stopBarcodeScanner();
+                lastScannedCodes = [];
+                confirmationCount = 0;
+                
+                setTimeout(() => {
+                    processBottle();
+                }, 1000);
+            }
+        } else {
             confirmationCount = 0;
-
-            setTimeout(() => {
-                processBottle();
-            }, 800);
         }
     });
 }
 
 function stopBarcodeScanner() {
     if (!scannerActive) return;
+    
     Quagga.stop();
     scannerActive = false;
-
+    
     const placeholder = document.getElementById('scanner-placeholder');
     const startBtn = document.getElementById('start-scanner-btn');
     const stopBtn = document.getElementById('stop-scanner-btn');
-
+    
     placeholder.style.display = 'flex';
     startBtn.style.display = 'inline-block';
     stopBtn.style.display = 'none';
-
+    
     setTimeout(() => {
         document.getElementById('scan-result').style.display = 'none';
-    }, 2000);
+    }, 3000);
 }
 
 function isValidBarcode(code) {
@@ -679,7 +529,7 @@ function updateBarcodeDisplay(barcode) {
     }
 }
 
-// Enhanced Bottle Processing
+// Bottle Processing
 function processBottle() {
     const input = document.getElementById('manual-barcode');
     const bottleId = input.value.replace(/[^0-9]/g, '');
@@ -697,60 +547,22 @@ function processBottle() {
     const info = document.getElementById('modal-bottle-info');
     
     if (bottle) {
-        const client = clients.find(c => c.id === bottle.clientId);
         title.textContent = `Bottle ${bottleId}`;
         info.innerHTML = `
-            <div style="background:rgba(33,150,243,0.1);padding:20px;border-radius:15px;margin:15px 0;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-                    <div>
-                        <strong>🏷️ Status:</strong><br>
-                        <span class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span>
-                    </div>
-                    <div>
-                        <strong>🔄 Refill Count:</strong><br>
-                        <span style="font-size:18px;font-weight:bold;color:#2196F3;">${bottle.refillCount || 0}</span>
-                    </div>
-                    <div>
-                        <strong>🚚 Delivery Count:</strong><br>
-                        <span style="font-size:18px;font-weight:bold;color:#28a745;">${bottle.deliveryCount || 0}</span>
-                    </div>
-                    <div>
-                        <strong>📅 Last Updated:</strong><br>
-                        <span style="font-size:14px;">${new Date(bottle.lastUpdated).toLocaleString()}</span>
-                    </div>
-                </div>
-                ${bottle.clientName ? `
-                <div style="margin-top:15px;padding:15px;background:rgba(40,167,69,0.1);border-radius:10px;">
-                    <strong>👤 Current Client:</strong><br>
-                    <div style="font-size:16px;font-weight:bold;color:#155724;">${bottle.clientName}</div>
-                    <div style="font-size:14px;color:#155724;">📞 ${bottle.clientPhone}</div>
-                    ${bottle.deliveryDate ? `<div style="font-size:14px;color:#155724;">📅 Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}</div>` : ''}
-                    ${bottle.deliveryNotes ? `<div style="font-size:14px;color:#155724;">📝 ${bottle.deliveryNotes}</div>` : ''}
-                </div>
-                ` : ''}
-                ${bottle.history && bottle.history.length > 0 ? `
-                <div style="margin-top:15px;">
-                    <strong>📋 Recent History:</strong>
-                    <div style="max-height:120px;overflow-y:auto;margin-top:8px;">
-                        ${bottle.history.slice(-3).map(h => `
-                            <div style="padding:5px;margin:3px 0;background:rgba(0,0,0,0.05);border-radius:5px;font-size:13px;">
-                                ${h.action} - ${new Date(h.timestamp).toLocaleString()}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                ` : ''}
+            <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;margin:10px 0;">
+                <strong>Current Status:</strong> <span class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span><br>
+                <strong>Client:</strong> ${bottle.client || 'None'}<br>
+                <strong>Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}<br>
+                <strong>Refilled:</strong> ${bottle.refillCount || 0} times<br>
+                <strong>Quality:</strong> ${bottle.quality || 'Unknown'}
             </div>
         `;
     } else {
         title.textContent = `New Bottle ${bottleId}`;
         info.innerHTML = `
-            <div style="background:rgba(40,167,69,0.1);padding:20px;border-radius:15px;margin:15px 0;color:#155724;">
-                <div style="text-align:center;">
-                    <div style="font-size:3rem;margin-bottom:10px;">🆕</div>
-                    <strong style="font-size:18px;">New bottle detected!</strong><br>
-                    <div style="margin-top:10px;">This bottle is not in the system yet. Choose an action to add it with detailed information.</div>
-                </div>
+            <div style="background:rgba(40,167,69,0.1);padding:15px;border-radius:10px;margin:10px 0;color:#155724;">
+                <strong>📝 New bottle detected!</strong><br>
+                This bottle is not in the system yet. Choose an action to add it.
             </div>
         `;
     }
@@ -767,120 +579,24 @@ function closeAddModal() {
     document.getElementById('add-bottle-modal').style.display = 'none';
 }
 
-function closeClientModal() {
-    document.getElementById('add-client-modal').style.display = 'none';
-}
-
-function closeDeliveryModal() {
-    document.getElementById('delivery-modal').style.display = 'none';
-}
-
 function actionRefill() {
-    let bottle = bottles.find(b => b.id === currentBottleId);
-    
-    if (!bottle) {
-        // Create new bottle
-        bottle = createNewBottleRecord(currentBottleId, 'available');
-    } else {
-        bottle.refillCount = (bottle.refillCount || 0) + 1;
-        bottle.status = 'available';
-        bottle.clientId = '';
-        bottle.clientName = '';
-        bottle.clientPhone = '';
-        bottle.lastUpdated = new Date().toISOString();
-        bottle.history = bottle.history || [];
-        bottle.history.push({
-            action: `Refilled (Count: ${bottle.refillCount})`,
-            timestamp: new Date().toISOString()
-        });
-    }
-    
-    addActivity(`Bottle ${currentBottleId} refilled (Refill #${bottle.refillCount}) and marked available`);
-    updateClientBottleCounts();
-    saveData();
-    updateAllDisplays();
+    updateBottleStatus('available', '');
+    addActivity(`Bottle ${currentBottleId} refilled and marked available`);
     closeModal();
 }
 
 function actionDeliver() {
-    // Show delivery modal with client selection
-    populateClientDropdowns();
-    document.getElementById('delivery-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('delivery-time').value = new Date().toTimeString().slice(0,5);
-    document.getElementById('delivery-modal').style.display = 'block';
-}
-
-function confirmDelivery() {
-    const clientId = document.getElementById('delivery-client-select').value;
-    const deliveryDate = document.getElementById('delivery-date').value;
-    const deliveryTime = document.getElementById('delivery-time').value;
-    const deliveryNotes = document.getElementById('delivery-notes').value;
-    
-    if (!clientId) {
-        alert('Please select a client for delivery');
-        return;
+    const client = prompt('Enter client name and phone num:');
+    if (client) {
+        updateBottleStatus('with-client', client);
+        addActivity(`Bottle ${currentBottleId} delivered to ${client}`);
     }
-    
-    const client = clients.find(c => c.id === clientId);
-    if (!client) {
-        alert('Selected client not found');
-        return;
-    }
-    
-    let bottle = bottles.find(b => b.id === currentBottleId);
-    
-    if (!bottle) {
-        bottle = createNewBottleRecord(currentBottleId, 'with-client');
-    } else {
-        bottle.status = 'with-client';
-        bottle.deliveryCount = (bottle.deliveryCount || 0) + 1;
-        bottle.lastUpdated = new Date().toISOString();
-    }
-    
-    bottle.clientId = clientId;
-    bottle.clientName = client.name;
-    bottle.clientPhone = client.phone;
-    bottle.deliveryDate = deliveryDate && deliveryTime ? `${deliveryDate}T${deliveryTime}` : new Date().toISOString();
-    bottle.deliveryNotes = deliveryNotes;
-    
-    bottle.history = bottle.history || [];
-    bottle.history.push({
-        action: `Delivered to ${client.name} (Delivery #${bottle.deliveryCount})`,
-        timestamp: new Date().toISOString(),
-        client: client.name,
-        phone: client.phone,
-        notes: deliveryNotes
-    });
-    
-    addActivity(`Bottle ${currentBottleId} delivered to ${client.name} (${client.phone}) - Delivery #${bottle.deliveryCount}`);
-    updateClientBottleCounts();
-    saveData();
-    updateAllDisplays();
-    closeDeliveryModal();
     closeModal();
 }
 
 function actionReturn() {
-    let bottle = bottles.find(b => b.id === currentBottleId);
-    
-    if (!bottle) {
-        bottle = createNewBottleRecord(currentBottleId, 'needs-refill');
-    } else {
-        bottle.status = 'needs-refill';
-        bottle.returnDate = new Date().toISOString();
-        bottle.lastUpdated = new Date().toISOString();
-        bottle.history = bottle.history || [];
-        bottle.history.push({
-            action: `Returned from ${bottle.clientName || 'client'}, needs refill`,
-            timestamp: new Date().toISOString(),
-            client: bottle.clientName
-        });
-    }
-    
-    addActivity(`Bottle ${currentBottleId} returned from ${bottle.clientName || 'client'} (${bottle.clientPhone || ''}) and needs refill`);
-    updateClientBottleCounts();
-    saveData();
-    updateAllDisplays();
+    updateBottleStatus('needs-refill', '');
+    addActivity(`Bottle ${currentBottleId} returned and needs refill`);
     closeModal();
 }
 
@@ -894,62 +610,67 @@ function actionManual() {
     };
     
     if (statusMap[status]) {
-        let bottle = bottles.find(b => b.id === currentBottleId);
-        
-        if (!bottle) {
-            bottle = createNewBottleRecord(currentBottleId, statusMap[status]);
-        } else {
-            bottle.status = statusMap[status];
-            bottle.lastUpdated = new Date().toISOString();
-            bottle.history = bottle.history || [];
-            bottle.history.push({
-                action: `Manually updated to ${statusMap[status]}`,
-                timestamp: new Date().toISOString()
-            });
-        }
-        
+        let client = '';
         if (status === '2') {
-            // Handle client selection for "with-client" status
-            actionDeliver();
-            return;
+            client = prompt('Enter client name:') || '';
         }
-        
+        updateBottleStatus(statusMap[status], client);
         addActivity(`Bottle ${currentBottleId} manually updated to ${statusMap[status]}`);
-        updateClientBottleCounts();
-        saveData();
-        updateAllDisplays();
     }
     closeModal();
 }
 
-function createNewBottleRecord(bottleId, status) {
-    const newBottle = {
-        id: bottleId,
-        status: status,
-        clientId: '',
-        clientName: '',
-        clientPhone: '',
-        refillCount: status === 'available' ? 1 : 0,
-        deliveryCount: 0,
-        lastUpdated: new Date().toISOString(),
-        created: new Date().toISOString(),
-        history: [{
-            action: `Bottle created with status: ${status}`,
-            timestamp: new Date().toISOString()
-        }]
-    };
-    
-    bottles.push(newBottle);
-    return newBottle;
+// Bottle Management
+function updateBottleStatus(newStatus, client = '') {
+    let bottle = bottles.find(b => b.id === currentBottleId);
+
+    if (!bottle) {
+        bottle = {
+            id: currentBottleId,
+            status: newStatus,
+            client: client,
+            lastUpdated: new Date().toISOString(),
+            refillCount: newStatus === 'available' ? 1 : 0,
+            quality: 'Good'
+        };
+        bottles.push(bottle);
+    } else {
+        // Increment refillCount if status is set to available (refilled)
+        if (newStatus === 'available') {
+            bottle.refillCount = (bottle.refillCount || 0) + 1;
+        }
+        bottle.status = newStatus;
+        bottle.client = client;
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.quality = bottle.quality || 'Good';
+    }
+
+    saveData();
+    updateAllDisplays();
+
+    document.getElementById('manual-barcode').value = '';
+    document.getElementById('barcode-display').innerHTML = 'Waiting for barcode input...';
 }
 
-// Enhanced Display Updates
+function addActivity(message) {
+    activityLog.unshift({
+        action: message,
+        timestamp: new Date().toISOString()
+    });
+    
+    if (activityLog.length > 50) {
+        activityLog = activityLog.slice(0, 50);
+    }
+    
+    saveData(); // This will now save to Firebase
+    updateDashboard();
+}
+
+// Display Updates
 function updateAllDisplays() {
     updateDashboard();
     updateInventoryDisplay();
-    updateClientDisplay();
     updateReports();
-    populateClientDropdowns();
 }
 
 function updateDashboard() {
@@ -958,8 +679,7 @@ function updateDashboard() {
         available: bottles.filter(b => b.status === 'available').length,
         withClient: bottles.filter(b => b.status === 'with-client').length,
         needsRefill: bottles.filter(b => b.status === 'needs-refill').length,
-        maintenance: bottles.filter(b => b.status === 'maintenance').length,
-        clients: clients.length
+        maintenance: bottles.filter(b => b.status === 'maintenance').length
     };
     
     document.getElementById('total-bottles').textContent = stats.total;
@@ -967,14 +687,13 @@ function updateDashboard() {
     document.getElementById('with-client-bottles').textContent = stats.withClient;
     document.getElementById('needs-refill-bottles').textContent = stats.needsRefill;
     document.getElementById('maintenance-bottles').textContent = stats.maintenance;
-    document.getElementById('total-clients').textContent = stats.clients;
     
     const activityDiv = document.getElementById('recent-activity');
     if (activityLog.length > 0) {
-        activityDiv.innerHTML = activityLog.slice(0, 15).map(activity => `
-            <div style="padding:12px;margin:8px 0;background:rgba(33,150,243,0.05);border-radius:10px;border-left:4px solid #2196F3;">
-                <div style="font-weight:600;color:#2196F3;margin-bottom:5px;">${activity.action}</div>
-                <div class="small" style="color:#6c757d;">${new Date(activity.timestamp).toLocaleString()}</div>
+        activityDiv.innerHTML = activityLog.slice(0, 10).map(activity => `
+            <div style="padding:10px;margin:5px 0;background:rgba(33,150,243,0.05);border-radius:8px;border-left:3px solid #2196F3;">
+                <div style="font-weight:600;color:#2196F3;">${activity.action}</div>
+                <div class="small">${new Date(activity.timestamp).toLocaleString()}</div>
             </div>
         `).join('');
     } else {
@@ -986,7 +705,6 @@ function updateDashboard() {
     
     const needsRefill = bottles.filter(b => b.status === 'needs-refill').length;
     const maintenance = bottles.filter(b => b.status === 'maintenance').length;
-    const highRefillCount = bottles.filter(b => (b.refillCount || 0) > 10).length;
     
     if (needsRefill > 0) {
         alerts.push(`${needsRefill} bottle(s) need refilling`);
@@ -994,13 +712,10 @@ function updateDashboard() {
     if (maintenance > 0) {
         alerts.push(`${maintenance} bottle(s) need maintenance`);
     }
-    if (highRefillCount > 0) {
-        alerts.push(`${highRefillCount} bottle(s) have high refill count (>10)`);
-    }
     
     if (alerts.length > 0) {
         alertsDiv.innerHTML = alerts.map(alert => `
-            <div style="padding:12px;margin:8px 0;background:rgba(255,193,7,0.1);border-radius:10px;border-left:4px solid #ffc107;color:#856404;">
+            <div style="padding:10px;margin:5px 0;background:rgba(255,193,7,0.1);border-radius:8px;border-left:3px solid #ffc107;color:#856404;">
                 ⚠️ ${alert}
             </div>
         `).join('');
@@ -1015,10 +730,9 @@ function updateInventoryDisplay() {
     const statusFilter = document.getElementById('filter-status').value;
     
     let filteredBottles = bottles.filter(bottle => {
-        const matchesSearch = !searchTerm || 
+        const matchesSearch = !searchTerm ||
             bottle.id.toLowerCase().includes(searchTerm) ||
-            (bottle.clientName && bottle.clientName.toLowerCase().includes(searchTerm)) ||
-            (bottle.clientPhone && bottle.clientPhone.toLowerCase().includes(searchTerm)) ||
+            bottle.client.toLowerCase().includes(searchTerm) ||
             bottle.status.toLowerCase().includes(searchTerm);
         
         const matchesStatus = !statusFilter || bottle.status === statusFilter;
@@ -1031,23 +745,14 @@ function updateInventoryDisplay() {
             <div class="bottle-card">
                 <div class="bottle-id">Bottle #${bottle.id}</div>
                 <div class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</div>
-                <div style="margin:15px 0;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                        <div><strong>🔄 Refills:</strong> ${bottle.refillCount || 0}</div>
-                        <div><strong>🚚 Deliveries:</strong> ${bottle.deliveryCount || 0}</div>
-                    </div>
-                    ${bottle.clientName ? `
-                        <div style="background:rgba(40,167,69,0.1);padding:10px;border-radius:8px;margin:10px 0;">
-                            <strong>👤 Client:</strong> ${bottle.clientName}<br>
-                            <strong>📞 Phone:</strong> ${bottle.clientPhone}<br>
-                            ${bottle.deliveryDate ? `<strong>📅 Delivered:</strong> ${new Date(bottle.deliveryDate).toLocaleString()}<br>` : ''}
-                            ${bottle.deliveryNotes ? `<strong>📝 Notes:</strong> ${bottle.deliveryNotes}` : ''}
-                        </div>
-                    ` : '<div><strong>👤 Client:</strong> None</div>'}
-                    <div style="margin-top:10px;"><strong>📅 Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}</div>
+                <div style="margin:10px 0;">
+                    <strong>Client:</strong> ${bottle.client || 'None'}<br>
+                    <strong>Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}<br>
+                    <strong>Refilled:</strong> ${bottle.refillCount || 0} times<br>
+                    <strong>Quality:</strong> ${bottle.quality || 'Unknown'}
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-sm" onclick="viewBottleDetails('${bottle.id}')">👁️ Details</button>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="viewBottleDetails('${bottle.id}')">👁️ View</button>
                     <button class="btn btn-sm btn-warning" onclick="editBottle('${bottle.id}')">✏️ Edit</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteBottle('${bottle.id}')">🗑️ Delete</button>
                 </div>
@@ -1055,42 +760,6 @@ function updateInventoryDisplay() {
         `).join('');
     } else {
         inventoryDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No bottles found matching your criteria.</div>';
-    }
-}
-
-function updateClientDisplay() {
-    updateClientBottleCounts();
-    const clientDiv = document.getElementById('client-list');
-    const searchTerm = document.getElementById('search-clients').value.toLowerCase();
-    
-    let filteredClients = clients.filter(client => {
-        return !searchTerm || 
-            client.name.toLowerCase().includes(searchTerm) ||
-            client.phone.toLowerCase().includes(searchTerm) ||
-            (client.address && client.address.toLowerCase().includes(searchTerm));
-    });
-    
-    if (filteredClients.length > 0) {
-        clientDiv.innerHTML = filteredClients.map(client => `
-            <div class="bottle-card">
-                <div class="bottle-id">👤 ${client.name}</div>
-                <div class="status with-client">CLIENT</div>
-                <div style="margin:15px 0;">
-                    <div><strong>📞 Phone:</strong> ${client.phone}</div>
-                    ${client.address ? `<div><strong>📍 Address:</strong> ${client.address}</div>` : ''}
-                    <div><strong>🍶 Bottles:</strong> ${client.bottleCount || 0}</div>
-                    ${client.notes ? `<div style="margin-top:10px;"><strong>📝 Notes:</strong> ${client.notes}</div>` : ''}
-                    <div style="margin-top:10px;"><strong>📅 Added:</strong> ${new Date(client.created).toLocaleString()}</div>
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-sm" onclick="viewClientBottles('${client.id}')">🍶 View Bottles</button>
-                    <button class="btn btn-sm btn-warning" onclick="editClient('${client.id}')">✏️ Edit</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteClient('${client.id}')">🗑️ Delete</button>
-                </div>
-            </div>
-        `).join('');
-    } else {
-        clientDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No clients found matching your criteria.</div>';
     }
 }
 
@@ -1103,141 +772,14 @@ function filterBottles() {
     updateInventoryDisplay();
 }
 
-function searchClients() {
-    updateClientDisplay();
-}
-
-// Client Management
-function addNewClient() {
-    document.getElementById('add-client-modal').style.display = 'block';
-}
-
-function createNewClient() {
-    const name = document.getElementById('new-client-name').value.trim();
-    const phone = document.getElementById('new-client-phone').value.trim();
-    const address = document.getElementById('new-client-address').value.trim();
-    const notes = document.getElementById('new-client-notes').value.trim();
-    
-    if (!name) {
-        alert('Please enter a client name');
-        return;
-    }
-    
-    if (!phone) {
-        alert('Please enter a phone number');
-        return;
-    }
-    
-    if (clients.find(c => c.phone === phone)) {
-        alert('A client with this phone number already exists');
-        return;
-    }
-    
-    const newClient = {
-        id: 'client_' + Date.now(),
-        name: name,
-        phone: phone,
-        address: address,
-        notes: notes,
-        created: new Date().toISOString(),
-        bottleCount: 0
-    };
-    
-    clients.push(newClient);
-    addActivity(`New client added: ${name} (${phone})`);
-    
-    // Clear form
-    document.getElementById('new-client-name').value = '';
-    document.getElementById('new-client-phone').value = '';
-    document.getElementById('new-client-address').value = '';
-    document.getElementById('new-client-notes').value = '';
-    
-    closeClientModal();
-    updateAllDisplays();
-}
-
-function viewClientBottles(clientId) {
-    const client = clients.find(c => c.id === clientId);
-    const clientBottles = bottles.filter(b => b.clientId === clientId);
-    
-    if (!client) return;
-    
-    let message = `Bottles for ${client.name} (${client.phone}):\n\n`;
-    
-    if (clientBottles.length > 0) {
-        clientBottles.forEach(bottle => {
-            message += `• Bottle ${bottle.id} - ${bottle.status.toUpperCase()}\n`;
-            message += `  Refills: ${bottle.refillCount || 0}, Deliveries: ${bottle.deliveryCount || 0}\n`;
-            if (bottle.deliveryDate) {
-                message += `  Last Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}\n`;
-            }
-            message += '\n';
-        });
-    } else {
-        message += 'No bottles currently with this client.';
-    }
-    
-    alert(message);
-}
-
-function editClient(clientId) {
-    const client = clients.find(c => c.id === clientId);
-    if (!client) return;
-    
-    const newName = prompt('Enter new client name:', client.name);
-    if (newName && newName !== client.name) {
-        const oldName = client.name;
-        client.name = newName;
-        
-        // Update all bottles with this client
-        bottles.forEach(bottle => {
-            if (bottle.clientId === clientId) {
-                bottle.clientName = newName;
-            }
-        });
-        
-        addActivity(`Client name updated from ${oldName} to ${newName}`);
-        saveData();
-        updateAllDisplays();
-    }
-}
-
-function deleteClient(clientId) {
-    const client = clients.find(c => c.id === clientId);
-    if (!client) return;
-    
-    const clientBottles = bottles.filter(b => b.clientId === clientId);
-    
-    if (clientBottles.length > 0) {
-        if (!confirm(`Client ${client.name} has ${clientBottles.length} bottle(s). Deleting will remove client info from bottles. Continue?`)) {
-            return;
-        }
-        
-        // Remove client info from bottles
-        clientBottles.forEach(bottle => {
-            bottle.clientId = '';
-            bottle.clientName = '';
-            bottle.clientPhone = '';
-        });
-    }
-    
-    if (confirm(`Are you sure you want to delete client ${client.name}? This action cannot be undone.`)) {
-        clients = clients.filter(c => c.id !== clientId);
-        addActivity(`Client deleted: ${client.name} (${client.phone})`);
-        saveData();
-        updateAllDisplays();
-    }
-}
-
-// Bottle Management
+// Bottle Actions
 function addNewBottle() {
-    populateClientDropdowns();
     document.getElementById('add-bottle-modal').style.display = 'block';
 }
 
 function createNewBottle() {
     const id = document.getElementById('new-bottle-id').value.trim();
-    const clientId = document.getElementById('new-bottle-client-select').value;
+    const client = document.getElementById('new-bottle-client').value.trim();
     const status = document.getElementById('new-bottle-status').value;
     
     if (!id) {
@@ -1250,90 +792,29 @@ function createNewBottle() {
         return;
     }
     
-    const client = clientId ? clients.find(c => c.id === clientId) : null;
-    
     const newBottle = {
         id: id,
         status: status,
-        clientId: clientId || '',
-        clientName: client ? client.name : '',
-        clientPhone: client ? client.phone : '',
-        refillCount: status === 'available' ? 1 : 0,
-        deliveryCount: 0,
-        lastUpdated: new Date().toISOString(),
-        created: new Date().toISOString(),
-        history: [{
-            action: `Bottle created with status: ${status}`,
-            timestamp: new Date().toISOString(),
-            client: client ? client.name : ''
-        }]
+        client: status === 'with-client' ? client : '',
+        lastUpdated: new Date().toISOString()
     };
     
     bottles.push(newBottle);
-    addActivity(`New bottle ${id} added to inventory${client ? ` for ${client.name}` : ''}`);
+    addActivity(`New bottle ${id} added to inventory`);
     
-    // Clear form
     document.getElementById('new-bottle-id').value = '';
-    document.getElementById('new-bottle-client-select').value = '';
+    document.getElementById('new-bottle-client').value = '';
     document.getElementById('new-bottle-status').value = 'available';
     
     closeAddModal();
     updateAllDisplays();
 }
 
-function populateClientDropdowns() {
-    const selects = [
-        document.getElementById('new-bottle-client-select'),
-        document.getElementById('delivery-client-select')
-    ];
-    
-    selects.forEach(select => {
-        if (select) {
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">Select Client</option>';
-            
-            clients.forEach(client => {
-                const option = document.createElement('option');
-                option.value = client.id;
-                option.textContent = `${client.name} (${client.phone})`;
-                if (client.id === currentValue) option.selected = true;
-                select.appendChild(option);
-            });
-        }
-    });
-}
-
 function viewBottleDetails(bottleId) {
     const bottle = bottles.find(b => b.id === bottleId);
     if (!bottle) return;
     
-    let details = `Bottle Details for #${bottle.id}\n\n`;
-    details += `Status: ${bottle.status.toUpperCase()}\n`;
-    details += `Refill Count: ${bottle.refillCount || 0}\n`;
-    details += `Delivery Count: ${bottle.deliveryCount || 0}\n`;
-    details += `Created: ${new Date(bottle.created).toLocaleString()}\n`;
-    details += `Last Updated: ${new Date(bottle.lastUpdated).toLocaleString()}\n\n`;
-    
-    if (bottle.clientName) {
-        details += `Current Client: ${bottle.clientName}\n`;
-        details += `Phone: ${bottle.clientPhone}\n`;
-        if (bottle.deliveryDate) {
-            details += `Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}\n`;
-        }
-        if (bottle.deliveryNotes) {
-            details += `Notes: ${bottle.deliveryNotes}\n`;
-        }
-        details += '\n';
-    }
-    
-    if (bottle.history && bottle.history.length > 0) {
-        details += 'Recent History:\n';
-        bottle.history.slice(-5).forEach(h => {
-            details += `• ${h.action} - ${new Date(h.timestamp).toLocaleString()}\n`;
-        });
-    }
-    
-    alert(details);
+    alert(`Bottle Details:\n\nID: ${bottle.id}\nStatus: ${bottle.status}\nClient: ${bottle.client || 'None'}\nLast Updated: ${new Date(bottle.lastUpdated).toLocaleString()}`);
 }
 
 function editBottle(bottleId) {
@@ -1341,16 +822,20 @@ function editBottle(bottleId) {
     if (!bottle) return;
     
     currentBottleId = bottleId;
-    processBottle();
+    document.getElementById('bottle-modal').style.display = 'block';
+    document.getElementById('modal-title').textContent = `Edit Bottle ${bottleId}`;
+    document.getElementById('modal-bottle-info').innerHTML = `
+        <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;margin:10px 0;">
+            <strong>Current Status:</strong> ${bottle.status}<br>
+            <strong>Client:</strong> ${bottle.client || 'None'}
+        </div>
+    `;
 }
 
 function deleteBottle(bottleId) {
     if (confirm(`Are you sure you want to delete bottle ${bottleId}? This action cannot be undone.`)) {
-        const bottle = bottles.find(b => b.id === bottleId);
         bottles = bottles.filter(b => b.id !== bottleId);
-        addActivity(`Bottle ${bottleId} deleted from inventory${bottle && bottle.clientName ? ` (was with ${bottle.clientName})` : ''}`);
-        updateClientBottleCounts();
-        saveData();
+        addActivity(`Bottle ${bottleId} deleted from inventory`);
         updateAllDisplays();
     }
 }
@@ -1377,66 +862,23 @@ function generateReport() {
         return activityDate >= start && activityDate <= end;
     });
     
-    const totalRefills = bottles.reduce((sum, bottle) => sum + (bottle.refillCount || 0), 0);
-    const totalDeliveries = bottles.reduce((sum, bottle) => sum + (bottle.deliveryCount || 0), 0);
-    
     const reportSummary = document.getElementById('report-summary');
     reportSummary.innerHTML = `
-        <h4>📊 Report for ${startDate} to ${endDate}</h4>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
-            <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;">
-                <strong>Total Activities:</strong><br>
-                <span style="font-size:24px;font-weight:bold;color:#2196F3;">${filteredActivities.length}</span>
-            </div>
-            <div style="background:rgba(40,167,69,0.1);padding:15px;border-radius:10px;">
-                <strong>Total Bottles:</strong><br>
-                <span style="font-size:24px;font-weight:bold;color:#28a745;">${bottles.length}</span>
-            </div>
-            <div style="background:rgba(255,193,7,0.1);padding:15px;border-radius:10px;">
-                <strong>Total Refills:</strong><br>
-                <span style="font-size:24px;font-weight:bold;color:#856404;">${totalRefills}</span>
-            </div>
-            <div style="background:rgba(220,53,69,0.1);padding:15px;border-radius:10px;">
-                <strong>Total Deliveries:</strong><br>
-                <span style="font-size:24px;font-weight:bold;color:#dc3545;">${totalDeliveries}</span>
-            </div>
-        </div>
-        
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:15px 0;">
-            <div><strong>Available:</strong> ${bottles.filter(b => b.status === 'available').length}</div>
-            <div><strong>With Clients:</strong> ${bottles.filter(b => b.status === 'with-client').length}</div>
-            <div><strong>Need Refill:</strong> ${bottles.filter(b => b.status === 'needs-refill').length}</div>
-            <div><strong>Maintenance:</strong> ${bottles.filter(b => b.status === 'maintenance').length}</div>
-            <div><strong>Total Clients:</strong> ${clients.length}</div>
-        </div>
-        
-        <div style="margin-top:20px;">
-            <h5>📋 Activities in Period (${filteredActivities.length}):</h5>
-            <div style="max-height:300px;overflow-y:auto;margin-top:10px;">
-                ${filteredActivities.slice(0, 20).map(activity => `
-                    <div style="padding:8px;margin:4px 0;background:rgba(0,0,0,0.05);border-radius:8px;border-left:3px solid #2196F3;">
-                        <div style="font-weight:600;">${activity.action}</div>
-                        <div style="font-size:13px;color:#6c757d;">${new Date(activity.timestamp).toLocaleString()}</div>
-                    </div>
-                `).join('') || '<p>No activities in this period</p>'}
-                ${filteredActivities.length > 20 ? `<div style="text-align:center;padding:10px;color:#6c757d;">... and ${filteredActivities.length - 20} more activities</div>` : ''}
-            </div>
+        <h4>Report for ${startDate} to ${endDate}</h4>
+        <p><strong>Total Activities:</strong> ${filteredActivities.length}</p>
+        <p><strong>Total Bottles:</strong> ${bottles.length}</p>
+        <p><strong>Available:</strong> ${bottles.filter(b => b.status === 'available').length}</p>
+        <p><strong>With Clients:</strong> ${bottles.filter(b => b.status === 'with-client').length}</p>
+        <p><strong>Need Refill:</strong> ${bottles.filter(b => b.status === 'needs-refill').length}</p>
+        <div style="margin-top:15px;">
+            <h5>Recent Activities in Period:</h5>
+            ${filteredActivities.slice(0, 10).map(activity => `
+                <div style="padding:5px;margin:2px 0;background:rgba(0,0,0,0.05);border-radius:5px;">
+                    ${activity.action} - ${new Date(activity.timestamp).toLocaleString()}
+                </div>
+            `).join('') || '<p>No activities in this period</p>'}
         </div>
     `;
-}
-
-function addActivity(message) {
-    activityLog.unshift({
-        action: message,
-        timestamp: new Date().toISOString()
-    });
-    
-    if (activityLog.length > 100) {  // Keep more history
-        activityLog = activityLog.slice(0, 100);
-    }
-    
-    saveData();
-    updateDashboard();
 }
 
 function setupDefaultDates() {
@@ -1457,35 +899,6 @@ function createFloatingParticles() {
         container.appendChild(particle);
     }
 }
-
-// Mobile nav drawer
-const hamburgerBtn = document.getElementById('hamburger-btn');
-const drawer = document.getElementById('drawer');
-hamburgerBtn && hamburgerBtn.addEventListener('click', () => {
-    drawer.style.display = drawer.style.display === 'block' ? 'none' : 'block';
-});
-window.addEventListener('resize', () => {
-    if (window.innerWidth < 768) {
-        document.getElementById('mobile-nav').style.display = 'block';
-        document.querySelector('.tabs').style.display = 'none';
-    } else {
-        document.getElementById('mobile-nav').style.display = 'none';
-        document.querySelector('.tabs').style.display = 'flex';
-        drawer.style.display = 'none';
-    }
-});
-if (window.innerWidth < 768) {
-    document.getElementById('mobile-nav').style.display = 'block';
-    document.querySelector('.tabs').style.display = 'none';
-}
-
-const backToTopBtn = document.getElementById('back-to-top');
-window.addEventListener('scroll', () => {
-    backToTopBtn.style.display = window.scrollY > 200 ? 'block' : 'none';
-});
-backToTopBtn && backToTopBtn.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-});
 </script>
 
 <!-- Keep all your original CSS exactly the same -->
@@ -1905,7 +1318,6 @@ flex-wrap: wrap;
 
 .search-input {
 padding: 12px 20px;
-
 border-radius: 25px;
 border: 2px solid #e9ecef;
 flex: 1;
@@ -1927,34 +1339,50 @@ color: #6c757d;
 line-height: 1.5;
 }
 
-@media(max-width: 600px) {
-    .modal-content {
-        margin: 0;
-        width: 100vw;
-        min-height: 100vh;
-        border-radius: 0;
-        padding: 10vw 5vw;
-    }
+@media(max-width: 768px) {
+.tabs {
+flex-direction: column;
+}
+.header h1 {
+font-size: 2.2rem;
+}
+.bottle-grid {
+grid-template-columns: 1fr;
+}
+.stats-grid {
+grid-template-columns: 1fr;
+}
+.tab-content {
+padding: 20px;
+}
 }
 
-@media(max-width: 768px) {
-    .btn, .tab {
-        font-size: 18px;
-        padding: 18px 24px;
-    }
-    .modal-content {
-        padding: 20px;
-        width: 98%;
-    }
-    input, select, textarea {
-        font-size: 18px;
-        padding: 16px;
-    }
+.floating-particles {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+z-index: -1;
+}
+
+.particle {
+position: absolute;
+width: 4px;
+height: 4px;
+background: rgba(255, 255, 255, 0.6);
+border-radius: 50%;
+animation: float 15s infinite linear;
+}
+
+@keyframes float {
+0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+10% { opacity: 1; }
+90% { opacity: 1; }
+100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
 }
 </style>
 
-<button id="back-to-top" class="btn" style="position:fixed;bottom:30px;right:30px;z-index:3000;display:none;">⬆️</button>
-
 </body>
 </html>
-
