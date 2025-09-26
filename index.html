@@ -1,68 +1,1933 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .login-box {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        input {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #45a049;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5-Gallon Bottle Tracking System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 </head>
-<body>
 
-<div class="login-box">
-    <h2>Admin Login</h2>
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="login()">Login</button>
+<body>
+<div class="floating-particles"></div>
+<div class="container">
+<div class="header">
+<h1>🚰 Bottle Tracking System</h1>
+<p>Advanced inventory management for your 5-gallon bottles</p>
 </div>
 
-<script>
-    function login() {
-        const user = document.getElementById("username").value;
-        const pass = document.getElementById("password").value;
+<div class="tabs">
+<button class="tab active" onclick="showTab(event,'dashboard')">🏠 Dashboard</button>
+<button class="tab" onclick="showTab(event,'scanner')">📱 Scanner</button>
+<button class="tab" onclick="showTab(event,'inventory')">📦 Inventory</button>
+<button class="tab" onclick="showTab(event,'clients')">👥 Clients</button>
+<button class="tab" onclick="showTab(event,'reports')">📊 Reports</button>
+</div>
 
-        // Simple check
-        if (user === "admin" && pass === "rsw1234") {
-            window.location.href = "main.html";
-        } else {
-            alert("Incorrect username or password!");
+<!-- Dashboard Tab -->
+<div id="dashboard" class="tab-content active">
+<h2>📊 System Overview</h2>
+<div class="stats-grid">
+<div class="stat-card">
+<div class="stat-number" id="total-bottles">0</div>
+<div class="stat-label">Total Bottles</div>
+</div>
+<div class="stat-card">
+<div class="stat-number" id="available-bottles">0</div>
+<div class="stat-label">Available</div>
+</div>
+<div class="stat-card">
+<div class="stat-number" id="with-client-bottles">0</div>
+<div class="stat-label">With Clients</div>
+</div>
+<div class="stat-card">
+<div class="stat-number" id="needs-refill-bottles">0</div>
+<div class="stat-label">Need Refill</div>
+</div>
+<div class="stat-card">
+<div class="stat-number" id="maintenance-bottles">0</div>
+<div class="stat-label">Maintenance</div>
+</div>
+<div class="stat-card">
+<div class="stat-number" id="total-clients">0</div>
+<div class="stat-label">Active Clients</div>
+</div>
+</div>
+
+<h3>🔥 Recent Activity</h3>
+<div id="recent-activity" style="background:rgba(255,255,255,0.8);border-radius:15px;padding:20px;margin-top:15px;max-height:300px;overflow-y:auto;">
+<p class="small">No recent activity</p>
+</div>
+
+<h3 style="margin-top:25px;">⚠️ Alerts & Notifications</h3>
+<div id="alerts" style="background:rgba(255,255,255,0.8);border-radius:15px;padding:20px;margin-top:15px;">
+<p class="small">No alerts</p>
+</div>
+</div>
+
+<!-- Scanner Tab -->
+<div id="scanner" class="tab-content">
+<h2>📱 Camera Barcode Scanner</h2>
+
+<div style="text-align:center;margin-bottom:30px;">
+<div id="camera-container" style="position:relative;max-width:500px;margin:0 auto;">
+<div id="barcode-scanner" style="width:100%;height:300px;border-radius:15px;overflow:hidden;background:#000;position:relative;">
+<div id="scanner-placeholder" style="width:100%;height:100%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:white;font-size:18px;">
+<div style="text-align:center;">
+<div style="font-size:4rem;margin-bottom:15px;">📷</div>
+<div>Click "Start Scanner" to begin</div>
+</div>
+</div>
+</div>
+
+<div id="scan-result" style="margin-top:15px;padding:15px;background:rgba(40,167,69,0.1);border-radius:10px;color:#155724;font-weight:bold;display:none;">
+<div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+<span>✅ Scanned:</span>
+<span id="scanned-code" style="font-family:monospace;font-size:18px;"></span>
+</div>
+</div>
+</div>
+
+<div style="margin:15px 0;">
+<button class="btn" id="start-scanner-btn" onclick="startBarcodeScanner()">📷 Start Scanner</button>
+<button class="btn btn-secondary" id="stop-scanner-btn" onclick="stopBarcodeScanner()" style="display:none;">⏹️ Stop Scanner</button>
+</div>
+</div>
+
+<div class="barcode-input">
+<h3 style="text-align:center;margin-bottom:20px;">📝 Manual Entry</h3>
+<label for="manual-barcode" style="font-weight:600;color:#495057;">Enter Barcode Manually:</label>
+<input type="text" id="manual-barcode" placeholder="Type barcode numbers here..." 
+       style="padding:15px 20px;border-radius:10px;border:2px solid #e9ecef;font-size:18px;font-family:monospace;">
+
+<div class="barcode-display" id="barcode-display">
+Waiting for barcode input...
+</div>
+
+<button class="btn" onclick="processBottle()" style="align-self:center;padding:15px 30px;font-size:18px;">
+🔍 Process Bottle
+</button>
+</div>
+</div>
+
+<!-- Inventory Tab -->
+<div id="inventory" class="tab-content">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
+<h2>📦 Inventory Management</h2>
+<button class="btn btn-success" onclick="addNewBottle()">➕ Add New Bottle</button>
+</div>
+
+<div class="search-row">
+<input type="text" id="search-bottles" class="search-input" placeholder="🔍 Search bottles by ID, status, or client..." onkeyup="searchBottles()">
+<select id="filter-status" onchange="filterBottles()" style="padding:12px;border-radius:25px;border:2px solid #e9ecef;">
+<option value="">All Statuses</option>
+<option value="available">Available</option>
+<option value="with-client">With Client</option>
+<option value="needs-refill">Needs Refill</option>
+<option value="maintenance">Maintenance</option>
+</select>
+</div>
+
+<div id="bottle-inventory" class="bottle-grid">
+<!-- Bottles will be populated here -->
+</div>
+</div>
+
+<!-- Clients Tab -->
+<div id="clients" class="tab-content">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
+<h2>👥 Client Management</h2>
+<button class="btn btn-success" onclick="addNewClient()">➕ Add New Client</button>
+</div>
+
+<div class="search-row">
+<input type="text" id="search-clients" class="search-input" placeholder="🔍 Search clients by name or phone..." onkeyup="searchClients()">
+</div>
+
+<div id="client-list" class="bottle-grid">
+<!-- Clients will be populated here -->
+</div>
+</div>
+
+<!-- Reports Tab -->
+<div id="reports" class="tab-content">
+<h2>📊 Reports & Analytics</h2>
+
+<div class="search-row">
+<input type="date" id="report-start" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="date" id="report-end" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<button class="btn" onclick="generateReport()">📈 Generate Report</button>
+</div>
+
+<div id="reports-content" style="margin-top:25px;">
+<div style="background:rgba(255,255,255,0.8);border-radius:15px;padding:25px;">
+<h3>📋 Summary Report</h3>
+<div id="report-summary">
+<p class="small">Select date range and click "Generate Report" to view analytics.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Modals -->
+<div id="bottle-modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeModal()">&times;</span>
+<h2 id="modal-title">Bottle Actions</h2>
+<div id="modal-bottle-info"></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
+<button class="btn btn-success" onclick="actionRefill()">🔄 Refill</button>
+<button class="btn btn-warning" onclick="actionDeliver()">🚚 Deliver</button>
+<button class="btn btn-secondary" onclick="actionReturn()">↩️ Return</button>
+<button class="btn" onclick="actionManual()">✏️ Manual Update</button>
+</div>
+</div>
+</div>
+
+<div id="add-bottle-modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeAddModal()">&times;</span>
+<h2>➕ Add New Bottle</h2>
+<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
+<input type="text" id="new-bottle-id" placeholder="Bottle Barcode/ID" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<select id="new-bottle-client-select" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<option value="">Select Client (optional)</option>
+</select>
+<select id="new-bottle-status" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<option value="available">Available</option>
+<option value="with-client">With Client</option>
+<option value="needs-refill">Needs Refill</option>
+<option value="maintenance">Maintenance</option>
+</select>
+<button class="btn btn-success" onclick="createNewBottle()" style="margin-top:10px;">✅ Create Bottle</button>
+</div>
+</div>
+</div>
+
+<div id="add-client-modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeClientModal()">&times;</span>
+<h2>➕ Add New Client</h2>
+<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
+<input type="text" id="new-client-name" placeholder="Client Name" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="tel" id="new-client-phone" placeholder="Phone Number" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="text" id="new-client-address" placeholder="Address (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<textarea id="new-client-notes" placeholder="Notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:80px;"></textarea>
+<button class="btn btn-success" onclick="createNewClient()" style="margin-top:10px;">✅ Create Client</button>
+</div>
+</div>
+</div>
+
+<div id="delivery-modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeDeliveryModal()">&times;</span>
+<h2>🚚 Deliver Bottle</h2>
+<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
+<select id="delivery-client-select" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<option value="">Select Client</option>
+</select>
+<input type="date" id="delivery-date" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="time" id="delivery-time" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<textarea id="delivery-notes" placeholder="Delivery notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:80px;"></textarea>
+<button class="btn btn-success" onclick="confirmDelivery()" style="margin-top:10px;">✅ Confirm Delivery</button>
+</div>
+</div>
+</div>
+
+<!-- Firebase Configuration -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics.js';
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyABAxpddjUWn-HPHt4LwTTPTNgTz8PzVLc",
+  authDomain: "trackin-ab04f.firebaseapp.com",
+  projectId: "trackin-ab04f",
+  storageBucket: "trackin-ab04f.firebasestorage.app",
+  messagingSenderId: "960941325939",
+  appId: "1:960941325939:web:d5f2b39d00c10871bf3406",
+  measurementId: "G-4VNM4P54KY"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
+// Make Firebase available globally
+window.firebaseApp = app;
+window.firebaseDb = db;
+window.firebaseAnalytics = analytics;
+
+// Make Firebase functions available globally
+window.setDoc = setDoc;
+window.getDoc = getDoc;
+window.doc = doc;
+window.collection = collection;
+window.addDoc = addDoc;
+
+console.log('Firebase initialized successfully!');
+</script>
+
+<script>
+// Application State
+const STORAGE_KEY = 'bottleAppData_v3';
+let bottles = [];
+let clients = [];
+let currentBottleId = null;
+let activityLog = [];
+let scannerActive = false;
+
+// Initialize Application
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Initializing Enhanced Bottle Tracking System...');
+    
+    // Wait a moment for Firebase to be available
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    await loadData();
+    updateAllDisplays();
+    setupBarcodeInput();
+    createFloatingParticles();
+    setupDefaultDates();
+    
+    console.log('Application initialized successfully!');
+});
+
+// Firebase Data Management
+async function saveData() {
+    console.log('Saving data to Firebase...');
+    try {
+        const db = window.firebaseDb;
+        await window.setDoc(window.doc(db, 'bottleData', 'main'), {
+            bottles: bottles,
+            clients: clients,
+            activityLog: activityLog,
+            lastUpdated: new Date().toISOString()
+        });
+        console.log('data t sevat dir xi 7aja akhra');
+        
+        // Also save to localStorage as backup
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            bottles: bottles,
+            clients: clients,
+            activityLog: activityLog,
+            lastUpdated: new Date().toISOString()
+        }));
+        
+    } catch (error) {
+        console.error('❌ Error saving data to Firebase:', error);
+        // Fallback to localStorage only
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                bottles: bottles,
+                clients: clients,
+                activityLog: activityLog,
+                lastUpdated: new Date().toISOString()
+            }));
+            console.log('✅ Data saved to localStorage as fallback');
+        } catch (localError) {
+            console.error('❌ Error saving to localStorage:', localError);
+            alert('Error saving data. Please check your connection.');
         }
     }
+}
+
+async function loadData() {
+    console.log('Loading data from Firebase...');
+    try {
+        const db = window.firebaseDb;
+        const docRef = window.doc(db, 'bottleData', 'main');
+        const docSnap = await window.getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            bottles = data.bottles || [];
+            clients = data.clients || [];
+            activityLog = data.activityLog || [];
+            console.log(`✅ Loaded ${bottles.length} bottles and ${clients.length} clients from Firebase`);
+        } else {
+            console.log('No data found in Firebase, checking localStorage...');
+            
+            // Try localStorage
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                bottles = data.bottles || [];
+                clients = data.clients || [];
+                activityLog = data.activityLog || [];
+                console.log(`✅ Loaded ${bottles.length} bottles and ${clients.length} clients from localStorage`);
+                
+                // Save to Firebase for future use
+                await saveData();
+            } else {
+                console.log('No existing data found, initializing with sample data');
+                initializeSampleData();
+                await saveData();
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error loading data from Firebase:', error);
+        
+        // Fallback to localStorage
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                bottles = data.bottles || [];
+                clients = data.clients || [];
+                activityLog = data.activityLog || [];
+                console.log(`✅ Loaded ${bottles.length} bottles and ${clients.length} clients from localStorage fallback`);
+            } else {
+                console.log('No localStorage data found, initializing with sample data');
+                initializeSampleData();
+            }
+        } catch (localError) {
+            console.error('❌ Error loading from localStorage:', localError);
+            initializeSampleData();
+        }
+    }
+}
+
+function initializeSampleData() {
+    // Sample clients
+    clients = [
+        { 
+            id: 'client1', 
+            name: 'ABC Company', 
+            phone: '+1234567890', 
+            address: '123 Business St', 
+            notes: 'Regular customer',
+            created: new Date().toISOString(),
+            bottleCount: 0
+        },
+        { 
+            id: 'client2', 
+            name: 'XYZ Corp', 
+            phone: '+0987654321', 
+            address: '456 Corporate Ave', 
+            notes: 'Monthly delivery',
+            created: new Date().toISOString(),
+            bottleCount: 0
+        }
+    ];
+    
+    // Sample bottles with enhanced details
+    bottles = [
+        { 
+            id: '1234567890123', 
+            status: 'available', 
+            clientId: '', 
+            clientName: '',
+            clientPhone: '',
+            refillCount: 3,
+            deliveryCount: 2,
+            lastUpdated: new Date().toISOString(),
+            created: new Date().toISOString(),
+            history: [
+                { action: 'Bottle created', timestamp: new Date().toISOString() },
+                { action: 'Refilled and available', timestamp: new Date().toISOString() }
+            ]
+        },
+        { 
+            id: '9876543210987', 
+            status: 'with-client', 
+            clientId: 'client1',
+            clientName: 'ABC Company',
+            clientPhone: '+1234567890',
+            refillCount: 5,
+            deliveryCount: 4,
+            lastUpdated: new Date().toISOString(),
+            created: new Date().toISOString(),
+            deliveryDate: new Date().toISOString(),
+            deliveryNotes: 'Delivered on schedule',
+            history: [
+                { action: 'Bottle created', timestamp: new Date().toISOString() },
+                { action: 'Delivered to ABC Company', timestamp: new Date().toISOString(), client: 'ABC Company' }
+            ]
+        },
+        { 
+            id: '5555666677778', 
+            status: 'needs-refill', 
+            clientId: 'client2',
+            clientName: 'XYZ Corp',
+            clientPhone: '+0987654321',
+            refillCount: 7,
+            deliveryCount: 6,
+            lastUpdated: new Date().toISOString(),
+            created: new Date().toISOString(),
+            returnDate: new Date().toISOString(),
+            history: [
+                { action: 'Bottle created', timestamp: new Date().toISOString() },
+                { action: 'Returned from XYZ Corp, needs refill', timestamp: new Date().toISOString(), client: 'XYZ Corp' }
+            ]
+        }
+    ];
+    
+    // Update client bottle counts
+    updateClientBottleCounts();
+    
+    activityLog = [
+        { action: 'System initialized with enhanced sample data', timestamp: new Date().toISOString() },
+        { action: 'Client ABC Company added to system', timestamp: new Date().toISOString() },
+        { action: 'Client XYZ Corp added to system', timestamp: new Date().toISOString() },
+        { action: 'Bottle 1234567890123 marked as available', timestamp: new Date().toISOString() },
+        { action: 'Bottle 9876543210987 delivered to ABC Company (+1234567890)', timestamp: new Date().toISOString() },
+        { action: 'Bottle 5555666677778 returned from XYZ Corp (+0987654321)', timestamp: new Date().toISOString() }
+    ];
+}
+
+function updateClientBottleCounts() {
+    clients.forEach(client => {
+        client.bottleCount = bottles.filter(bottle => bottle.clientId === client.id).length;
+    });
+}
+
+// Tab Management
+function showTab(event, tabName) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+    
+    if (tabName === 'dashboard') updateDashboard();
+    if (tabName === 'inventory') updateInventoryDisplay();
+    if (tabName === 'clients') updateClientDisplay();
+    if (tabName === 'reports') updateReports();
+}
+
+// Barcode Scanner Functions (keeping original functionality)
+function startBarcodeScanner() {
+    if (scannerActive) return;
+
+    // Remove previous listeners to avoid duplicates
+    Quagga.offDetected();
+
+    const scannerDiv = document.getElementById('barcode-scanner');
+    const placeholder = document.getElementById('scanner-placeholder');
+    const startBtn = document.getElementById('start-scanner-btn');
+    const stopBtn = document.getElementById('stop-scanner-btn');
+
+    placeholder.style.display = 'none';
+
+    Quagga.init({
+        inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: scannerDiv,
+            constraints: {
+                width: 640,
+                height: 480,
+                facingMode: "environment"
+            }
+        },
+        locator: {
+            patchSize: "medium",
+            halfSample: false
+        },
+        numOfWorkers: 2,
+        frequency: 5,
+        decoder: {
+            readers: [
+                "code_128_reader",
+                "ean_reader",
+                "ean_8_reader",
+                "code_39_reader",
+                "upc_reader",
+                "upc_e_reader"
+            ]
+        }
+    }, function(err) {
+        if (err) {
+            console.error('QuaggaJS initialization error:', err);
+            placeholder.style.display = 'flex';
+            alert('Camera access failed or not found. Please check permissions and device.');
+            return;
+        }
+        Quagga.start();
+        scannerActive = true;
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-block';
+    });
+
+    let lastScannedCodes = [];
+    let confirmationCount = 0;
+    const REQUIRED_CONFIRMATIONS = 2;
+
+    Quagga.onDetected(function(data) {
+        const code = data.codeResult.code;
+        if (!isValidBarcode(code)) return;
+
+        lastScannedCodes.push(code);
+        if (lastScannedCodes.length > 8) lastScannedCodes.shift();
+
+        // Check if the last 2 codes are the same
+        if (lastScannedCodes.length >= REQUIRED_CONFIRMATIONS &&
+            lastScannedCodes.slice(-REQUIRED_CONFIRMATIONS).every(c => c === code)) {
+
+            document.getElementById('scanned-code').textContent = code;
+            document.getElementById('scan-result').style.display = 'block';
+            document.getElementById('manual-barcode').value = code;
+            updateBarcodeDisplay(code);
+
+            stopBarcodeScanner();
+            lastScannedCodes = [];
+            confirmationCount = 0;
+
+            setTimeout(() => {
+                processBottle();
+            }, 800);
+        }
+    });
+}
+
+function stopBarcodeScanner() {
+    if (!scannerActive) return;
+    Quagga.stop();
+    scannerActive = false;
+
+    const placeholder = document.getElementById('scanner-placeholder');
+    const startBtn = document.getElementById('start-scanner-btn');
+    const stopBtn = document.getElementById('stop-scanner-btn');
+
+    placeholder.style.display = 'flex';
+    startBtn.style.display = 'inline-block';
+    stopBtn.style.display = 'none';
+
+    setTimeout(() => {
+        document.getElementById('scan-result').style.display = 'none';
+    }, 2000);
+}
+
+function isValidBarcode(code) {
+    const numericCode = code.replace(/[^0-9]/g, '');
+    return numericCode.length >= 6 && numericCode.length <= 20;
+}
+
+function getConsistentCode(codes) {
+    if (codes.length < 2) return null;
+    
+    const codeCount = {};
+    codes.forEach(code => {
+        codeCount[code] = (codeCount[code] || 0) + 1;
+    });
+    
+    let mostFrequent = null;
+    let maxCount = 0;
+    
+    for (const [code, count] of Object.entries(codeCount)) {
+        if (count > maxCount && count >= 2) {
+            mostFrequent = code;
+            maxCount = count;
+        }
+    }
+    
+    return mostFrequent;
+}
+
+// Barcode Input Setup
+function setupBarcodeInput() {
+    const input = document.getElementById('manual-barcode');
+    const display = document.getElementById('barcode-display');
+    
+    input.addEventListener('input', (e) => {
+        const value = e.target.value;
+        updateBarcodeDisplay(value);
+    });
+    
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            processBottle();
+        }
+    });
+}
+
+function updateBarcodeDisplay(barcode) {
+    const display = document.getElementById('barcode-display');
+    if (barcode && barcode.length > 0) {
+        const numericBarcode = barcode.replace(/[^0-9]/g, '');
+        if (numericBarcode.length > 0) {
+            display.innerHTML = `
+                <div style="font-size:24px;color:#2196F3;margin-bottom:10px;">📊</div>
+                <div style="font-size:20px;font-weight:bold;">${numericBarcode}</div>
+                <div style="font-size:14px;color:#6c757d;margin-top:5px;">Barcode Ready for Processing</div>
+            `;
+        } else {
+            display.innerHTML = `
+                <div style="color:#dc3545;">❌ Invalid barcode format</div>
+                <div style="font-size:14px;color:#6c757d;">Please enter numbers only</div>
+            `;
+        }
+    } else {
+        display.innerHTML = 'Waiting for barcode input...';
+    }
+}
+
+// Enhanced Bottle Processing
+function processBottle() {
+    const input = document.getElementById('manual-barcode');
+    const bottleId = input.value.replace(/[^0-9]/g, '');
+    
+    if (!bottleId) {
+        alert('Please enter a valid barcode');
+        return;
+    }
+    
+    currentBottleId = bottleId;
+    const bottle = bottles.find(b => b.id === bottleId);
+    
+    const modal = document.getElementById('bottle-modal');
+    const title = document.getElementById('modal-title');
+    const info = document.getElementById('modal-bottle-info');
+    
+    if (bottle) {
+        const client = clients.find(c => c.id === bottle.clientId);
+        title.textContent = `Bottle ${bottleId}`;
+        info.innerHTML = `
+            <div style="background:rgba(33,150,243,0.1);padding:20px;border-radius:15px;margin:15px 0;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                    <div>
+                        <strong>🏷️ Status:</strong><br>
+                        <span class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span>
+                    </div>
+                    <div>
+                        <strong>🔄 Refill Count:</strong><br>
+                        <span style="font-size:18px;font-weight:bold;color:#2196F3;">${bottle.refillCount || 0}</span>
+                    </div>
+                    <div>
+                        <strong>🚚 Delivery Count:</strong><br>
+                        <span style="font-size:18px;font-weight:bold;color:#28a745;">${bottle.deliveryCount || 0}</span>
+                    </div>
+                    <div>
+                        <strong>📅 Last Updated:</strong><br>
+                        <span style="font-size:14px;">${new Date(bottle.lastUpdated).toLocaleString()}</span>
+                    </div>
+                </div>
+                ${bottle.clientName ? `
+                <div style="margin-top:15px;padding:15px;background:rgba(40,167,69,0.1);border-radius:10px;">
+                    <strong>👤 Current Client:</strong><br>
+                    <div style="font-size:16px;font-weight:bold;color:#155724;">${bottle.clientName}</div>
+                    <div style="font-size:14px;color:#155724;">📞 ${bottle.clientPhone}</div>
+                    ${bottle.deliveryDate ? `<div style="font-size:14px;color:#155724;">📅 Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}</div>` : ''}
+                    ${bottle.deliveryNotes ? `<div style="font-size:14px;color:#155724;">📝 ${bottle.deliveryNotes}</div>` : ''}
+                </div>
+                ` : ''}
+                ${bottle.history && bottle.history.length > 0 ? `
+                <div style="margin-top:15px;">
+                    <strong>📋 Recent History:</strong>
+                    <div style="max-height:120px;overflow-y:auto;margin-top:8px;">
+                        ${bottle.history.slice(-3).map(h => `
+                            <div style="padding:5px;margin:3px 0;background:rgba(0,0,0,0.05);border-radius:5px;font-size:13px;">
+                                ${h.action} - ${new Date(h.timestamp).toLocaleString()}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        title.textContent = `New Bottle ${bottleId}`;
+        info.innerHTML = `
+            <div style="background:rgba(40,167,69,0.1);padding:20px;border-radius:15px;margin:15px 0;color:#155724;">
+                <div style="text-align:center;">
+                    <div style="font-size:3rem;margin-bottom:10px;">🆕</div>
+                    <strong style="font-size:18px;">New bottle detected!</strong><br>
+                    <div style="margin-top:10px;">This bottle is not in the system yet. Choose an action to add it with detailed information.</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    modal.style.display = 'block';
+}
+
+// Modal Actions
+function closeModal() {
+    document.getElementById('bottle-modal').style.display = 'none';
+}
+
+function closeAddModal() {
+    document.getElementById('add-bottle-modal').style.display = 'none';
+}
+
+function closeClientModal() {
+    document.getElementById('add-client-modal').style.display = 'none';
+}
+
+function closeDeliveryModal() {
+    document.getElementById('delivery-modal').style.display = 'none';
+}
+
+function actionRefill() {
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (!bottle) {
+        // Create new bottle
+        bottle = createNewBottleRecord(currentBottleId, 'available');
+    } else {
+        bottle.refillCount = (bottle.refillCount || 0) + 1;
+        bottle.status = 'available';
+        bottle.clientId = '';
+        bottle.clientName = '';
+        bottle.clientPhone = '';
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history = bottle.history || [];
+        bottle.history.push({
+            action: `Refilled (Count: ${bottle.refillCount})`,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    addActivity(`Bottle ${currentBottleId} refilled (Refill #${bottle.refillCount}) and marked available`);
+    updateClientBottleCounts();
+    saveData();
+    updateAllDisplays();
+    closeModal();
+}
+
+function actionDeliver() {
+    // Show delivery modal with client selection
+    populateClientDropdowns();
+    document.getElementById('delivery-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('delivery-time').value = new Date().toTimeString().slice(0,5);
+    document.getElementById('delivery-modal').style.display = 'block';
+}
+
+function confirmDelivery() {
+    const clientId = document.getElementById('delivery-client-select').value;
+    const deliveryDate = document.getElementById('delivery-date').value;
+    const deliveryTime = document.getElementById('delivery-time').value;
+    const deliveryNotes = document.getElementById('delivery-notes').value;
+    
+    if (!clientId) {
+        alert('Please select a client for delivery');
+        return;
+    }
+    
+    const client = clients.find(c => c.id === clientId);
+    if (!client) {
+        alert('Selected client not found');
+        return;
+    }
+    
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (!bottle) {
+        bottle = createNewBottleRecord(currentBottleId, 'with-client');
+    } else {
+        bottle.status = 'with-client';
+        bottle.deliveryCount = (bottle.deliveryCount || 0) + 1;
+        bottle.lastUpdated = new Date().toISOString();
+    }
+    
+    bottle.clientId = clientId;
+    bottle.clientName = client.name;
+    bottle.clientPhone = client.phone;
+    bottle.deliveryDate = deliveryDate && deliveryTime ? `${deliveryDate}T${deliveryTime}` : new Date().toISOString();
+    bottle.deliveryNotes = deliveryNotes;
+    
+    bottle.history = bottle.history || [];
+    bottle.history.push({
+        action: `Delivered to ${client.name} (Delivery #${bottle.deliveryCount})`,
+        timestamp: new Date().toISOString(),
+        client: client.name,
+        phone: client.phone,
+        notes: deliveryNotes
+    });
+    
+    addActivity(`Bottle ${currentBottleId} delivered to ${client.name} (${client.phone}) - Delivery #${bottle.deliveryCount}`);
+    updateClientBottleCounts();
+    saveData();
+    updateAllDisplays();
+    closeDeliveryModal();
+    closeModal();
+}
+
+function actionReturn() {
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (!bottle) {
+        bottle = createNewBottleRecord(currentBottleId, 'needs-refill');
+    } else {
+        bottle.status = 'needs-refill';
+        bottle.returnDate = new Date().toISOString();
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history = bottle.history || [];
+        bottle.history.push({
+            action: `Returned from ${bottle.clientName || 'client'}, needs refill`,
+            timestamp: new Date().toISOString(),
+            client: bottle.clientName
+        });
+    }
+    
+    addActivity(`Bottle ${currentBottleId} returned from ${bottle.clientName || 'client'} (${bottle.clientPhone || ''}) and needs refill`);
+    updateClientBottleCounts();
+    saveData();
+    updateAllDisplays();
+    closeModal();
+}
+
+function actionManual() {
+    const status = prompt('Select status:\n1. Available\n2. With Client\n3. Needs Refill\n4. Maintenance\n\nEnter number (1-4):');
+    const statusMap = {
+        '1': 'available',
+        '2': 'with-client', 
+        '3': 'needs-refill',
+        '4': 'maintenance'
+    };
+    
+    if (statusMap[status]) {
+        let bottle = bottles.find(b => b.id === currentBottleId);
+        
+        if (!bottle) {
+            bottle = createNewBottleRecord(currentBottleId, statusMap[status]);
+        } else {
+            bottle.status = statusMap[status];
+            bottle.lastUpdated = new Date().toISOString();
+            bottle.history = bottle.history || [];
+            bottle.history.push({
+                action: `Manually updated to ${statusMap[status]}`,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        if (status === '2') {
+            // Handle client selection for "with-client" status
+            actionDeliver();
+            return;
+        }
+        
+        addActivity(`Bottle ${currentBottleId} manually updated to ${statusMap[status]}`);
+        updateClientBottleCounts();
+        saveData();
+        updateAllDisplays();
+    }
+    closeModal();
+}
+
+function createNewBottleRecord(bottleId, status) {
+    const newBottle = {
+        id: bottleId,
+        status: status,
+        clientId: '',
+        clientName: '',
+        clientPhone: '',
+        refillCount: status === 'available' ? 1 : 0,
+        deliveryCount: 0,
+        lastUpdated: new Date().toISOString(),
+        created: new Date().toISOString(),
+        history: [{
+            action: `Bottle created with status: ${status}`,
+            timestamp: new Date().toISOString()
+        }]
+    };
+    
+    bottles.push(newBottle);
+    return newBottle;
+}
+
+// Enhanced Display Updates
+function updateAllDisplays() {
+    updateDashboard();
+    updateInventoryDisplay();
+    updateClientDisplay();
+    updateReports();
+    populateClientDropdowns();
+}
+
+function updateDashboard() {
+    const stats = {
+        total: bottles.length,
+        available: bottles.filter(b => b.status === 'available').length,
+        withClient: bottles.filter(b => b.status === 'with-client').length,
+        needsRefill: bottles.filter(b => b.status === 'needs-refill').length,
+        maintenance: bottles.filter(b => b.status === 'maintenance').length,
+        clients: clients.length
+    };
+    
+    document.getElementById('total-bottles').textContent = stats.total;
+    document.getElementById('available-bottles').textContent = stats.available;
+    document.getElementById('with-client-bottles').textContent = stats.withClient;
+    document.getElementById('needs-refill-bottles').textContent = stats.needsRefill;
+    document.getElementById('maintenance-bottles').textContent = stats.maintenance;
+    document.getElementById('total-clients').textContent = stats.clients;
+    
+    const activityDiv = document.getElementById('recent-activity');
+    if (activityLog.length > 0) {
+        activityDiv.innerHTML = activityLog.slice(0, 15).map(activity => `
+            <div style="padding:12px;margin:8px 0;background:rgba(33,150,243,0.05);border-radius:10px;border-left:4px solid #2196F3;">
+                <div style="font-weight:600;color:#2196F3;margin-bottom:5px;">${activity.action}</div>
+                <div class="small" style="color:#6c757d;">${new Date(activity.timestamp).toLocaleString()}</div>
+            </div>
+        `).join('');
+    } else {
+        activityDiv.innerHTML = '<p class="small">No recent activity</p>';
+    }
+    
+    const alertsDiv = document.getElementById('alerts');
+    const alerts = [];
+    
+    const needsRefill = bottles.filter(b => b.status === 'needs-refill').length;
+    const maintenance = bottles.filter(b => b.status === 'maintenance').length;
+    const highRefillCount = bottles.filter(b => (b.refillCount || 0) > 10).length;
+    
+    if (needsRefill > 0) {
+        alerts.push(`${needsRefill} bottle(s) need refilling`);
+    }
+    if (maintenance > 0) {
+        alerts.push(`${maintenance} bottle(s) need maintenance`);
+    }
+    if (highRefillCount > 0) {
+        alerts.push(`${highRefillCount} bottle(s) have high refill count (>10)`);
+    }
+    
+    if (alerts.length > 0) {
+        alertsDiv.innerHTML = alerts.map(alert => `
+            <div style="padding:12px;margin:8px 0;background:rgba(255,193,7,0.1);border-radius:10px;border-left:4px solid #ffc107;color:#856404;">
+                ⚠️ ${alert}
+            </div>
+        `).join('');
+    } else {
+        alertsDiv.innerHTML = '<p class="small">No alerts</p>';
+    }
+}
+
+function updateInventoryDisplay() {
+    const inventoryDiv = document.getElementById('bottle-inventory');
+    const searchTerm = document.getElementById('search-bottles').value.toLowerCase();
+    const statusFilter = document.getElementById('filter-status').value;
+    
+    let filteredBottles = bottles.filter(bottle => {
+        const matchesSearch = !searchTerm || 
+            bottle.id.toLowerCase().includes(searchTerm) ||
+            (bottle.clientName && bottle.clientName.toLowerCase().includes(searchTerm)) ||
+            (bottle.clientPhone && bottle.clientPhone.toLowerCase().includes(searchTerm)) ||
+            bottle.status.toLowerCase().includes(searchTerm);
+        
+        const matchesStatus = !statusFilter || bottle.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+    });
+    
+    if (filteredBottles.length > 0) {
+        inventoryDiv.innerHTML = filteredBottles.map(bottle => `
+            <div class="bottle-card">
+                <div class="bottle-id">Bottle #${bottle.id}</div>
+                <div class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</div>
+                <div style="margin:15px 0;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                        <div><strong>🔄 Refills:</strong> ${bottle.refillCount || 0}</div>
+                        <div><strong>🚚 Deliveries:</strong> ${bottle.deliveryCount || 0}</div>
+                    </div>
+                    ${bottle.clientName ? `
+                        <div style="background:rgba(40,167,69,0.1);padding:10px;border-radius:8px;margin:10px 0;">
+                            <strong>👤 Client:</strong> ${bottle.clientName}<br>
+                            <strong>📞 Phone:</strong> ${bottle.clientPhone}<br>
+                            ${bottle.deliveryDate ? `<strong>📅 Delivered:</strong> ${new Date(bottle.deliveryDate).toLocaleString()}<br>` : ''}
+                            ${bottle.deliveryNotes ? `<strong>📝 Notes:</strong> ${bottle.deliveryNotes}` : ''}
+                        </div>
+                    ` : '<div><strong>👤 Client:</strong> None</div>'}
+                    <div style="margin-top:10px;"><strong>📅 Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="viewBottleDetails('${bottle.id}')">👁️ Details</button>
+                    <button class="btn btn-sm btn-warning" onclick="editBottle('${bottle.id}')">✏️ Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBottle('${bottle.id}')">🗑️ Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        inventoryDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No bottles found matching your criteria.</div>';
+    }
+}
+
+function updateClientDisplay() {
+    updateClientBottleCounts();
+    const clientDiv = document.getElementById('client-list');
+    const searchTerm = document.getElementById('search-clients').value.toLowerCase();
+    
+    let filteredClients = clients.filter(client => {
+        return !searchTerm || 
+            client.name.toLowerCase().includes(searchTerm) ||
+            client.phone.toLowerCase().includes(searchTerm) ||
+            (client.address && client.address.toLowerCase().includes(searchTerm));
+    });
+    
+    if (filteredClients.length > 0) {
+        clientDiv.innerHTML = filteredClients.map(client => `
+            <div class="bottle-card">
+                <div class="bottle-id">👤 ${client.name}</div>
+                <div class="status with-client">CLIENT</div>
+                <div style="margin:15px 0;">
+                    <div><strong>📞 Phone:</strong> ${client.phone}</div>
+                    ${client.address ? `<div><strong>📍 Address:</strong> ${client.address}</div>` : ''}
+                    <div><strong>🍶 Bottles:</strong> ${client.bottleCount || 0}</div>
+                    ${client.notes ? `<div style="margin-top:10px;"><strong>📝 Notes:</strong> ${client.notes}</div>` : ''}
+                    <div style="margin-top:10px;"><strong>📅 Added:</strong> ${new Date(client.created).toLocaleString()}</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="viewClientBottles('${client.id}')">🍶 View Bottles</button>
+                    <button class="btn btn-sm btn-warning" onclick="editClient('${client.id}')">✏️ Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteClient('${client.id}')">🗑️ Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        clientDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No clients found matching your criteria.</div>';
+    }
+}
+
+// Search and Filter Functions
+function searchBottles() {
+    updateInventoryDisplay();
+}
+
+function filterBottles() {
+    updateInventoryDisplay();
+}
+
+function searchClients() {
+    updateClientDisplay();
+}
+
+// Client Management
+function addNewClient() {
+    document.getElementById('add-client-modal').style.display = 'block';
+}
+
+function createNewClient() {
+    const name = document.getElementById('new-client-name').value.trim();
+    const phone = document.getElementById('new-client-phone').value.trim();
+    const address = document.getElementById('new-client-address').value.trim();
+    const notes = document.getElementById('new-client-notes').value.trim();
+    
+    if (!name) {
+        alert('Please enter a client name');
+        return;
+    }
+    
+    if (!phone) {
+        alert('Please enter a phone number');
+        return;
+    }
+    
+    if (clients.find(c => c.phone === phone)) {
+        alert('A client with this phone number already exists');
+        return;
+    }
+    
+    const newClient = {
+        id: 'client_' + Date.now(),
+        name: name,
+        phone: phone,
+        address: address,
+        notes: notes,
+        created: new Date().toISOString(),
+        bottleCount: 0
+    };
+    
+    clients.push(newClient);
+    addActivity(`New client added: ${name} (${phone})`);
+    
+    // Clear form
+    document.getElementById('new-client-name').value = '';
+    document.getElementById('new-client-phone').value = '';
+    document.getElementById('new-client-address').value = '';
+    document.getElementById('new-client-notes').value = '';
+    
+    closeClientModal();
+    updateAllDisplays();
+}
+
+function viewClientBottles(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    const clientBottles = bottles.filter(b => b.clientId === clientId);
+    
+    if (!client) return;
+    
+    let message = `Bottles for ${client.name} (${client.phone}):\n\n`;
+    
+    if (clientBottles.length > 0) {
+        clientBottles.forEach(bottle => {
+            message += `• Bottle ${bottle.id} - ${bottle.status.toUpperCase()}\n`;
+            message += `  Refills: ${bottle.refillCount || 0}, Deliveries: ${bottle.deliveryCount || 0}\n`;
+            if (bottle.deliveryDate) {
+                message += `  Last Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}\n`;
+            }
+            message += '\n';
+        });
+    } else {
+        message += 'No bottles currently with this client.';
+    }
+    
+    alert(message);
+}
+
+function editClient(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    const newName = prompt('Enter new client name:', client.name);
+    if (newName && newName !== client.name) {
+        const oldName = client.name;
+        client.name = newName;
+        
+        // Update all bottles with this client
+        bottles.forEach(bottle => {
+            if (bottle.clientId === clientId) {
+                bottle.clientName = newName;
+            }
+        });
+        
+        addActivity(`Client name updated from ${oldName} to ${newName}`);
+        saveData();
+        updateAllDisplays();
+    }
+}
+
+function deleteClient(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    const clientBottles = bottles.filter(b => b.clientId === clientId);
+    
+    if (clientBottles.length > 0) {
+        if (!confirm(`Client ${client.name} has ${clientBottles.length} bottle(s). Deleting will remove client info from bottles. Continue?`)) {
+            return;
+        }
+        
+        // Remove client info from bottles
+        clientBottles.forEach(bottle => {
+            bottle.clientId = '';
+            bottle.clientName = '';
+            bottle.clientPhone = '';
+        });
+    }
+    
+    if (confirm(`Are you sure you want to delete client ${client.name}? This action cannot be undone.`)) {
+        clients = clients.filter(c => c.id !== clientId);
+        addActivity(`Client deleted: ${client.name} (${client.phone})`);
+        saveData();
+        updateAllDisplays();
+    }
+}
+
+// Bottle Management
+function addNewBottle() {
+    populateClientDropdowns();
+    document.getElementById('add-bottle-modal').style.display = 'block';
+}
+
+function createNewBottle() {
+    const id = document.getElementById('new-bottle-id').value.trim();
+    const clientId = document.getElementById('new-bottle-client-select').value;
+    const status = document.getElementById('new-bottle-status').value;
+    
+    if (!id) {
+        alert('Please enter a bottle ID');
+        return;
+    }
+    
+    if (bottles.find(b => b.id === id)) {
+        alert('A bottle with this ID already exists');
+        return;
+    }
+    
+    const client = clientId ? clients.find(c => c.id === clientId) : null;
+    
+    const newBottle = {
+        id: id,
+        status: status,
+        clientId: clientId || '',
+        clientName: client ? client.name : '',
+        clientPhone: client ? client.phone : '',
+        refillCount: status === 'available' ? 1 : 0,
+        deliveryCount: 0,
+        lastUpdated: new Date().toISOString(),
+        created: new Date().toISOString(),
+        history: [{
+            action: `Bottle created with status: ${status}`,
+            timestamp: new Date().toISOString(),
+            client: client ? client.name : ''
+        }]
+    };
+    
+    bottles.push(newBottle);
+    addActivity(`New bottle ${id} added to inventory${client ? ` for ${client.name}` : ''}`);
+    
+    // Clear form
+    document.getElementById('new-bottle-id').value = '';
+    document.getElementById('new-bottle-client-select').value = '';
+    document.getElementById('new-bottle-status').value = 'available';
+    
+    closeAddModal();
+    updateAllDisplays();
+}
+
+function populateClientDropdowns() {
+    const selects = [
+        document.getElementById('new-bottle-client-select'),
+        document.getElementById('delivery-client-select')
+    ];
+    
+    selects.forEach(select => {
+        if (select) {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Select Client</option>';
+            
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = `${client.name} (${client.phone})`;
+                if (client.id === currentValue) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+    });
+}
+
+function viewBottleDetails(bottleId) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    if (!bottle) return;
+    
+    let details = `Bottle Details for #${bottle.id}\n\n`;
+    details += `Status: ${bottle.status.toUpperCase()}\n`;
+    details += `Refill Count: ${bottle.refillCount || 0}\n`;
+    details += `Delivery Count: ${bottle.deliveryCount || 0}\n`;
+    details += `Created: ${new Date(bottle.created).toLocaleString()}\n`;
+    details += `Last Updated: ${new Date(bottle.lastUpdated).toLocaleString()}\n\n`;
+    
+    if (bottle.clientName) {
+        details += `Current Client: ${bottle.clientName}\n`;
+        details += `Phone: ${bottle.clientPhone}\n`;
+        if (bottle.deliveryDate) {
+            details += `Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}\n`;
+        }
+        if (bottle.deliveryNotes) {
+            details += `Notes: ${bottle.deliveryNotes}\n`;
+        }
+        details += '\n';
+    }
+    
+    if (bottle.history && bottle.history.length > 0) {
+        details += 'Recent History:\n';
+        bottle.history.slice(-5).forEach(h => {
+            details += `• ${h.action} - ${new Date(h.timestamp).toLocaleString()}\n`;
+        });
+    }
+    
+    alert(details);
+}
+
+function editBottle(bottleId) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    if (!bottle) return;
+    
+    currentBottleId = bottleId;
+    processBottle();
+}
+
+function deleteBottle(bottleId) {
+    if (confirm(`Are you sure you want to delete bottle ${bottleId}? This action cannot be undone.`)) {
+        const bottle = bottles.find(b => b.id === bottleId);
+        bottles = bottles.filter(b => b.id !== bottleId);
+        addActivity(`Bottle ${bottleId} deleted from inventory${bottle && bottle.clientName ? ` (was with ${bottle.clientName})` : ''}`);
+        updateClientBottleCounts();
+        saveData();
+        updateAllDisplays();
+    }
+}
+
+// Reports
+function updateReports() {
+    console.log('Reports updated');
+}
+
+function generateReport() {
+    const startDate = document.getElementById('report-start').value;
+    const endDate = document.getElementById('report-end').value;
+    
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const filteredActivities = activityLog.filter(activity => {
+        const activityDate = new Date(activity.timestamp);
+        return activityDate >= start && activityDate <= end;
+    });
+    
+    const totalRefills = bottles.reduce((sum, bottle) => sum + (bottle.refillCount || 0), 0);
+    const totalDeliveries = bottles.reduce((sum, bottle) => sum + (bottle.deliveryCount || 0), 0);
+    
+    const reportSummary = document.getElementById('report-summary');
+    reportSummary.innerHTML = `
+        <h4>📊 Report for ${startDate} to ${endDate}</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
+            <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Activities:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#2196F3;">${filteredActivities.length}</span>
+            </div>
+            <div style="background:rgba(40,167,69,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Bottles:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#28a745;">${bottles.length}</span>
+            </div>
+            <div style="background:rgba(255,193,7,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Refills:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#856404;">${totalRefills}</span>
+            </div>
+            <div style="background:rgba(220,53,69,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Deliveries:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#dc3545;">${totalDeliveries}</span>
+            </div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:15px 0;">
+            <div><strong>Available:</strong> ${bottles.filter(b => b.status === 'available').length}</div>
+            <div><strong>With Clients:</strong> ${bottles.filter(b => b.status === 'with-client').length}</div>
+            <div><strong>Need Refill:</strong> ${bottles.filter(b => b.status === 'needs-refill').length}</div>
+            <div><strong>Maintenance:</strong> ${bottles.filter(b => b.status === 'maintenance').length}</div>
+            <div><strong>Total Clients:</strong> ${clients.length}</div>
+        </div>
+        
+        <div style="margin-top:20px;">
+            <h5>📋 Activities in Period (${filteredActivities.length}):</h5>
+            <div style="max-height:300px;overflow-y:auto;margin-top:10px;">
+                ${filteredActivities.slice(0, 20).map(activity => `
+                    <div style="padding:8px;margin:4px 0;background:rgba(0,0,0,0.05);border-radius:8px;border-left:3px solid #2196F3;">
+                        <div style="font-weight:600;">${activity.action}</div>
+                        <div style="font-size:13px;color:#6c757d;">${new Date(activity.timestamp).toLocaleString()}</div>
+                    </div>
+                `).join('') || '<p>No activities in this period</p>'}
+                ${filteredActivities.length > 20 ? `<div style="text-align:center;padding:10px;color:#6c757d;">... and ${filteredActivities.length - 20} more activities</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function addActivity(message) {
+    activityLog.unshift({
+        action: message,
+        timestamp: new Date().toISOString()
+    });
+    
+    if (activityLog.length > 100) {  // Keep more history
+        activityLog = activityLog.slice(0, 100);
+    }
+    
+    saveData();
+    updateDashboard();
+}
+
+function setupDefaultDates() {
+    const today = new Date();
+    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+    document.getElementById('report-start').value = lastMonth.toISOString().split('T')[0];
+    document.getElementById('report-end').value = today.toISOString().split('T')[0];
+}
+
+function createFloatingParticles() {
+    const container = document.querySelector('.floating-particles');
+    for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 15 + 's';
+        particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+        container.appendChild(particle);
+    }
+}
 </script>
+
+<!-- Keep all your original CSS exactly the same -->
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+
+body {
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+min-height: 100vh;
+padding: 20px;
+animation: gradientShift 10s ease infinite;
+}
+
+@keyframes gradientShift {
+0% { background-position: 0% 50%; }
+50% { background-position: 100% 50%; }
+100% { background-position: 0% 50%; }
+}
+
+.container {
+max-width: 1400px;
+margin: 0 auto;
+background: rgba(255, 255, 255, 0.95);
+border-radius: 25px;
+box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+overflow: hidden;
+backdrop-filter: blur(10px);
+}
+
+.header {
+background: linear-gradient(45deg, #2196F3, #21CBF3, #00BCD4);
+color: white;
+padding: 40px;
+text-align: center;
+position: relative;
+overflow: hidden;
+}
+
+.header::before {
+content: '';
+position: absolute;
+top: 0;
+left: -100%;
+width: 100%;
+height: 100%;
+background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+0% { left: -100%; }
+100% { left: 100%; }
+}
+
+.header h1 {
+font-size: 3rem;
+margin-bottom: 15px;
+text-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+0%, 100% { transform: scale(1); }
+50% { transform: scale(1.02); }
+}
+
+.tabs {
+display: flex;
+background: linear-gradient(45deg, #f8f9fa, #ffffff);
+border-bottom: 2px solid #e9ecef;
+box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.tab {
+flex: 1;
+padding: 25px;
+text-align: center;
+border: none;
+cursor: pointer;
+font-size: 18px;
+font-weight: 700;
+color: #6c757d;
+transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+background: none;
+position: relative;
+overflow: hidden;
+}
+
+.tab::before {
+content: '';
+position: absolute;
+bottom: 0;
+left: 50%;
+width: 0;
+height: 4px;
+background: linear-gradient(45deg, #2196F3, #21CBF3);
+transition: all 0.4s ease;
+transform: translateX(-50%);
+}
+
+.tab.active {
+background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(255, 255, 255, 1));
+color: #2196F3;
+transform: translateY(-2px);
+}
+
+.tab.active::before {
+width: 80%;
+}
+
+.tab:hover {
+background: rgba(33, 150, 243, 0.05);
+transform: translateY(-1px);
+}
+
+.tab-content {
+display: none;
+padding: 40px;
+animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(20px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+.tab-content.active {
+display: block;
+}
+
+.btn {
+background: linear-gradient(45deg, #2196F3, #21CBF3);
+color: white;
+border: none;
+padding: 12px 24px;
+border-radius: 25px;
+font-size: 16px;
+font-weight: 600;
+cursor: pointer;
+margin: 8px;
+transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+position: relative;
+overflow: hidden;
+}
+
+.btn::before {
+content: '';
+position: absolute;
+top: 50%;
+left: 50%;
+width: 0;
+height: 0;
+background: rgba(255, 255, 255, 0.3);
+border-radius: 50%;
+transition: all 0.3s ease;
+transform: translate(-50%, -50%);
+}
+
+.btn:hover {
+transform: translateY(-3px) scale(1.02);
+box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+}
+
+.btn:hover::before {
+width: 300px;
+height: 300px;
+}
+
+.btn-sm {
+padding: 8px 16px;
+font-size: 14px;
+margin: 4px;
+}
+
+.btn-secondary {
+background: linear-gradient(45deg, #6c757d, #868e96);
+box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.btn-success {
+background: linear-gradient(45deg, #28a745, #20c997);
+box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.btn-warning {
+background: linear-gradient(45deg, #ffc107, #ffca2c);
+box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+}
+
+.btn-danger {
+background: linear-gradient(45deg, #dc3545, #e74c3c);
+box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.stats-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+gap: 25px;
+margin-bottom: 30px;
+}
+
+.stat-card {
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+color: white;
+padding: 30px;
+border-radius: 20px;
+text-align: center;
+box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+transition: all 0.3s ease;
+position: relative;
+overflow: hidden;
+}
+
+.stat-card::before {
+content: '';
+position: absolute;
+top: -50%;
+left: -50%;
+width: 200%;
+height: 200%;
+background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+
+.stat-card:hover {
+transform: translateY(-8px) scale(1.02);
+box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
+}
+
+.stat-number {
+font-size: 3rem;
+font-weight: 900;
+margin-bottom: 10px;
+text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+position: relative;
+z-index: 1;
+}
+
+.stat-label {
+font-size: 16px;
+opacity: 0.95;
+font-weight: 600;
+position: relative;
+z-index: 1;
+}
+
+.bottle-grid {
+display: grid;
+grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+gap: 25px;
+margin-top: 30px;
+}
+
+.bottle-card {
+background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 249, 250, 0.9));
+border-radius: 20px;
+padding: 25px;
+box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+border-left: 6px solid #2196F3;
+transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+position: relative;
+overflow: hidden;
+}
+
+.bottle-card::before {
+content: '';
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), transparent);
+transition: all 0.3s ease;
+}
+
+.bottle-card:hover {
+transform: translateY(-5px) scale(1.02);
+box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
+}
+
+.bottle-card:hover::before {
+background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), transparent);
+}
+
+.bottle-id {
+font-size: 1.4rem;
+font-weight: 900;
+color: #2196F3;
+margin-bottom: 12px;
+text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.status {
+padding: 8px 16px;
+border-radius: 25px;
+font-size: 14px;
+font-weight: 700;
+display: inline-block;
+margin-bottom: 15px;
+text-transform: uppercase;
+letter-spacing: 0.5px;
+box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.status.available {
+background: linear-gradient(45deg, #d4edda, #c3e6cb);
+color: #155724;
+}
+
+.status.with-client {
+background: linear-gradient(45deg, #fff3cd, #ffeaa7);
+color: #856404;
+}
+
+.status.needs-refill {
+background: linear-gradient(45deg, #f8d7da, #f5c6cb);
+color: #721c24;
+}
+
+.status.maintenance {
+background: linear-gradient(45deg, #d1ecf1, #bee5eb);
+color: #0c5460;
+}
+
+.modal {
+display: none;
+position: fixed;
+z-index: 2000;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background: rgba(0, 0, 0, 0.6);
+backdrop-filter: blur(8px);
+animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+from { opacity: 0; }
+to { opacity: 1; }
+}
+
+.modal-content {
+background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95));
+margin: 5% auto;
+padding: 40px;
+border-radius: 25px;
+width: 95%;
+max-width: 650px;
+box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+backdrop-filter: blur(10px);
+}
+
+@keyframes modalSlideIn {
+from { transform: translateY(-50px) scale(0.9); opacity: 0; }
+to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.close {
+color: #aaa;
+float: right;
+font-size: 32px;
+font-weight: bold;
+cursor: pointer;
+transition: all 0.3s ease;
+}
+
+.close:hover {
+color: #2196F3;
+transform: scale(1.1);
+}
+
+.barcode-input {
+display: flex;
+flex-direction: column;
+gap: 15px;
+max-width: 500px;
+margin: 20px auto;
+}
+
+.barcode-display {
+background: linear-gradient(135deg, #f8f9fa, #ffffff);
+border: 2px solid #e9ecef;
+border-radius: 15px;
+padding: 20px;
+text-align: center;
+min-height: 100px;
+display: flex;
+align-items: center;
+justify-content: center;
+font-family: monospace;
+font-size: 18px;
+font-weight: bold;
+color: #495057;
+box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.search-row {
+display: flex;
+gap: 12px;
+align-items: center;
+margin: 20px 0;
+flex-wrap: wrap;
+}
+
+.search-input {
+padding: 12px 20px;
+border-radius: 25px;
+border: 2px solid #e9ecef;
+flex: 1;
+min-width: 200px;
+font-size: 16px;
+transition: all 0.3s ease;
+box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.search-input:focus {
+border-color: #2196F3;
+box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+outline: none;
+}
+
+.small {
+font-size: 14px;
+color: #6c757d;
+line-height: 1.5;
+}
+
+@media(max-width: 768px) {
+.tabs {
+flex-direction: column;
+}
+.header h1 {
+font-size: 2.2rem;
+}
+.bottle-grid {
+grid-template-columns: 1fr;
+}
+.stats-grid {
+grid-template-columns: 1fr;
+}
+.tab-content {
+padding: 20px;
+}
+}
+
+.floating-particles {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+z-index: -1;
+}
+
+.particle {
+position: absolute;
+width: 4px;
+height: 4px;
+background: rgba(255, 255, 255, 0.6);
+border-radius: 50%;
+animation: float 15s infinite linear;
+}
+
+@keyframes float {
+0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+10% { opacity: 1; }
+90% { opacity: 1; }
+100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+}
+</style>
 
 </body>
 </html>
