@@ -8,6 +8,19 @@
 </head>
 
 <body>
+<div id="mobile-nav" style="display:none;position:fixed;top:20px;right:20px;z-index:3000;">
+  <button id="hamburger-btn" class="btn" style="padding:10px 15px;font-size:22px;">
+    ☰
+  </button>
+  <div id="drawer" style="display:none;position:absolute;top:50px;right:0;background:white;border-radius:15px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:180px;">
+    <button class="tab" onclick="showTab(event,'dashboard')">🏠 Dashboard</button>
+    <button class="tab" onclick="showTab(event,'scanner')">📱 Scanner</button>
+    <button class="tab" onclick="showTab(event,'inventory')">📦 Inventory</button>
+    <button class="tab" onclick="showTab(event,'clients')">👥 Clients</button>
+    <button class="tab" onclick="showTab(event,'reports')">📊 Reports</button>
+  </div>
+</div>
+
 <div class="floating-particles"></div>
 <div class="container">
 <div class="header">
@@ -1444,6 +1457,35 @@ function createFloatingParticles() {
         container.appendChild(particle);
     }
 }
+
+// Mobile nav drawer
+const hamburgerBtn = document.getElementById('hamburger-btn');
+const drawer = document.getElementById('drawer');
+hamburgerBtn && hamburgerBtn.addEventListener('click', () => {
+    drawer.style.display = drawer.style.display === 'block' ? 'none' : 'block';
+});
+window.addEventListener('resize', () => {
+    if (window.innerWidth < 768) {
+        document.getElementById('mobile-nav').style.display = 'block';
+        document.querySelector('.tabs').style.display = 'none';
+    } else {
+        document.getElementById('mobile-nav').style.display = 'none';
+        document.querySelector('.tabs').style.display = 'flex';
+        drawer.style.display = 'none';
+    }
+});
+if (window.innerWidth < 768) {
+    document.getElementById('mobile-nav').style.display = 'block';
+    document.querySelector('.tabs').style.display = 'none';
+}
+
+const backToTopBtn = document.getElementById('back-to-top');
+window.addEventListener('scroll', () => {
+    backToTopBtn.style.display = window.scrollY > 200 ? 'block' : 'none';
+});
+backToTopBtn && backToTopBtn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 </script>
 
 <!-- Keep all your original CSS exactly the same -->
@@ -1863,6 +1905,7 @@ flex-wrap: wrap;
 
 .search-input {
 padding: 12px 20px;
+
 border-radius: 25px;
 border: 2px solid #e9ecef;
 flex: 1;
@@ -1884,33 +1927,36 @@ color: #6c757d;
 line-height: 1.5;
 }
 
-@media(max-width: 768px) {
-.tabs {
-flex-direction: column;
-}
-.header h1 {
-font-size: 2.2rem;
-}
-.bottle-grid {
-grid-template-columns: 1fr;
-}
-.stats-grid {
-grid-template-columns: 1fr;
-}
-.tab-content {
-padding: 20px;
-}
+@media(max-width: 600px) {
+    .modal-content {
+        margin: 0;
+        width: 100vw;
+        min-height: 100vh;
+        border-radius: 0;
+        padding: 10vw 5vw;
+    }
 }
 
-.floating-particles {
-position: fixed;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-pointer-events: none;
-z-index: -1;
+@media(max-width: 768px) {
+    .btn, .tab {
+        font-size: 18px;
+        padding: 18px 24px;
+    }
+    .modal-content {
+        padding: 20px;
+        width: 98%;
+    }
+    input, select, textarea {
+        font-size: 18px;
+        padding: 16px;
+    }
 }
+</style>
+
+<button id="back-to-top" class="btn" style="position:fixed;bottom:30px;right:30px;z-index:3000;display:none;">⬆️</button>
+
+</body>
+</html>
 
 .particle {
 position: absolute;
@@ -1927,7 +1973,3 @@ animation: float 15s infinite linear;
 90% { opacity: 1; }
 100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
 }
-</style>
-
-</body>
-</html>
