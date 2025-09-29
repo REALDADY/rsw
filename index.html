@@ -185,26 +185,23 @@ Waiting for barcode input...
 
 <!-- Firebase Configuration -->
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics.js';
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+i// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyABAxpddjUWn-HPHt4LwTTPTNgTz8PzVLc",
-  authDomain: "trackin-ab04f.firebaseapp.com",
-  projectId: "trackin-ab04f",
-  storageBucket: "trackin-ab04f.firebasestorage.app",
-  messagingSenderId: "960941325939",
-  appId: "1:960941325939:web:d5f2b39d00c10871bf3406",
-  measurementId: "G-4VNM4P54KY"
+  apiKey: "AIzaSyCp8P8eS9_aA9J6KtRP8XHj0aYmQ0fWXq0",
+  authDomain: "rsw1-57ef2.firebaseapp.com",
+  projectId: "rsw1-57ef2",
+  storageBucket: "rsw1-57ef2.firebasestorage.app",
+  messagingSenderId: "392691346004",
+  appId: "1:392691346004:web:354dff9d40a987e9595bc1"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getFirestore(app);
-
 // Make Firebase available globally
 window.firebaseApp = app;
 window.firebaseDb = db;
