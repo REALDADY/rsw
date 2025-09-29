@@ -185,23 +185,29 @@ Waiting for barcode input...
 
 <!-- Firebase Configuration -->
 <script type="module">
-i// Import the functions you need from the SDKs you need
+
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCp8P8eS9_aA9J6KtRP8XHj0aYmQ0fWXq0",
-  authDomain: "rsw1-57ef2.firebaseapp.com",
-  projectId: "rsw1-57ef2",
-  storageBucket: "rsw1-57ef2.firebasestorage.app",
-  messagingSenderId: "392691346004",
-  appId: "1:392691346004:web:354dff9d40a987e9595bc1"
+  apiKey: "AIzaSyDCiXCDmcTEp8zdJ4jSfdA0BUFleOmBBIo",
+  authDomain: "gallon-fe4a9.firebaseapp.com",
+  projectId: "gallon-fe4a9",
+  storageBucket: "gallon-fe4a9.firebasestorage.app",
+  messagingSenderId: "911351901173",
+  appId: "1:911351901173:web:17d72ceeeed4b1e2618ebc",
+  measurementId: "G-B9TB055344"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
 // Make Firebase available globally
 window.firebaseApp = app;
 window.firebaseDb = db;
