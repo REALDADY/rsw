@@ -5,23 +5,404 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>5-Gallon Bottle Tracking System</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Place this inside a <style> tag in your <head> section for improved UX/UI */
+
+body {
+    background: linear-gradient(135deg,#e3f2fd 0%,#f8f9fa 100%);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #222;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(33,150,243,0.08);
+    padding: 32px 24px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+}
+
+.tab {
+    background: linear-gradient(90deg,#2196F3 0%,#20c997 100%);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    padding: 12px 28px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+}
+
+.tab:not(.active):hover {
+    background: linear-gradient(90deg,#20c997 0%,#2196F3 100%);
+    color: #fff;
+}
+
+.tab.active {
+    background: linear-gradient(90deg,#1565c0 0%,#43e97b 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(33,150,243,0.12);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s;
+    padding-bottom: 32px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px);}
+    to { opacity: 1; transform: translateY(0);}
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+    gap: 18px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 2px 8px rgba(33,150,243,0.07);
+    padding: 24px 18px;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #2196F3;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+.bottle-grid, #client-list, #users-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(320px,1fr));
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.bottle-card {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 2px 8px rgba(33,150,243,0.07);
+    padding: 22px 18px;
+    transition: box-shadow 0.2s;
+    position: relative;
+}
+
+.bottle-card:hover {
+    box-shadow: 0 6px 24px rgba(33,150,243,0.13);
+}
+
+.bottle-id {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1565c0;
+    margin-bottom: 8px;
+}
+
+.status {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.status.available { background: #e3f2fd; color: #2196F3; }
+.status.with-client { background: #d4edda; color: #28a745; }
+.status.needs-refill { background: #fff3cd; color: #856404; }
+.status.maintenance { background: #f8d7da; color: #dc3545; }
+
+.btn, .login-btn {
+    background: linear-gradient(90deg,#2196F3 0%,#20c997 100%);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 0;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+}
+
+.btn:hover, .login-btn:hover {
+    background: linear-gradient(90deg,#20c997 0%,#2196F3 100%);
+}
+
+.btn-success { background: linear-gradient(90deg,#43e97b 0%,#38f9d7 100%); color: #fff; }
+.btn-warning { background: linear-gradient(90deg,#ffc107 0%,#ff9800 100%); color: #fff; }
+.btn-danger { background: linear-gradient(90deg,#dc3545 0%,#ff6a00 100%); color: #fff; }
+.btn-secondary { background: linear-gradient(90deg,#6c757d 0%,#b0bec5 100%); color: #fff; }
+.btn-sm { padding: 6px 14px; font-size: 0.95rem; border-radius: 18px; }
+
+input, select, textarea {
+    font-size: 1rem;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    margin-bottom: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: #2196F3;
+    outline: none;
+}
+
+.search-input {
+    max-width: 320px;
+    margin-right: 12px;
+}
+
+.search-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 4000;
+    left: 0; top: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(33,150,243,0.12);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(33,150,243,0.18);
+    padding: 32px 24px;
+    max-width: 420px;
+    width: 95vw;
+    position: relative;
+    animation: fadeIn 0.3s;
+}
+
+.close {
+    position: absolute;
+    top: 18px;
+    right: 24px;
+    font-size: 2rem;
+    color: #2196F3;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .container { padding: 12px 4px; }
+    .tabs { gap: 6px; }
+    .stat-card, .bottle-card { padding: 14px 8px; }
+    .modal-content { padding: 18px 8px; }
+    .search-row { flex-direction: column; gap: 6px; }
+}
+
+.floating-particles {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+.particle {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: #2196F3;
+    border-radius: 50%;
+    opacity: 0.12;
+    animation: floatUp linear infinite;
+}
+@keyframes floatUp {
+    from { top: 100vh; }
+    to { top: -20px; }
+}
+
+.user-info-badge {
+    position: absolute;
+    top: 18px; right: 24px;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 1rem;
+    z-index: 100;
+}
+
+.logout-btn {
+    background: linear-gradient(90deg,#dc3545 0%,#ff6a00 100%);
+    color: #fff;
+    border: none;
+    border-radius: 18px;
+    padding: 6px 18px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+}
+
+#login-screen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: linear-gradient(135deg,#2196F3 0%,#43e97b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+}
+
+.login-box {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(33,150,243,0.18);
+    padding: 38px 28px;
+    max-width: 350px;
+    width: 95vw;
+}
+
+.login-input {
+    font-size: 1rem;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border 0.2s;
+}
+
+.login-input:focus {
+    border-color: #2196F3;
+    outline: none;
+}
+
+.small {
+    font-size: 0.95rem;
+    color: #6c757d;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    background: #e3f2fd;
+}
+::-webkit-scrollbar-thumb {
+    background: #2196F3;
+    border-radius: 8px;
+    opacity: 0.15;
+}
+</style>
 </head>
 
-<!-- mohamed amin jbari incript -->
- 
 <body>
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none;">
+    <div class="login-box">
+        <div style="text-align:center;margin-bottom:30px;">
+            <h1 style="color:#2196F3;font-size:2.5rem;margin-bottom:10px;"> Bottle Tracker</h1>
+            <p style="color:#6c757d;">Secure Login Required</p>
+        </div>
+        
+        <!-- Login Form -->
+        <div id="login-form">
+            <input type="text" id="login-username" placeholder="Username" class="login-input">
+            <input type="password" id="login-password" placeholder="Password" class="login-input" onkeypress="if(event.key==='Enter')attemptLogin()">
+            <button onclick="attemptLogin()" class="login-btn">🔓 Login</button>
+            <div style="text-align:center;margin-top:20px;">
+                <a href="#" onclick="showRequestAccess();return false;" style="color:#2196F3;text-decoration:none;font-weight:600;">📝 Request Access</a>
+            </div>
+        </div>
+        
+        <!-- Request Access Form -->
+        <div id="request-form" style="display:none;">
+            <input type="text" id="req-name" placeholder="Your Full Name" class="login-input">
+            <input type="text" id="req-username" placeholder="Desired Username" class="login-input">
+            <input type="password" id="req-password" placeholder="Password" class="login-input">
+            <select id="req-role" class="login-input">
+                <option value="">Select Role</option>
+                <option value="worker">👷 Store Worker - Refill & Return Only</option>
+                <option value="driver">🚚 Driver - Deliver Only + Inventory/Clients</option>
+                <option value="manager">🏪 Store Manager - Full Access (except users)</option>
+                <option value="admin">👑 Admin - Complete Control (requires approval)</option>
+            </select>
+            <button onclick="submitAccessRequest()" class="login-btn" style="background:linear-gradient(45deg,#28a745,#20c997);margin-bottom:10px;">📤 Submit Request</button>
+            <button onclick="showLoginForm()" class="login-btn" style="background:#6c757d;">← Back to Login</button>
+        </div>
+    </div>
+</div>
+
+<div id="mobile-nav" style="display:none;position:fixed;top:20px;right:20px;z-index:3000;">
+  <button id="hamburger-btn" class="btn" style="padding:10px 15px;font-size:22px;">
+    ☰
+  </button>
+  <div id="drawer" style="display:none;position:absolute;top:50px;right:0;background:white;border-radius:15px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:180px;">
+    <button class="tab" onclick="showTab(event,'dashboard')" id="dashboard-tab-mobile">🏠 Dashboard</button>
+    <button class="tab" onclick="showTab(event,'scanner')" id="scanner-tab-mobile">📱 Scanner</button>
+    <button class="tab" onclick="showTab(event,'inventory')" id="inventory-tab-mobile">📦 Inventory</button>
+    <button class="tab" onclick="showTab(event,'clients')" id="clients-tab-mobile">👥 Clients</button>
+    <button class="tab" onclick="showTab(event,'reports')" id="reports-tab-mobile">🔒 Reports</button>
+    <button class="tab" onclick="showTab(event,'users')" id="users-tab-mobile" style="display:none;">👥 Users</button>
+  </div>
+</div>
+
 <div class="floating-particles"></div>
 <div class="container">
 <div class="header">
-<h1> 5 Gallon Tracking System</h1>
-<p>AL Rawdah operation system</p>
+<h1> Bottle Tracking System</h1>
+<p>all rights are are credited to AR GREEN </p>
 </div>
 
 <div class="tabs">
-<button class="tab active" onclick="showTab(event,'dashboard')">🏠 Dashboard</button>
-<button class="tab" onclick="showTab(event,'scanner')">📱 Scanner</button>
-<button class="tab" onclick="showTab(event,'inventory')">📦 Inventory</button>
-<button class="tab" onclick="showTab(event,'reports')">📊 Reports</button>
+<button class="tab active" onclick="showTab(event,'dashboard')" id="dashboard-tab">🏠 Dashboard</button>
+<button class="tab" onclick="showTab(event,'scanner')" id="scanner-tab">📱 Scanner</button>
+<button class="tab" onclick="showTab(event,'inventory')" id="inventory-tab">📦 Inventory</button>
+<button class="tab" onclick="showTab(event,'clients')" id="clients-tab">👥 Clients</button>
+<button class="tab" onclick="showTab(event,'reports')" id="reports-tab">🔒 Reports</button>
+<button class="tab" onclick="showTab(event,'users')" id="users-tab" style="display:none;">👥 Users</button>
 </div>
 
 <!-- Dashboard Tab -->
@@ -47,6 +428,10 @@
 <div class="stat-card">
 <div class="stat-number" id="maintenance-bottles">0</div>
 <div class="stat-label">Maintenance</div>
+</div>
+<div class="stat-card">
+<div class="stat-number" id="total-clients">0</div>
+<div class="stat-label">Active Clients</div>
 </div>
 </div>
 
@@ -110,7 +495,7 @@ Waiting for barcode input...
 <div id="inventory" class="tab-content">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
 <h2>📦 Inventory Management</h2>
-<button class="btn btn-success" onclick="addNewBottle()">➕ Add New Bottle</button>
+<div id="add-bottle-btn-container"></div>
 </div>
 
 <div class="search-row">
@@ -125,7 +510,21 @@ Waiting for barcode input...
 </div>
 
 <div id="bottle-inventory" class="bottle-grid">
-<!-- Bottles will be populated here -->
+</div>
+</div>
+
+<!-- Clients Tab -->
+<div id="clients" class="tab-content">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
+<h2>👥 Client Management</h2>
+<div id="add-client-btn-container"></div>
+</div>
+
+<div class="search-row">
+<input type="text" id="search-clients" class="search-input" placeholder="🔍 Search clients by name or phone..." onkeyup="searchClients()">
+</div>
+
+<div id="client-list" class="bottle-grid">
 </div>
 </div>
 
@@ -137,6 +536,7 @@ Waiting for barcode input...
 <input type="date" id="report-start" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
 <input type="date" id="report-end" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
 <button class="btn" onclick="generateReport()">📈 Generate Report</button>
+<button class="btn btn-success" onclick="exportToExcel()">📥 Export to Excel</button>
 </div>
 
 <div id="reports-content" style="margin-top:25px;">
@@ -148,6 +548,34 @@ Waiting for barcode input...
 </div>
 </div>
 </div>
+
+<!-- Users Tab (Admin Only) -->
+<div id="users" class="tab-content">
+<h2>👥 User Management</h2>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
+    <div style="display:flex;gap:15px;flex-wrap:wrap;">
+        <span style="padding:10px 20px;background:rgba(33,150,243,0.1);border-radius:10px;color:#2196F3;font-weight:bold;">
+            Total Users: <span id="total-users">0</span>
+        </span>
+        <span style="padding:10px 20px;background:rgba(255,193,7,0.1);border-radius:10px;color:#856404;font-weight:bold;">
+            Pending Requests: <span id="pending-requests">0</span>
+        </span>
+    </div>
+</div>
+
+<!-- Access Requests -->
+<div id="access-requests-section" style="margin-bottom:30px;">
+    <h3>📋 Pending Access Requests</h3>
+    <div id="access-requests-list" style="background:rgba(255,255,255,0.8);border-radius:15px;padding:20px;margin-top:15px;">
+        <p class="small">No pending requests</p>
+    </div>
+</div>
+
+<!-- Active Users -->
+<h3>✅ Active Users</h3>
+<div id="users-list" class="bottle-grid"></div>
+</div>
 </div>
 
 <!-- Modals -->
@@ -155,12 +583,9 @@ Waiting for barcode input...
 <div class="modal-content">
 <span class="close" onclick="closeModal()">&times;</span>
 <h2 id="modal-title">Bottle Actions</h2>
-<p id="modal-bottle-info"></p>
-<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
-<button class="btn btn-success" onclick="actionRefill()">🔄 Refill</button>
-<button class="btn btn-warning" onclick="actionDeliver()">🚚 Deliver</button>
-<button class="btn btn-secondary" onclick="actionReturn()">↩️ Return</button>
-<button class="btn" onclick="actionManual()">✏️ Manual Update</button>
+<div id="modal-bottle-info"></div>
+<div id="modal-action-buttons" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
+<!-- Buttons will be dynamically added here -->
 </div>
 </div>
 </div>
@@ -171,7 +596,10 @@ Waiting for barcode input...
 <h2>➕ Add New Bottle</h2>
 <div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
 <input type="text" id="new-bottle-id" placeholder="Bottle Barcode/ID" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
-<input type="text" id="new-bottle-client" placeholder="Client Name (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="text" id="new-bottle-client-search" placeholder="🔍 Search client..." oninput="filterNewBottleClients()" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<select id="new-bottle-client-select" size="5" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<option value="">Select Client (optional)</option>
+</select>
 <select id="new-bottle-status" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
 <option value="available">Available</option>
 <option value="with-client">With Client</option>
@@ -183,175 +611,643 @@ Waiting for barcode input...
 </div>
 </div>
 
-<!-- Firebase Configuration -->
-<script type="module">
+<div id="add-client-modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeClientModal()">&times;</span>
+<h2>➕ Add New Client</h2>
+<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
+<input type="text" id="new-client-name" placeholder="Client Name" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="tel" id="new-client-phone" placeholder="Phone Number" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="text" id="new-client-address" placeholder="Address (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<textarea id="new-client-notes" placeholder="Notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:80px;"></textarea>
+<button class="btn btn-success" onclick="createNewClient()" style="margin-top:10px;">✅ Create Client</button>
+</div>
+</div>
+</div>
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+<div id="delivery-modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeDeliveryModal()">&times;</span>
+<h2>🚚 Deliver Bottle</h2>
+<div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDCiXCDmcTEp8zdJ4jSfdA0BUFleOmBBIo",
-  authDomain: "gallon-fe4a9.firebaseapp.com",
-  projectId: "gallon-fe4a9",
-  storageBucket: "gallon-fe4a9.firebasestorage.app",
-  messagingSenderId: "911351901173",
-  appId: "1:911351901173:web:17d72ceeeed4b1e2618ebc",
-  measurementId: "G-B9TB055344"
-};
+<div style="display:flex;gap:10px;margin-bottom:10px;">
+<button class="btn btn-sm" id="existing-client-btn" onclick="toggleClientMode('existing')" style="flex:1;">Existing Client</button>
+<button class="btn btn-sm btn-secondary" id="new-client-btn" onclick="toggleClientMode('new')" style="flex:1;">New Client</button>
+</div>
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+<div id="existing-client-section">
+<input type="text" id="delivery-client-search" placeholder="🔍 Search client by name or phone..." 
+       style="padding:12px;border-radius:10px;border:2px solid #e9ecef;width:100%;margin-bottom:10px;"
+       oninput="filterDeliveryClients()">
+<select id="delivery-client-select" size="5" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;width:100%;">
+<option value="">Select Client</option>
+</select>
+</div>
 
-// Make Firebase available globally
-window.firebaseApp = app;
-window.firebaseDb = db;
-window.firebaseAnalytics = analytics;
+<div id="new-client-section" style="display:none;flex-direction:column;gap:15px;">
+<input type="text" id="delivery-new-client-name" placeholder="Client Name *" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="tel" id="delivery-new-client-phone" placeholder="Phone Number *" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="text" id="delivery-new-client-address" placeholder="Address (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<textarea id="delivery-new-client-notes" placeholder="Notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:60px;"></textarea>
+</div>
 
-// Make Firebase functions available globally
-window.setDoc = setDoc;
-window.getDoc = getDoc;
-window.doc = doc;
-window.collection = collection;
-window.addDoc = addDoc;
-
-console.log('Firebase initialized successfully!');
-</script>
+<input type="date" id="delivery-date" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<input type="time" id="delivery-time" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;">
+<textarea id="delivery-notes" placeholder="Delivery notes (optional)" style="padding:12px;border-radius:10px;border:2px solid #e9ecef;resize:vertical;min-height:80px;"></textarea>
+<button class="btn btn-success" onclick="confirmDelivery()" style="margin-top:10px;">✅ Confirm Delivery</button>
+</div>
+</div>
+</div>
 
 <script>
-// Application State
 const STORAGE_KEY = 'bottleAppData_v3';
+
+const SUPABASE_URL = 'https://oqvrssqsbwxxijhnneev.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xdnJzc3FzYnd4eGlqaG5uZWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxODEzOTMsImV4cCI6MjA3NDc1NzM5M30.lh7LKucWlSaoC54d6yCb8bHSR3OHkBTbnm4ozWdRFag';
+
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// USER AUTHENTICATION SYSTEM
+let currentUser = null;
+let users = [
+    {
+        id: 'admin_001',
+        username: 'admin',
+        password: '1234',
+        role: 'admin',
+        name: 'Administrator',
+        created: new Date().toISOString(),
+        active: true
+    },
+    {
+        id: 'manager_001',
+        username: 'manager',
+        password: '1234',
+        role: 'manager',
+        name: 'Store Manager',
+        created: new Date().toISOString(),
+        active: true
+    },
+    {
+        id: 'driver_001',
+        username: 'driver',
+        password: '1234',
+        role: 'driver',
+        name: 'Driver',
+        created: new Date().toISOString(),
+        active: true
+    },
+    {
+        id: 'worker_001',
+        username: 'worker',
+        password: '1234',
+        role: 'worker',
+        name: 'Store Worker',
+        created: new Date().toISOString(),
+        active: true
+    }
+];
+let accessRequests = [];
+
 let bottles = [];
+let clients = [];
 let currentBottleId = null;
 let activityLog = [];
 let scannerActive = false;
+let deliveryClientMode = 'existing';
 
-// Initialize Application
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Initializing Bottle Tracking System...');
+const DELETE_PASSWORD = '1234';
+const REPORTS_PASSWORD = '1234';
+let reportsUnlocked = false;
+
+// ================================================
+// AUTHENTICATION FUNCTIONS
+// ================================================
+
+async function loadUsers() {
+    try {
+        const { data } = await supabase
+            .from('bottle_data')
+            .select('users')
+            .eq('id', 'main')
+            .single();
+        
+        if (data && Array.isArray(data.users) && data.users.length > 0) {
+            users = data.users;
+        } else {
+            // Fallback to hardcoded users if Supabase is empty
+            users = [
+                {
+                    id: 'admin_001',
+                    username: 'admin',
+                    password: '1234',
+                    role: 'admin',
+                    name: 'Administrator',
+                    created: new Date().toISOString(),
+                    active: true
+                },
+                {
+                    id: 'manager_001',
+                    username: 'manager',
+                    password: '1234',
+                    role: 'manager',
+                    name: 'Store Manager',
+                    created: new Date().toISOString(),
+                    active: true
+                },
+                {
+                    id: 'driver_001',
+                    username: 'driver',
+                    password: '1234',
+                    role: 'driver',
+                    name: 'Driver',
+                    created: new Date().toISOString(),
+                    active: true
+                },
+                {
+                    id: 'worker_001',
+                    username: 'worker',
+                    password: '1234',
+                    role: 'worker',
+                    name: 'Store Worker',
+                    created: new Date().toISOString(),
+                    active: true
+                }
+            ];
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+async function saveUsers() {
+    try {
+        const { data: existing } = await supabase
+            .from('bottle_data')
+            .select('*')
+            .eq('id', 'main')
+            .single();
+        
+        await supabase
+            .from('bottle_data')
+            .upsert({
+                ...existing,
+                id: 'main',
+                users: users,
+                // access_requests: accessRequests, // removed
+                last_updated: new Date().toISOString()
+            });
+        console.log('Users saved successfully');
+    } catch (error) {
+        console.error('Error saving users:', error);
+    }
+}
+
+function checkAuth() {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        return true;
+    }
+    return false;
+}
+
+function login(username, password) {
+    const user = users.find(u => u.username === username && u.password === password && u.active);
+    if (user) {
+        currentUser = user;
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        return true;
+    }
+    return false;
+}
+
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        currentUser = null;
+        localStorage.removeItem('currentUser');
+        reportsUnlocked = false;
+        location.reload();
+    }
+}
+
+function hasPermission(tab) {
+    if (!currentUser) return false;
     
-    // Wait a moment for Firebase to be available
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const permissions = {
+        'admin': ['dashboard', 'scanner', 'inventory', 'clients', 'reports', 'users'],
+        'manager': ['dashboard', 'scanner', 'inventory', 'reports'],
+        'driver': ['inventory', 'clients'],
+        'worker': ['scanner']
+    };
     
+    return permissions[currentUser.role]?.includes(tab) || false;
+}
+
+function attemptLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    
+    if (!username || !password) {
+        alert('Please enter username and password');
+        return;
+    }
+    
+    if (login(username, password)) {
+        document.getElementById('login-screen').style.display = 'none';
+        initializeApp();
+        showUserInfo();
+        setupBarcodeInput();
+        createFloatingParticles();
+        setupDefaultDates();
+    } else {
+        alert('❌ Invalid username or password!');
+    }
+}
+
+function showRequestAccess() {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('request-form').style.display = 'block';
+}
+
+function showLoginForm() {
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('request-form').style.display = 'none';
+}
+
+async function submitAccessRequest() {
+    const name = document.getElementById('req-name').value.trim();
+    const username = document.getElementById('req-username').value.trim();
+    const password = document.getElementById('req-password').value;
+    const role = document.getElementById('req-role').value;
+    
+    if (!name || !username || !password || !role) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    if (users.find(u => u.username === username)) {
+        alert('❌ Username already exists! Please choose a different username.');
+        return;
+    }
+    
+    if (accessRequests.find(r => r.username === username)) {
+        alert('❌ A request with this username already exists!');
+        return;
+    }
+    
+    const request = {
+        id: 'req_' + Date.now(),
+        name: name,
+        username: username,
+        password: password,
+        role: role,
+        requested: new Date().toISOString(),
+        status: 'pending'
+    };
+    
+    accessRequests.push(request);
+    await saveUsers();
+    
+    alert('✅ Access request submitted!\n\nYour request has been sent to the administrator for approval. You will be able to login once approved.');
+    showLoginForm();
+    
+    document.getElementById('req-name').value = '';
+    document.getElementById('req-username').value = '';
+    document.getElementById('req-password').value = '';
+    document.getElementById('req-role').value = '';
+}
+
+function showUserInfo() {
+    const header = document.querySelector('.header');
+    
+    const existingBadge = header.querySelector('.user-info-badge');
+    if (existingBadge) existingBadge.remove();
+    
+    const roleIcons = {
+        'admin': '👑',
+        'manager': '🏪',
+        'driver': '🚚',
+        'worker': '👷'
+    };
+    
+    const userInfo = document.createElement('div');
+    userInfo.className = 'user-info-badge';
+    userInfo.innerHTML = `
+        <div>
+            <strong>${roleIcons[currentUser.role]} ${currentUser.name}</strong><br>
+            <span style="font-size:13px;opacity:0.9;">${currentUser.role.toUpperCase()}</span>
+        </div>
+        <button onclick="logout()" class="logout-btn">🚪 Logout</button>
+    `;
+    header.appendChild(userInfo);
+    
+    // Show/hide tabs based on permissions
+    const allTabs = ['dashboard', 'scanner', 'inventory', 'clients', 'reports', 'users'];
+    allTabs.forEach(tab => {
+        const desktopTab = document.getElementById(`${tab}-tab`);
+        const mobileTab = document.getElementById(`${tab}-tab-mobile`);
+        
+        if (hasPermission(tab)) {
+            if (desktopTab) desktopTab.style.display = 'block';
+            if (mobileTab) mobileTab.style.display = 'block';
+        } else {
+            if (desktopTab) desktopTab.style.display = 'none';
+            if (mobileTab) mobileTab.style.display = 'none';
+        }
+    });
+    
+    // Set default tab based on role
+    const firstAllowedTab = allTabs.find(tab => hasPermission(tab));
+    if (firstAllowedTab) {
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        
+        document.getElementById(firstAllowedTab).classList.add('active');
+        const tabBtn = document.getElementById(`${firstAllowedTab}-tab`);
+        if (tabBtn) tabBtn.classList.add('active');
+    }
+}
+
+async function approveRequest(requestId) {
+    const request = accessRequests.find(r => r.id === requestId);
+    if (!request) return;
+    
+    if (!confirm(`Approve access request from ${request.name}?\n\nUsername: ${request.username}\nRole: ${request.role}`)) {
+        return;
+    }
+    
+    const newUser = {
+        id: 'user_' + Date.now(),
+        username: request.username,
+        password: request.password,
+        role: request.role,
+        name: request.name,
+        created: new Date().toISOString(),
+        active: true
+    };
+    
+    users.push(newUser);
+    accessRequests = accessRequests.filter(r => r.id !== requestId);
+    
+    await saveUsers();
+    alert(`✅ User ${request.name} has been approved!\n\nThey can now login with username: ${request.username}`);
+    updateUsersDisplay();
+}
+
+async function rejectRequest(requestId) {
+    const request = accessRequests.find(r => r.id === requestId);
+    if (!request) return;
+    
+    if (confirm(`Reject access request from ${request.name}?`)) {
+        accessRequests = accessRequests.filter(r => r.id !== requestId);
+        await saveUsers();
+        alert('❌ Request rejected');
+        updateUsersDisplay();
+    }
+}
+
+async function deleteUser(userId) {
+    const password = prompt('⚠️ Enter admin password to delete user:');
+    if (password !== DELETE_PASSWORD) {
+        alert('❌ Incorrect password!');
+        return;
+    }
+    
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    
+    if (user.id === currentUser.id) {
+        alert('❌ You cannot delete yourself!');
+        return;
+    }
+    
+    if (confirm(`Delete user ${user.name}?\n\nThis action cannot be undone.`)) {
+        users = users.filter(u => u.id !== userId);
+        await saveUsers();
+        alert('✅ User deleted successfully');
+        updateUsersDisplay();
+    }
+}
+
+function updateUsersDisplay() {
+    const requestsList = document.getElementById('access-requests-list');
+    document.getElementById('pending-requests').textContent = accessRequests.length;
+    
+    if (accessRequests.length > 0) {
+        requestsList.innerHTML = accessRequests.map(req => {
+            const roleLabels = {
+                'worker': '👷 Store Worker - Refill & Return Only',
+                'driver': '🚚 Driver - Deliver Only',
+                'manager': '🏪 Store Manager - Full Access',
+                'admin': '👑 Admin - Complete Control'
+            };
+            
+            return `
+            <div style="background:rgba(255,193,7,0.1);padding:20px;border-radius:15px;margin:10px 0;border-left:4px solid #ffc107;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;">
+                    <div>
+                        <strong style="font-size:18px;">${req.name}</strong><br>
+                        <span style="color:#6c757d;">Username: <strong>${req.username}</strong></span><br>
+                        <span style="color:#6c757d;">Role: <strong>${roleLabels[req.role]}</strong></span><br>
+                        <span style="color:#6c757d;font-size:14px;">Requested: ${new Date(req.requested).toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn btn-success btn-sm" onclick="approveRequest('${req.id}')">✅ Approve</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectRequest('${req.id}')">❌ Reject</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        }).join('');
+    } else {
+        requestsList.innerHTML = '<p class="small" style="text-align:center;padding:20px;color:#6c757d;">No pending requests</p>';
+    }
+    
+    const usersList = document.getElementById('users-list');
+    document.getElementById('total-users').textContent = users.length;
+    
+    const roleIcons = {
+        'admin': '👑',
+        'manager': '🏪',
+        'driver': '🚚',
+        'worker': '👷'
+    };
+    
+    usersList.innerHTML = users.map(user => `
+        <div class="bottle-card">
+            <div class="bottle-id">${roleIcons[user.role]} ${user.name}</div>
+            <div class="status ${user.role === 'admin' ? 'available' : user.role === 'manager' ? 'with-client' : 'needs-refill'}">${user.role.toUpperCase()}</div>
+            <div style="margin:15px 0;">
+                <div><strong>Username:</strong> ${user.username}</div>
+                <div><strong>Role:</strong> ${roleIcons[user.role]} ${user.role === 'admin' ? 'Administrator' : user.role === 'manager' ? 'Store Manager' : user.role === 'driver' ? 'Driver' : 'Store Worker'}</div>
+                <div><strong>Created:</strong> ${new Date(user.created).toLocaleString()}</div>
+                <div><strong>Status:</strong> ${user.active ? '✅ Active' : '❌ Inactive'}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${user.id !== currentUser.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')">🗑️ Delete</button>` : '<span style="color:#6c757d;font-style:italic;">Current User</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function initializeApp() {
     await loadData();
     updateAllDisplays();
-    setupBarcodeInput();
-    createFloatingParticles();
-    setupDefaultDates();
+    if (currentUser && currentUser.role === 'admin') {
+        updateUsersDisplay();
+    }
+}
+
+// ================================================
+// DATA MANAGEMENT
+// ================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Initializing system with authentication...');
     
-    console.log('Application initialized successfully!');
+    await loadUsers();
+    
+    if (checkAuth()) {
+        document.getElementById('login-screen').style.display = 'none';
+        await initializeApp();
+        showUserInfo();
+        setupBarcodeInput();
+        createFloatingParticles();
+        setupDefaultDates();
+    } else {
+        document.getElementById('login-screen').style.display = 'flex';
+    }
 });
 
-// Firebase Data Management
+// Fix: Remove 'access_requests' from Supabase upsert if not in schema
 async function saveData() {
-    console.log('Saving data to Firebase...');
+    console.log('Saving data to Supabase...');
     try {
-        const db = window.firebaseDb;
-        await window.setDoc(window.doc(db, 'bottleData', 'main'), {
-            bottles: bottles,
-            activityLog: activityLog,
-            lastUpdated: new Date().toISOString()
-        });
-        console.log('✅ Data saved to Firebase successfully');
+        const { data, error } = await supabase
+            .from('bottle_data')
+            .upsert({
+                id: 'main',
+                bottles: bottles,
+                clients: clients,
+                activity_log: activityLog,
+                users: users,
+                // access_requests: accessRequests, // <-- REMOVE this line
+                last_updated: new Date().toISOString()
+            });
         
-        // Also save to localStorage as backup
+        if (error) throw error;
+        console.log('Data saved to Supabase successfully!');
+        
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             bottles: bottles,
+            clients: clients,
             activityLog: activityLog,
             lastUpdated: new Date().toISOString()
         }));
         
     } catch (error) {
-        console.error('❌ Error saving data to Firebase:', error);
-        // Fallback to localStorage only
+        console.error('Error saving data to Supabase:', error);
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 bottles: bottles,
+                clients: clients,
                 activityLog: activityLog,
                 lastUpdated: new Date().toISOString()
             }));
-            console.log('✅ Data saved to localStorage as fallback');
+            console.log('Data saved to localStorage as fallback');
         } catch (localError) {
-            console.error('❌ Error saving to localStorage:', localError);
+            console.error('Error saving to localStorage:', localError);
             alert('Error saving data. Please check your connection.');
         }
     }
 }
 
 async function loadData() {
-    console.log('Loading data from Firebase...');
+    console.log('Loading data from Supabase...');
     try {
-        const db = window.firebaseDb;
-        const docRef = window.doc(db, 'bottleData', 'main');
-        const docSnap = await window.getDoc(docRef);
+        const { data, error } = await supabase
+            .from('bottle_data')
+            .select('*')
+            .eq('id', 'main')
+            .single();
         
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            bottles = data.bottles || [];
-            activityLog = data.activityLog || [];
-            console.log(`✅ Loaded ${bottles.length} bottles from Firebase`);
+        if (data) {
+            bottles = Array.isArray(data.bottles) ? data.bottles : [];
+            clients = Array.isArray(data.clients) ? data.clients : [];
+            activityLog = Array.isArray(data.activity_log) ? data.activity_log : [];
+            console.log(`Loaded ${bottles.length} bottles and ${clients.length} clients from Supabase`);
         } else {
-            console.log('No data found in Firebase, checking localStorage...');
-            
-            // Try localStorage
+            console.log('No data found in Supabase, checking localStorage...');
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
-                const data = JSON.parse(raw);
-                bottles = data.bottles || [];
-                activityLog = data.activityLog || [];
-                console.log(`✅ Loaded ${bottles.length} bottles from localStorage`);
-                
-                // Save to Firebase for future use
+                const localData = JSON.parse(raw);
+                bottles = localData.bottles || [];
+                clients = localData.clients || [];
+                activityLog = localData.activityLog || [];
+                console.log(`Loaded ${bottles.length} bottles and ${clients.length} clients from localStorage`);
                 await saveData();
             } else {
-                console.log('No existing data found, initializing with sample data');
+                console.log('No existing data found, initializing empty system');
                 initializeSampleData();
                 await saveData();
             }
         }
     } catch (error) {
-        console.error('❌ Error loading data from Firebase:', error);
-        
-        // Fallback to localStorage
+        console.error('Error loading data from Supabase:', error);
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
-                const data = JSON.parse(raw);
-                bottles = data.bottles || [];
-                activityLog = data.activityLog || [];
-                console.log(`✅ Loaded ${bottles.length} bottles from localStorage fallback`);
+                const localData = JSON.parse(raw);
+                bottles = localData.bottles || [];
+                clients = localData.clients || [];
+                activityLog = localData.activityLog || [];
+                console.log(`Loaded ${bottles.length} bottles and ${clients.length} clients from localStorage fallback`);
             } else {
-                console.log('No localStorage data found, initializing with sample data');
+                console.log('No localStorage data found, initializing empty system');
                 initializeSampleData();
             }
         } catch (localError) {
-            console.error('❌ Error loading from localStorage:', localError);
+            console.error('Error loading from localStorage:', localError);
             initializeSampleData();
         }
     }
 }
 
 function initializeSampleData() {
-    bottles = [
-        { id: '1234567890123', status: 'available', client: '', lastUpdated: new Date().toISOString(), refillCount: 5, quality: 'Good' },
-        { id: '9876543210987', status: 'with-client', client: 'ABC Company', lastUpdated: new Date().toISOString(), refillCount: 3, quality: 'Average' },
-        { id: '5555666677778', status: 'needs-refill', client: 'XYZ Corp', lastUpdated: new Date().toISOString(), refillCount: 8, quality: 'Excellent' }
-    ];
-    
+    clients = [];
+    bottles = [];
     activityLog = [
-        { action: 'System initialized with sample data', timestamp: new Date().toISOString() },
-        { action: 'Bottle 1234567890123 marked as available', timestamp: new Date().toISOString() },
-        { action: 'Bottle 9876543210987 delivered to ABC Company', timestamp: new Date().toISOString() }
+        { action: 'System initialized', timestamp: new Date().toISOString() }
     ];
 }
 
-// Tab Management
+function updateClientBottleCounts() {
+    clients.forEach(client => {
+        client.bottleCount = bottles.filter(bottle => bottle.clientId === client.id).length;
+    });
+}
+
 function showTab(event, tabName) {
+    if (tabName === 'reports' && !reportsUnlocked) {
+        const password = prompt('🔒 Reports section is protected.\n\nEnter password to access:');
+        
+        if (password !== REPORTS_PASSWORD) {
+            alert('❌ Incorrect password! Access denied.');
+            return;
+        }
+        
+        reportsUnlocked = true;
+        alert('✅ Access granted! Reports unlocked for this session.');
+    }
+    
+    if (!hasPermission(tabName)) {
+        alert('❌ You don\'t have permission to access this section!');
+        return;
+    }
+    
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
@@ -360,20 +1256,22 @@ function showTab(event, tabName) {
     
     if (tabName === 'dashboard') updateDashboard();
     if (tabName === 'inventory') updateInventoryDisplay();
+    if (tabName === 'clients') updateClientDisplay();
     if (tabName === 'reports') updateReports();
+    if (tabName === 'users' && currentUser && currentUser.role === 'admin') {
+        updateUsersDisplay();
+    }
 }
 
-// Barcode Scanner Functions
 function startBarcodeScanner() {
     if (scannerActive) return;
-    
+    Quagga.offDetected();
     const scannerDiv = document.getElementById('barcode-scanner');
     const placeholder = document.getElementById('scanner-placeholder');
     const startBtn = document.getElementById('start-scanner-btn');
     const stopBtn = document.getElementById('stop-scanner-btn');
-    
     placeholder.style.display = 'none';
-    
+
     Quagga.init({
         inputStream: {
             name: "Live",
@@ -389,19 +1287,25 @@ function startBarcodeScanner() {
             patchSize: "medium",
             halfSample: false
         },
-        numOfWorkers: 4,
+        numOfWorkers: 2,
         frequency: 5,
         decoder: {
-            readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader", "upc_e_reader"]
+            readers: [
+                "code_128_reader",
+                "ean_reader",
+                "ean_8_reader",
+                "code_39_reader",
+                "upc_reader",
+                "upc_e_reader"
+            ]
         }
     }, function(err) {
         if (err) {
             console.error('QuaggaJS initialization error:', err);
             placeholder.style.display = 'flex';
-            alert('Camera access failed. Please ensure camera permissions are granted.');
+            alert('Camera access failed or not found. Please check permissions and device.');
             return;
         }
-        
         Quagga.start();
         scannerActive = true;
         startBtn.style.display = 'none';
@@ -410,62 +1314,50 @@ function startBarcodeScanner() {
 
     let lastScannedCodes = [];
     let confirmationCount = 0;
-    const REQUIRED_CONFIRMATIONS = 3;
+    const REQUIRED_CONFIRMATIONS = 2;
 
     Quagga.onDetected(function(data) {
         const code = data.codeResult.code;
-        
-        if (!isValidBarcode(code)) {
-            return;
-        }
-        
+        if (!isValidBarcode(code)) return;
+
         lastScannedCodes.push(code);
-        if (lastScannedCodes.length > 5) {
-            lastScannedCodes.shift();
-        }
-        
-        const consistentCode = getConsistentCode(lastScannedCodes);
-        
-        if (consistentCode) {
-            confirmationCount++;
-            
-            if (confirmationCount >= REQUIRED_CONFIRMATIONS) {
-                document.getElementById('scanned-code').textContent = consistentCode;
-                document.getElementById('scan-result').style.display = 'block';
-                document.getElementById('manual-barcode').value = consistentCode;
-                updateBarcodeDisplay(consistentCode);
-                
-                stopBarcodeScanner();
-                lastScannedCodes = [];
-                confirmationCount = 0;
-                
-                setTimeout(() => {
-                    processBottle();
-                }, 1000);
-            }
-        } else {
+        if (lastScannedCodes.length > 8) lastScannedCodes.shift();
+
+        if (lastScannedCodes.length >= REQUIRED_CONFIRMATIONS &&
+            lastScannedCodes.slice(-REQUIRED_CONFIRMATIONS).every(c => c === code)) {
+
+            document.getElementById('scanned-code').textContent = code;
+            document.getElementById('scan-result').style.display = 'block';
+            document.getElementById('manual-barcode').value = code;
+            updateBarcodeDisplay(code);
+
+            stopBarcodeScanner();
+            lastScannedCodes = [];
             confirmationCount = 0;
+
+            setTimeout(() => {
+                processBottle();
+            }, 800);
         }
     });
 }
 
 function stopBarcodeScanner() {
     if (!scannerActive) return;
-    
     Quagga.stop();
     scannerActive = false;
-    
+
     const placeholder = document.getElementById('scanner-placeholder');
     const startBtn = document.getElementById('start-scanner-btn');
     const stopBtn = document.getElementById('stop-scanner-btn');
-    
+
     placeholder.style.display = 'flex';
     startBtn.style.display = 'inline-block';
     stopBtn.style.display = 'none';
-    
+
     setTimeout(() => {
         document.getElementById('scan-result').style.display = 'none';
-    }, 3000);
+    }, 2000);
 }
 
 function isValidBarcode(code) {
@@ -473,28 +1365,6 @@ function isValidBarcode(code) {
     return numericCode.length >= 6 && numericCode.length <= 20;
 }
 
-function getConsistentCode(codes) {
-    if (codes.length < 2) return null;
-    
-    const codeCount = {};
-    codes.forEach(code => {
-        codeCount[code] = (codeCount[code] || 0) + 1;
-    });
-    
-    let mostFrequent = null;
-    let maxCount = 0;
-    
-    for (const [code, count] of Object.entries(codeCount)) {
-        if (count > maxCount && count >= 2) {
-            mostFrequent = code;
-            maxCount = count;
-        }
-    }
-    
-    return mostFrequent;
-}
-
-// Barcode Input Setup
 function setupBarcodeInput() {
     const input = document.getElementById('manual-barcode');
     const display = document.getElementById('barcode-display');
@@ -532,7 +1402,6 @@ function updateBarcodeDisplay(barcode) {
     }
 }
 
-// Bottle Processing
 function processBottle() {
     const input = document.getElementById('manual-barcode');
     const bottleId = input.value.replace(/[^0-9]/g, '');
@@ -550,30 +1419,110 @@ function processBottle() {
     const info = document.getElementById('modal-bottle-info');
     
     if (bottle) {
+        const client = clients.find(c => c.id === bottle.clientId);
         title.textContent = `Bottle ${bottleId}`;
         info.innerHTML = `
-            <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;margin:10px 0;">
-                <strong>Current Status:</strong> <span class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span><br>
-                <strong>Client:</strong> ${bottle.client || 'None'}<br>
-                <strong>Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}<br>
-                <strong>Refilled:</strong> ${bottle.refillCount || 0} times<br>
-                <strong>Quality:</strong> ${bottle.quality || 'Unknown'}
+            <div style="background:rgba(33,150,243,0.1);padding:20px;border-radius:15px;margin:15px 0;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                    <div>
+                        <strong>🏷️ Status:</strong><br>
+                        <span class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span>
+                    </div>
+                    <div>
+                        <strong>🔄 Refill Count:</strong><br>
+                        <span style="font-size:18px;font-weight:bold;color:#2196F3;">${bottle.refillCount || 0}</span>
+                    </div>
+                    <div>
+                        <strong>🚚 Delivery Count:</strong><br>
+                        <span style="font-size:18px;font-weight:bold;color:#28a745;">${bottle.deliveryCount || 0}</span>
+                    </div>
+                    <div>
+                        <strong>📅 Last Updated:</strong><br>
+                        <span style="font-size:14px;">${new Date(bottle.lastUpdated).toLocaleString()}</span>
+                    </div>
+                </div>
+                ${bottle.clientName ? `
+                <div style="margin-top:15px;padding:15px;background:rgba(40,167,69,0.1);border-radius:10px;">
+                    <strong>👤 Current Client:</strong><br>
+                    <div style="font-size:16px;font-weight:bold;color:#155724;">${bottle.clientName}</div>
+                    <div style="font-size:14px;color:#155724;">📞 ${bottle.clientPhone}</div>
+                    ${bottle.deliveryDate ? `<div style="font-size:14px;color:#155724;">📅 Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}</div>` : ''}
+                    ${bottle.deliveryNotes ? `<div style="font-size:14px;color:#155724;">📝 ${bottle.deliveryNotes}</div>` : ''}
+                </div>
+                ` : ''}
+                ${bottle.history && bottle.history.length > 0 ? `
+                <div style="margin-top:15px;">
+                    <strong>📋 Recent History:</strong>
+                    <div style="max-height:120px;overflow-y:auto;margin-top:8px;">
+                        ${bottle.history.slice(-3).map(h => `
+                            <div style="padding:5px;margin:3px 0;background:rgba(0,0,0,0.05);border-radius:5px;font-size:13px;">
+                                ${h.action} - ${new Date(h.timestamp).toLocaleString()}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
             </div>
         `;
     } else {
         title.textContent = `New Bottle ${bottleId}`;
         info.innerHTML = `
-            <div style="background:rgba(40,167,69,0.1);padding:15px;border-radius:10px;margin:10px 0;color:#155724;">
-                <strong>📝 New bottle detected!</strong><br>
-                This bottle is not in the system yet. Choose an action to add it.
+            <div style="background:rgba(40,167,69,0.1);padding:20px;border-radius:15px;margin:15px 0;color:#155724;">
+                <div style="text-align:center;">
+                    <div style="font-size:3rem;margin-bottom:10px;">🆕</div>
+                    <strong style="font-size:18px;">New bottle detected!</strong><br>
+                    <div style="margin-top:10px;">This bottle is not in the system yet. Choose an action to add it.</div>
+                </div>
             </div>
         `;
     }
     
+    // Show buttons based on user role
+    showActionButtons();
+    
     modal.style.display = 'block';
 }
 
-// Modal Actions
+function showActionButtons() {
+    const buttonsContainer = document.getElementById('modal-action-buttons');
+    
+    let buttonsHTML = '';
+    
+    // Worker can only Refill and Return
+    if (currentUser.role === 'worker') {
+        buttonsHTML = `
+            <button class="btn btn-success" onclick="actionRefill()">🔄 Refill</button>
+            <button class="btn btn-secondary" onclick="actionReturn()">↩️ Return</button>
+        `;
+    }
+    // Driver can only Deliver
+    else if (currentUser.role === 'driver') {
+        buttonsHTML = `
+            <button class="btn btn-warning" onclick="actionDeliver()">🚚 Deliver</button>
+        `;
+    }
+    // Manager has all actions
+    else if (currentUser.role === 'manager') {
+        buttonsHTML = `
+            <button class="btn btn-success" onclick="actionRefill()">🔄 Refill</button>
+            <button class="btn btn-warning" onclick="actionDeliver()">🚚 Deliver</button>
+            <button class="btn btn-secondary" onclick="actionReturn()">↩️ Return</button>
+            <button class="btn" onclick="actionManual()">✏️ Manual Update</button>
+        `;
+    }
+    // Admin has all actions
+    else if (currentUser.role === 'admin') {
+        buttonsHTML = `
+            <button class="btn btn-success" onclick="actionRefill()">🔄 Refill</button>
+            <button class="btn btn-warning" onclick="actionDeliver()">🚚 Deliver</button>
+            <button class="btn btn-secondary" onclick="actionReturn()">↩️ Return</button>
+            <button class="btn" onclick="actionManual()">✏️ Manual Update</button>
+        `;
+    }
+    
+    buttonsContainer.innerHTML = buttonsHTML;
+}
+
 function closeModal() {
     document.getElementById('bottle-modal').style.display = 'none';
 }
@@ -582,24 +1531,250 @@ function closeAddModal() {
     document.getElementById('add-bottle-modal').style.display = 'none';
 }
 
+function closeClientModal() {
+    document.getElementById('add-client-modal').style.display = 'none';
+}
+
+function closeDeliveryModal() {
+    document.getElementById('delivery-modal').style.display = 'none';
+}
+
+function toggleClientMode(mode) {
+    deliveryClientMode = mode;
+    const existingSection = document.getElementById('existing-client-section');
+    const newSection = document.getElementById('new-client-section');
+    const existingBtn = document.getElementById('existing-client-btn');
+    const newBtn = document.getElementById('new-client-btn');
+    
+    if (mode === 'existing') {
+        existingSection.style.display = 'block';
+        newSection.style.display = 'none';
+        existingBtn.classList.remove('btn-secondary');
+        newBtn.classList.add('btn-secondary');
+    } else {
+        existingSection.style.display = 'none';
+        newSection.style.display = 'flex';
+        newBtn.classList.remove('btn-secondary');
+        existingBtn.classList.add('btn-secondary');
+    }
+}
+
+function filterDeliveryClients() {
+    const searchTerm = document.getElementById('delivery-client-search').value.toLowerCase();
+    const select = document.getElementById('delivery-client-select');
+    
+    select.innerHTML = '';
+    
+    const filteredClients = clients.filter(client => 
+        client.name.toLowerCase().includes(searchTerm) ||
+        client.phone.toLowerCase().includes(searchTerm)
+    );
+    
+    if (filteredClients.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No clients found';
+        option.disabled = true;
+        select.appendChild(option);
+    } else {
+        filteredClients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = `${client.name} (${client.phone})`;
+            select.appendChild(option);
+        });
+    }
+}
+
+function filterNewBottleClients() {
+    const searchTerm = document.getElementById('new-bottle-client-search').value.toLowerCase();
+    const select = document.getElementById('new-bottle-client-select');
+    
+    select.innerHTML = '<option value="">Select Client (optional)</option>';
+    
+    const filteredClients = clients.filter(client => 
+        client.name.toLowerCase().includes(searchTerm) ||
+        client.phone.toLowerCase().includes(searchTerm)
+    );
+    
+    filteredClients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.id;
+        option.textContent = `${client.name} (${client.phone})`;
+        select.appendChild(option);
+    });
+}
+
 function actionRefill() {
-    updateBottleStatus('available', '');
-    addActivity(`Bottle ${currentBottleId} refilled and marked available`);
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (!bottle) {
+        bottle = createNewBottleRecord(currentBottleId, 'available');
+        addActivity(`Bottle ${currentBottleId} added and refilled (Refill #1) - now available by ${currentUser.name}`);
+    } else {
+        if (bottle.status !== 'needs-refill') {
+            alert(`❌ Cannot refill this bottle!\n\nBottle must be in "Needs Refill" status.\nCurrent status: ${bottle.status.toUpperCase().replace('-', ' ')}`);
+            return;
+        }
+        
+        bottle.refillCount = (bottle.refillCount || 0) + 1;
+        bottle.status = 'available';
+        bottle.clientId = '';
+        bottle.clientName = '';
+        bottle.clientPhone = '';
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history = bottle.history || [];
+        bottle.history.push({
+            action: `Refilled (Count: ${bottle.refillCount}) by ${currentUser.name}`,
+            timestamp: new Date().toISOString()
+        });
+        addActivity(`Bottle ${currentBottleId} refilled (Refill #${bottle.refillCount}) by ${currentUser.name}`);
+    }
+    
+    updateClientBottleCounts();
+    saveData();
+    updateAllDisplays();
     closeModal();
 }
 
 function actionDeliver() {
-    const client = prompt('Enter client name and phone num:');
-    if (client) {
-        updateBottleStatus('with-client', client);
-        addActivity(`Bottle ${currentBottleId} delivered to ${client}`);
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (bottle && bottle.status !== 'available') {
+        alert(`❌ Cannot deliver this bottle!\n\nBottle must be "Available" (refilled) before delivery.\nCurrent status: ${bottle.status.toUpperCase().replace('-', ' ')}`);
+        return;
     }
+    
+    if (!bottle) {
+        const confirmed = window.confirm(`This is a new bottle. Do you want to add it as "Available" and proceed with delivery?`);
+        if (!confirmed) return;
+    }
+    
+    populateClientDropdowns();
+    deliveryClientMode = 'existing';
+    toggleClientMode('existing');
+    document.getElementById('delivery-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('delivery-time').value = new Date().toTimeString().slice(0,5);
+    document.getElementById('delivery-client-search').value = '';
+    document.getElementById('delivery-modal').style.display = 'block';
+}
+
+function confirmDelivery() {
+    const deliveryDate = document.getElementById('delivery-date').value;
+    const deliveryTime = document.getElementById('delivery-time').value;
+    const deliveryNotes = document.getElementById('delivery-notes').value;
+
+    let clientId, client;
+
+    if (deliveryClientMode === 'existing') {
+        clientId = document.getElementById('delivery-client-select').value;
+        if (!clientId) {
+            alert('Please select a client for delivery');
+            return;
+        }
+        client = clients.find(c => c.id === clientId);
+        if (!client) {
+            alert('Selected client not found');
+            return;
+        }
+    } else {
+        const name = document.getElementById('delivery-new-client-name').value.trim();
+        const phone = document.getElementById('delivery-new-client-phone').value.trim();
+        const address = document.getElementById('delivery-new-client-address').value.trim();
+        const notes = document.getElementById('delivery-new-client-notes').value.trim();
+
+        if (!name) {
+            alert('Please enter a client name');
+            return;
+        }
+        if (!phone) {
+            alert('Please enter a phone number');
+            return;
+        }
+
+        const existingClient = clients.find(c => c.phone === phone);
+        if (existingClient) {
+            if (confirm(`A client with this phone number already exists: ${existingClient.name}. Use this client instead?`)) {
+                client = existingClient;
+                clientId = existingClient.id;
+            } else {
+                return;
+            }
+        } else {
+            client = {
+                id: 'client_' + Date.now(),
+                name: name,
+                phone: phone,
+                address: address,
+                notes: notes,
+                created: new Date().toISOString(),
+                bottleCount: 0
+            };
+            clients.push(client);
+            clientId = client.id;
+            addActivity(`New client added during delivery: ${name} (${phone}) by ${currentUser.name}`);
+        }
+    }
+    
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (!bottle) {
+        bottle = createNewBottleRecord(currentBottleId, 'with-client');
+    } else {
+        bottle.status = 'with-client';
+        bottle.deliveryCount = (bottle.deliveryCount || 0) + 1;
+        bottle.lastUpdated = new Date().toISOString();
+    }
+    
+    bottle.clientId = clientId;
+    bottle.clientName = client.name;
+    bottle.clientPhone = client.phone;
+    bottle.deliveryDate = deliveryDate && deliveryTime ? `${deliveryDate}T${deliveryTime}` : new Date().toISOString();
+    bottle.deliveryNotes = deliveryNotes;
+    
+    bottle.history = bottle.history || [];
+    bottle.history.push({
+        action: `Delivered to ${client.name} (Delivery #${bottle.deliveryCount}) by ${currentUser.name}`,
+        timestamp: new Date().toISOString(),
+        client: client.name,
+        phone: client.phone,
+        notes: deliveryNotes
+    });
+    
+    addActivity(`Bottle ${currentBottleId} delivered to ${client.name} (${client.phone}) by ${currentUser.name}`);
+    updateClientBottleCounts();
+    saveData();
+    updateAllDisplays();
+    closeDeliveryModal();
     closeModal();
+
+    document.getElementById('delivery-new-client-name').value = '';
+    document.getElementById('delivery-new-client-phone').value = '';
+    document.getElementById('delivery-new-client-address').value = '';
+    document.getElementById('delivery-new-client-notes').value = '';
 }
 
 function actionReturn() {
-    updateBottleStatus('needs-refill', '');
-    addActivity(`Bottle ${currentBottleId} returned and needs refill`);
+    let bottle = bottles.find(b => b.id === currentBottleId);
+    
+    if (!bottle) {
+        bottle = createNewBottleRecord(currentBottleId, 'needs-refill');
+    } else {
+        bottle.status = 'needs-refill';
+        bottle.returnDate = new Date().toISOString();
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history = bottle.history || [];
+        bottle.history.push({
+            action: `Returned from ${bottle.clientName || 'client'}, needs refill - by ${currentUser.name}`,
+            timestamp: new Date().toISOString(),
+            client: bottle.clientName
+        });
+    }
+    
+    addActivity(`Bottle ${currentBottleId} returned from ${bottle.clientName || 'client'} by ${currentUser.name}`);
+    updateClientBottleCounts();
+    saveData();
+    updateAllDisplays();
     closeModal();
 }
 
@@ -613,67 +1788,79 @@ function actionManual() {
     };
     
     if (statusMap[status]) {
-        let client = '';
-        if (status === '2') {
-            client = prompt('Enter client name:') || '';
+        let bottle = bottles.find(b => b.id === currentBottleId);
+        
+        if (!bottle) {
+            bottle = createNewBottleRecord(currentBottleId, statusMap[status]);
+        } else {
+            bottle.status = statusMap[status];
+            bottle.lastUpdated = new Date().toISOString();
+            bottle.history = bottle.history || [];
+            bottle.history.push({
+                action: `Manually updated to ${statusMap[status]} by ${currentUser.name}`,
+                timestamp: new Date().toISOString()
+            });
         }
-        updateBottleStatus(statusMap[status], client);
-        addActivity(`Bottle ${currentBottleId} manually updated to ${statusMap[status]}`);
+        
+        if (status === '2') {
+            actionDeliver();
+            return;
+        }
+        
+        addActivity(`Bottle ${currentBottleId} manually updated to ${statusMap[status]} by ${currentUser.name}`);
+        updateClientBottleCounts();
+        saveData();
+        updateAllDisplays();
     }
     closeModal();
 }
 
-// Bottle Management
-function updateBottleStatus(newStatus, client = '') {
-    let bottle = bottles.find(b => b.id === currentBottleId);
-
-    if (!bottle) {
-        bottle = {
-            id: currentBottleId,
-            status: newStatus,
-            client: client,
-            lastUpdated: new Date().toISOString(),
-            refillCount: newStatus === 'available' ? 1 : 0,
-            quality: 'Good'
-        };
-        bottles.push(bottle);
-    } else {
-        // Increment refillCount if status is set to available (refilled)
-        if (newStatus === 'available') {
-            bottle.refillCount = (bottle.refillCount || 0) + 1;
-        }
-        bottle.status = newStatus;
-        bottle.client = client;
-        bottle.lastUpdated = new Date().toISOString();
-        bottle.quality = bottle.quality || 'Good';
-    }
-
-    saveData();
-    updateAllDisplays();
-
-    document.getElementById('manual-barcode').value = '';
-    document.getElementById('barcode-display').innerHTML = 'Waiting for barcode input...';
+function createNewBottleRecord(bottleId, status) {
+    const newBottle = {
+        id: bottleId,
+        status: status,
+        clientId: '',
+        clientName: '',
+        clientPhone: '',
+        refillCount: status === 'available' ? 1 : 0,
+        deliveryCount: 0,
+        lastUpdated: new Date().toISOString(),
+        created: new Date().toISOString(),
+        history: [{
+            action: `Bottle created with status: ${status} by ${currentUser.name}`,
+            timestamp: new Date().toISOString()
+        }]
+    };
+    
+    bottles.push(newBottle);
+    return newBottle;
 }
 
-function addActivity(message) {
-    activityLog.unshift({
-        action: message,
-        timestamp: new Date().toISOString()
-    });
-    
-    if (activityLog.length > 50) {
-        activityLog = activityLog.slice(0, 50);
-    }
-    
-    saveData(); // This will now save to Firebase
-    updateDashboard();
-}
-
-// Display Updates
 function updateAllDisplays() {
     updateDashboard();
     updateInventoryDisplay();
+    updateClientDisplay();
     updateReports();
+    populateClientDropdowns();
+    updateAddButtons();
+}
+
+function updateAddButtons() {
+    // Update Add Bottle Button
+    const addBottleContainer = document.getElementById('add-bottle-btn-container');
+    if (currentUser.role !== 'worker') {
+        addBottleContainer.innerHTML = '<button class="btn btn-success" onclick="addNewBottle()">➕ Add New Bottle</button>';
+    } else {
+        addBottleContainer.innerHTML = '';
+    }
+    
+    // Update Add Client Button
+    const addClientContainer = document.getElementById('add-client-btn-container');
+    if (currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'driver') {
+        addClientContainer.innerHTML = '<button class="btn btn-success" onclick="addNewClient()">➕ Add New Client</button>';
+    } else {
+        addClientContainer.innerHTML = '';
+    }
 }
 
 function updateDashboard() {
@@ -682,7 +1869,8 @@ function updateDashboard() {
         available: bottles.filter(b => b.status === 'available').length,
         withClient: bottles.filter(b => b.status === 'with-client').length,
         needsRefill: bottles.filter(b => b.status === 'needs-refill').length,
-        maintenance: bottles.filter(b => b.status === 'maintenance').length
+        maintenance: bottles.filter(b => b.status === 'maintenance').length,
+        clients: clients.length
     };
     
     document.getElementById('total-bottles').textContent = stats.total;
@@ -690,13 +1878,14 @@ function updateDashboard() {
     document.getElementById('with-client-bottles').textContent = stats.withClient;
     document.getElementById('needs-refill-bottles').textContent = stats.needsRefill;
     document.getElementById('maintenance-bottles').textContent = stats.maintenance;
+    document.getElementById('total-clients').textContent = stats.clients;
     
     const activityDiv = document.getElementById('recent-activity');
     if (activityLog.length > 0) {
-        activityDiv.innerHTML = activityLog.slice(0, 10).map(activity => `
-            <div style="padding:10px;margin:5px 0;background:rgba(33,150,243,0.05);border-radius:8px;border-left:3px solid #2196F3;">
-                <div style="font-weight:600;color:#2196F3;">${activity.action}</div>
-                <div class="small">${new Date(activity.timestamp).toLocaleString()}</div>
+        activityDiv.innerHTML = activityLog.slice(0, 15).map(activity => `
+            <div style="padding:12px;margin:8px 0;background:rgba(33,150,243,0.05);border-radius:10px;border-left:4px solid #2196F3;">
+                <div style="font-weight:600;color:#2196F3;margin-bottom:5px;">${activity.action}</div>
+                <div class="small" style="color:#6c757d;">${new Date(activity.timestamp).toLocaleString()}</div>
             </div>
         `).join('');
     } else {
@@ -708,6 +1897,7 @@ function updateDashboard() {
     
     const needsRefill = bottles.filter(b => b.status === 'needs-refill').length;
     const maintenance = bottles.filter(b => b.status === 'maintenance').length;
+    const highRefillCount = bottles.filter(b => (b.refillCount || 0) > 10).length;
     
     if (needsRefill > 0) {
         alerts.push(`${needsRefill} bottle(s) need refilling`);
@@ -715,10 +1905,13 @@ function updateDashboard() {
     if (maintenance > 0) {
         alerts.push(`${maintenance} bottle(s) need maintenance`);
     }
+    if (highRefillCount > 0) {
+        alerts.push(`${highRefillCount} bottle(s) have high refill count (>10)`);
+    }
     
     if (alerts.length > 0) {
         alertsDiv.innerHTML = alerts.map(alert => `
-            <div style="padding:10px;margin:5px 0;background:rgba(255,193,7,0.1);border-radius:8px;border-left:3px solid #ffc107;color:#856404;">
+            <div style="padding:12px;margin:8px 0;background:rgba(255,193,7,0.1);border-radius:10px;border-left:4px solid #ffc107;color:#856404;">
                 ⚠️ ${alert}
             </div>
         `).join('');
@@ -733,9 +1926,10 @@ function updateInventoryDisplay() {
     const statusFilter = document.getElementById('filter-status').value;
     
     let filteredBottles = bottles.filter(bottle => {
-        const matchesSearch = !searchTerm ||
+        const matchesSearch = !searchTerm || 
             bottle.id.toLowerCase().includes(searchTerm) ||
-            bottle.client.toLowerCase().includes(searchTerm) ||
+            (bottle.clientName && bottle.clientName.toLowerCase().includes(searchTerm)) ||
+            (bottle.clientPhone && bottle.clientPhone.toLowerCase().includes(searchTerm)) ||
             bottle.status.toLowerCase().includes(searchTerm);
         
         const matchesStatus = !statusFilter || bottle.status === statusFilter;
@@ -748,16 +1942,25 @@ function updateInventoryDisplay() {
             <div class="bottle-card">
                 <div class="bottle-id">Bottle #${bottle.id}</div>
                 <div class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</div>
-                <div style="margin:10px 0;">
-                    <strong>Client:</strong> ${bottle.client || 'None'}<br>
-                    <strong>Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}<br>
-                    <strong>Refilled:</strong> ${bottle.refillCount || 0} times<br>
-                    <strong>Quality:</strong> ${bottle.quality || 'Unknown'}
+                <div style="margin:15px 0;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                        <div><strong>🔄 Refills:</strong> ${bottle.refillCount || 0}</div>
+                        <div><strong>🚚 Deliveries:</strong> ${bottle.deliveryCount || 0}</div>
+                    </div>
+                    ${bottle.clientName ? `
+                        <div style="background:rgba(40,167,69,0.1);padding:10px;border-radius:8px;margin:10px 0;">
+                            <strong>👤 Client:</strong> ${bottle.clientName}<br>
+                            <strong>📞 Phone:</strong> ${bottle.clientPhone}<br>
+                            ${bottle.deliveryDate ? `<strong>📅 Delivered:</strong> ${new Date(bottle.deliveryDate).toLocaleString()}<br>` : ''}
+                            ${bottle.deliveryNotes ? `<strong>📝 Notes:</strong> ${bottle.deliveryNotes}` : ''}
+                        </div>
+                    ` : '<div><strong>👤 Client:</strong> None</div>'}
+                    <div style="margin-top:10px;"><strong>📅 Last Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}</div>
                 </div>
-                <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                    <button class="btn btn-sm" onclick="viewBottleDetails('${bottle.id}')">👁️ View</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="viewBottleDetails('${bottle.id}')">👁️ Details</button>
                     <button class="btn btn-sm btn-warning" onclick="editBottle('${bottle.id}')">✏️ Edit</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteBottle('${bottle.id}')">🗑️ Delete</button>
+                    ${(currentUser.role === 'admin' || currentUser.role === 'manager') ? `<button class="btn btn-sm btn-danger" onclick="deleteBottle('${bottle.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
         `).join('');
@@ -766,7 +1969,42 @@ function updateInventoryDisplay() {
     }
 }
 
-// Search and Filter Functions
+function updateClientDisplay() {
+    updateClientBottleCounts();
+    const clientDiv = document.getElementById('client-list');
+    const searchTerm = document.getElementById('search-clients').value.toLowerCase();
+    
+    let filteredClients = clients.filter(client => {
+        return !searchTerm || 
+            client.name.toLowerCase().includes(searchTerm) ||
+            client.phone.toLowerCase().includes(searchTerm) ||
+            (client.address && client.address.toLowerCase().includes(searchTerm));
+    });
+    
+    if (filteredClients.length > 0) {
+        clientDiv.innerHTML = filteredClients.map(client => `
+            <div class="bottle-card">
+                <div class="bottle-id">👤 ${client.name}</div>
+                <div class="status with-client">CLIENT</div>
+                <div style="margin:15px 0;">
+                    <div><strong>📞 Phone:</strong> ${client.phone}</div>
+                    ${client.address ? `<div><strong>📍 Address:</strong> ${client.address}</div>` : ''}
+                    <div><strong>🍶 Bottles:</strong> ${client.bottleCount || 0}</div>
+                    ${client.notes ? `<div style="margin-top:10px;"><strong>📝 Notes:</strong> ${client.notes}</div>` : ''}
+                    <div style="margin-top:10px;"><strong>📅 Added:</strong> ${new Date(client.created).toLocaleString()}</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="viewClientBottles('${client.id}')">🍶 View Bottles</button>
+                    ${(currentUser.role === 'admin' || currentUser.role === 'manager') ? `<button class="btn btn-sm btn-warning" onclick="editClient('${client.id}')">✏️ Edit</button>` : ''}
+                    ${(currentUser.role === 'admin' || currentUser.role === 'manager') ? `<button class="btn btn-sm btn-danger" onclick="deleteClient('${client.id}')">🗑️ Delete</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        clientDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No clients found matching your criteria.</div>';
+    }
+}
+
 function searchBottles() {
     updateInventoryDisplay();
 }
@@ -775,14 +2013,145 @@ function filterBottles() {
     updateInventoryDisplay();
 }
 
-// Bottle Actions
+function searchClients() {
+    updateClientDisplay();
+}
+
+function addNewClient() {
+    document.getElementById('add-client-modal').style.display = 'block';
+}
+
+function createNewClient() {
+    const name = document.getElementById('new-client-name').value.trim();
+    const phone = document.getElementById('new-client-phone').value.trim();
+    const address = document.getElementById('new-client-address').value.trim();
+    const notes = document.getElementById('new-client-notes').value.trim();
+    
+    if (!name) {
+        alert('Please enter a client name');
+        return;
+    }
+    
+    if (!phone) {
+        alert('Please enter a phone number');
+        return;
+    }
+    
+    if (clients.find(c => c.phone === phone)) {
+        alert('A client with this phone number already exists');
+        return;
+    }
+    
+    const newClient = {
+        id: 'client_' + Date.now(),
+        name: name,
+        phone: phone,
+        address: address,
+        notes: notes,
+        created: new Date().toISOString(),
+        bottleCount: 0
+    };
+    
+    clients.push(newClient);
+    addActivity(`New client added: ${name} (${phone}) by ${currentUser.name}`);
+    
+    document.getElementById('new-client-name').value = '';
+    document.getElementById('new-client-phone').value = '';
+    document.getElementById('new-client-address').value = '';
+    document.getElementById('new-client-notes').value = '';
+    
+    closeClientModal();
+    saveData();
+    updateAllDisplays();
+}
+
+function viewClientBottles(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    const clientBottles = bottles.filter(b => b.clientId === clientId);
+    
+    if (!client) return;
+    
+    let message = `Bottles for ${client.name} (${client.phone}):\n\n`;
+    
+    if (clientBottles.length > 0) {
+        clientBottles.forEach(bottle => {
+            message += `• Bottle ${bottle.id} - ${bottle.status.toUpperCase()}\n`;
+            message += `  Refills: ${bottle.refillCount || 0}, Deliveries: ${bottle.deliveryCount || 0}\n`;
+            if (bottle.deliveryDate) {
+                message += `  Last Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}\n`;
+            }
+            message += '\n';
+        });
+    } else {
+        message += 'No bottles currently with this client.';
+    }
+    
+    alert(message);
+}
+
+function editClient(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    const newName = prompt('Enter new client name:', client.name);
+    if (newName && newName !== client.name) {
+        const oldName = client.name;
+        client.name = newName;
+        
+        bottles.forEach(bottle => {
+            if (bottle.clientId === clientId) {
+                bottle.clientName = newName;
+            }
+        });
+        
+        addActivity(`Client name updated from ${oldName} to ${newName} by ${currentUser.name}`);
+        saveData();
+        updateAllDisplays();
+    }
+}
+
+function deleteClient(clientId) {
+    const password = prompt('⚠️ Enter password to delete this client:');
+    
+    if (password !== DELETE_PASSWORD) {
+        alert('❌ Incorrect password! Deletion cancelled.');
+        return;
+    }
+    
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    const clientBottles = bottles.filter(b => b.clientId === clientId);
+    
+    if (clientBottles.length > 0) {
+        if (!confirm(`Client ${client.name} has ${clientBottles.length} bottle(s). Deleting will remove client info from bottles. Continue?`)) {
+            return;
+        }
+        
+        clientBottles.forEach(bottle => {
+            bottle.clientId = '';
+            bottle.clientName = '';
+            bottle.clientPhone = '';
+        });
+    }
+    
+    if (confirm(`Are you sure you want to delete client ${client.name}? This action cannot be undone.`)) {
+        clients = clients.filter(c => c.id !== clientId);
+        addActivity(`Client deleted: ${client.name} (${client.phone}) by ${currentUser.name}`);
+        saveData();
+        updateAllDisplays();
+    }
+}
+
 function addNewBottle() {
+    populateClientDropdowns();
+    document.getElementById('new-bottle-client-search').value = '';
     document.getElementById('add-bottle-modal').style.display = 'block';
 }
 
 function createNewBottle() {
     const id = document.getElementById('new-bottle-id').value.trim();
-    const client = document.getElementById('new-bottle-client').value.trim();
+    const clientId = document.getElementById('new-bottle-client-select').value;
     const status = document.getElementById('new-bottle-status').value;
     
     if (!id) {
@@ -795,55 +2164,124 @@ function createNewBottle() {
         return;
     }
     
+    const client = clientId ? clients.find(c => c.id === clientId) : null;
+    
     const newBottle = {
         id: id,
         status: status,
-        client: status === 'with-client' ? client : '',
-        lastUpdated: new Date().toISOString()
+        clientId: clientId || '',
+        clientName: client ? client.name : '',
+        clientPhone: client ? client.phone : '',
+        refillCount: status === 'available' ? 1 : 0,
+        deliveryCount: 0,
+        lastUpdated: new Date().toISOString(),
+        created: new Date().toISOString(),
+        history: [{
+            action: `Bottle created with status: ${status} by ${currentUser.name}`,
+            timestamp: new Date().toISOString(),
+            client: client ? client.name : ''
+        }]
     };
     
     bottles.push(newBottle);
-    addActivity(`New bottle ${id} added to inventory`);
+    addActivity(`New bottle ${id} added to inventory${client ? ` for ${client.name}` : ''} by ${currentUser.name}`);
     
     document.getElementById('new-bottle-id').value = '';
-    document.getElementById('new-bottle-client').value = '';
+    document.getElementById('new-bottle-client-select').value = '';
     document.getElementById('new-bottle-status').value = 'available';
     
     closeAddModal();
+    saveData();
     updateAllDisplays();
+}
+
+function populateClientDropdowns() {
+    const selects = [
+        document.getElementById('new-bottle-client-select'),
+        document.getElementById('delivery-client-select')
+    ];
+    
+    selects.forEach(select => {
+        if (select) {
+            const currentValue = select.value;
+            const isDeliverySelect = select.id === 'delivery-client-select';
+            
+            if (isDeliverySelect) {
+                select.innerHTML = '';
+            } else {
+                select.innerHTML = '<option value="">Select Client (optional)</option>';
+            }
+            
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = `${client.name} (${client.phone})`;
+                if (client.id === currentValue) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+    });
 }
 
 function viewBottleDetails(bottleId) {
     const bottle = bottles.find(b => b.id === bottleId);
     if (!bottle) return;
     
-    alert(`Bottle Details:\n\nID: ${bottle.id}\nStatus: ${bottle.status}\nClient: ${bottle.client || 'None'}\nLast Updated: ${new Date(bottle.lastUpdated).toLocaleString()}`);
+    let details = `Bottle Details for #${bottle.id}\n\n`;
+    details += `Status: ${bottle.status.toUpperCase()}\n`;
+    details += `Refill Count: ${bottle.refillCount || 0}\n`;
+    details += `Delivery Count: ${bottle.deliveryCount || 0}\n`;
+    details += `Created: ${new Date(bottle.created).toLocaleString()}\n`;
+    details += `Last Updated: ${new Date(bottle.lastUpdated).toLocaleString()}\n\n`;
+    
+    if (bottle.clientName) {
+        details += `Current Client: ${bottle.clientName}\n`;
+        details += `Phone: ${bottle.clientPhone}\n`;
+        if (bottle.deliveryDate) {
+            details += `Delivered: ${new Date(bottle.deliveryDate).toLocaleString()}\n`;
+        }
+        if (bottle.deliveryNotes) {
+            details += `Notes: ${bottle.deliveryNotes}\n`;
+        }
+        details += '\n';
+    }
+    
+    if (bottle.history && bottle.history.length > 0) {
+        details += 'Recent History:\n';
+        bottle.history.slice(-5).forEach(h => {
+            details += `• ${h.action} - ${new Date(h.timestamp).toLocaleString()}\n`;
+        });
+    }
+    
+    alert(details);
 }
 
 function editBottle(bottleId) {
     const bottle = bottles.find(b => b.id === bottleId);
     if (!bottle) return;
-    
     currentBottleId = bottleId;
-    document.getElementById('bottle-modal').style.display = 'block';
-    document.getElementById('modal-title').textContent = `Edit Bottle ${bottleId}`;
-    document.getElementById('modal-bottle-info').innerHTML = `
-        <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;margin:10px 0;">
-            <strong>Current Status:</strong> ${bottle.status}<br>
-            <strong>Client:</strong> ${bottle.client || 'None'}
-        </div>
-    `;
+    document.getElementById('manual-barcode').value = bottleId; // Set barcode input
+    processBottle();
 }
 
 function deleteBottle(bottleId) {
+    const password = prompt('⚠️ Enter password to delete this bottle:');
+    
+    if (password !== DELETE_PASSWORD) {
+        alert('❌ Incorrect password! Deletion cancelled.');
+        return;
+    }
+    
     if (confirm(`Are you sure you want to delete bottle ${bottleId}? This action cannot be undone.`)) {
+        const bottle = bottles.find(b => b.id === bottleId);
         bottles = bottles.filter(b => b.id !== bottleId);
-        addActivity(`Bottle ${bottleId} deleted from inventory`);
+        addActivity(`Bottle ${bottleId} deleted from inventory${bottle && bottle.clientName ? ` (was with ${bottle.clientName})` : ''} by ${currentUser.name}`);
+        updateClientBottleCounts();
+        saveData();
         updateAllDisplays();
     }
 }
 
-// Reports
 function updateReports() {
     console.log('Reports updated');
 }
@@ -857,31 +2295,181 @@ function generateReport() {
         return;
     }
     
+    if (!Array.isArray(activityLog)) {
+        console.warn('activityLog is not an array, resetting to empty array');
+        activityLog = [];
+    }
+    
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
     const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
     
     const filteredActivities = activityLog.filter(activity => {
         const activityDate = new Date(activity.timestamp);
         return activityDate >= start && activityDate <= end;
     });
     
+    const totalRefills = bottles.reduce((sum, bottle) => sum + (bottle.refillCount || 0), 0);
+    const totalDeliveries = bottles.reduce((sum, bottle) => sum + (bottle.deliveryCount || 0), 0);
+    
     const reportSummary = document.getElementById('report-summary');
     reportSummary.innerHTML = `
-        <h4>Report for ${startDate} to ${endDate}</h4>
-        <p><strong>Total Activities:</strong> ${filteredActivities.length}</p>
-        <p><strong>Total Bottles:</strong> ${bottles.length}</p>
-        <p><strong>Available:</strong> ${bottles.filter(b => b.status === 'available').length}</p>
-        <p><strong>With Clients:</strong> ${bottles.filter(b => b.status === 'with-client').length}</p>
-        <p><strong>Need Refill:</strong> ${bottles.filter(b => b.status === 'needs-refill').length}</p>
-        <div style="margin-top:15px;">
-            <h5>Recent Activities in Period:</h5>
-            ${filteredActivities.slice(0, 10).map(activity => `
-                <div style="padding:5px;margin:2px 0;background:rgba(0,0,0,0.05);border-radius:5px;">
-                    ${activity.action} - ${new Date(activity.timestamp).toLocaleString()}
-                </div>
-            `).join('') || '<p>No activities in this period</p>'}
+        <h4>📊 Report for ${startDate} to ${endDate}</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
+            <div style="background:rgba(33,150,243,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Activities:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#2196F3;">${filteredActivities.length}</span>
+            </div>
+            <div style="background:rgba(40,167,69,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Bottles:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#28a745;">${bottles.length}</span>
+            </div>
+            <div style="background:rgba(255,193,7,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Refills:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#856404;">${totalRefills}</span>
+            </div>
+            <div style="background:rgba(220,53,69,0.1);padding:15px;border-radius:10px;">
+                <strong>Total Deliveries:</strong><br>
+                <span style="font-size:24px;font-weight:bold;color:#dc3545;">${totalDeliveries}</span>
+            </div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:15px 0;">
+            <div><strong>Available:</strong> ${bottles.filter(b => b.status === 'available').length}</div>
+            <div><strong>With Clients:</strong> ${bottles.filter(b => b.status === 'with-client').length}</div>
+            <div><strong>Need Refill:</strong> ${bottles.filter(b => b.status === 'needs-refill').length}</div>
+            <div><strong>Maintenance:</strong> ${bottles.filter(b => b.status === 'maintenance').length}</div>
+            <div><strong>Total Clients:</strong> ${clients.length}</div>
+        </div>
+        
+        <div style="margin-top:20px;">
+            <h5>📋 Activities in Period (${filteredActivities.length}):</h5>
+            <div style="max-height:300px;overflow-y:auto;margin-top:10px;">
+                ${filteredActivities.length > 0 ? 
+                    filteredActivities.slice(0, 20).map(activity => `
+                        <div style="padding:8px;margin:4px 0;background:rgba(0,0,0,0.05);border-radius:8px;border-left:3px solid #2196F3;">
+                            <div style="font-weight:600;">${activity.action}</div>
+                            <div style="font-size:13px;color:#6c757d;">${new Date(activity.timestamp).toLocaleString()}</div>
+                        </div>
+                    `).join('') 
+                    : 
+                    '<p>No activities in this period</p>'
+                }
+                ${filteredActivities.length > 20 ? `<div style="text-align:center;padding:10px;color:#6c757d;">... and ${filteredActivities.length - 20} more activities</div>` : ''}
+            </div>
         </div>
     `;
+    
+    console.log('Report generated successfully!');
+}
+
+function exportToExcel() {
+    console.log('Exporting data to Excel...');
+    
+    let csvContent = '\uFEFF';
+    
+    csvContent += '===== BOTTLE TRACKING SYSTEM - DATA EXPORT =====\n';
+    csvContent += `Export Date:,${new Date().toLocaleString()}\n`;
+    csvContent += `Exported By:,${currentUser.name} (${currentUser.role})\n`;
+    csvContent += '\n';
+    
+    csvContent += '===== SUMMARY STATISTICS =====\n';
+    csvContent += `Total Bottles:,${bottles.length}\n`;
+    csvContent += `Total Clients:,${clients.length}\n`;
+    csvContent += `Total Activities:,${activityLog.length}\n`;
+    csvContent += `Available Bottles:,${bottles.filter(b => b.status === 'available').length}\n`;
+    csvContent += `Bottles With Clients:,${bottles.filter(b => b.status === 'with-client').length}\n`;
+    csvContent += `Bottles Need Refill:,${bottles.filter(b => b.status === 'needs-refill').length}\n`;
+    csvContent += `Bottles In Maintenance:,${bottles.filter(b => b.status === 'maintenance').length}\n`;
+    csvContent += `Total Refills:,${bottles.reduce((sum, b) => sum + (b.refillCount || 0), 0)}\n`;
+    csvContent += `Total Deliveries:,${bottles.reduce((sum, b) => sum + (b.deliveryCount || 0), 0)}\n`;
+    csvContent += '\n\n\n';
+    
+    csvContent += '===== BOTTLES DATA =====\n';
+    csvContent += 'Bottle ID,Status,Client Name,Client Phone,Refill Count,Delivery Count,Last Updated,Created Date\n';
+    
+    bottles.forEach(bottle => {
+        const bottleId = bottle.id || '';
+        const status = bottle.status || '';
+        const clientName = bottle.clientName ? bottle.clientName.replace(/"/g, '""') : 'None';
+        const clientPhone = bottle.clientPhone || 'N/A';
+        const refillCount = bottle.refillCount || 0;
+        const deliveryCount = bottle.deliveryCount || 0;
+        const lastUpdated = new Date(bottle.lastUpdated).toLocaleString();
+        const created = new Date(bottle.created).toLocaleString();
+        
+        csvContent += `"${bottleId}","${status}","${clientName}","${clientPhone}",${refillCount},${deliveryCount},"${lastUpdated}","${created}"\n`;
+    });
+    
+    csvContent += '\n\n\n';
+    
+    csvContent += '===== CLIENTS DATA =====\n';
+    csvContent += 'Client ID,Name,Phone,Address,Bottles Count,Notes,Created Date\n';
+    
+    clients.forEach(client => {
+        const clientId = client.id || '';
+        const name = client.name ? client.name.replace(/"/g, '""') : '';
+        const phone = client.phone || '';
+        const address = client.address ? client.address.replace(/"/g, '""') : 'N/A';
+        const bottleCount = client.bottleCount || 0;
+        const notes = client.notes ? client.notes.replace(/"/g, '""') : 'N/A';
+        const created = new Date(client.created).toLocaleString();
+        
+        csvContent += `"${clientId}","${name}","${phone}","${address}",${bottleCount},"${notes}","${created}"\n`;
+    });
+    
+    csvContent += '\n\n\n';
+    
+    csvContent += '===== ACTIVITY LOG (Last 100 Activities) =====\n';
+    csvContent += 'Action,Date & Time\n';
+    
+    const recentActivities = Array.isArray(activityLog) ? activityLog.slice(0, 100) : [];
+    recentActivities.forEach(activity => {
+        const action = activity.action ? activity.action.replace(/"/g, '""') : '';
+        const timestamp = new Date(activity.timestamp).toLocaleString();
+        
+        csvContent += `"${action}","${timestamp}"\n`;
+    });
+    
+    csvContent += '\n\n===== END OF REPORT =====\n';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10);
+    const timeStr = today.toTimeString().slice(0, 5).replace(':', '-');
+    const filename = `Bottle_Tracking_Report_${dateStr}_${timeStr}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert(`✅ Data exported successfully!\n\n📄 File: ${filename}\n\nExported by: ${currentUser.name}\n\nTotal:\n• ${bottles.length} bottles\n• ${clients.length} clients\n• ${recentActivities.length} activity logs`);
+    
+    addActivity(`Data exported by ${currentUser.name}: ${bottles.length} bottles, ${clients.length} clients`);
+    
+    console.log('Export completed successfully!');
+}
+
+function addActivity(message) {
+    activityLog.unshift({
+        action: message,
+        timestamp: new Date().toISOString()
+    });
+    
+    if (activityLog.length > 100) {
+        activityLog = activityLog.slice(0, 100);
+    }
+    
+    saveData();
+    updateDashboard();
 }
 
 function setupDefaultDates() {
@@ -893,6 +2481,7 @@ function setupDefaultDates() {
 
 function createFloatingParticles() {
     const container = document.querySelector('.floating-particles');
+    if (!container) return;
     for (let i = 0; i < 50; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
@@ -902,490 +2491,29 @@ function createFloatingParticles() {
         container.appendChild(particle);
     }
 }
+
+const hamburgerBtn = document.getElementById('hamburger-btn');
+const drawer = document.getElementById('drawer');
+hamburgerBtn && hamburgerBtn.addEventListener('click', () => {
+    drawer.style.display = drawer.style.display === 'block' ? 'none' : 'block';
+});
+window.addEventListener('resize', () => {
+    if (window.innerWidth < 768) {
+        document.getElementById('mobile-nav').style.display = 'block';
+        document.querySelector('.tabs').style.display = 'none';
+    } else {
+        document.getElementById('mobile-nav').style.display = 'none';
+        document.querySelector('.tabs').style.display = 'flex';
+        drawer.style.display = 'none';
+    }
+});
+if (window.innerWidth < 768) {
+    document.getElementById('mobile-nav').style.display = 'block';
+    document.querySelector('.tabs').style.display = 'none';
+}
+
+// Make showTab globally accessible for inline onclick handlers
+window.showTab = showTab;
 </script>
-
-<!-- Keep all your original CSS exactly the same -->
-<style>
-* {
-margin: 0;
-padding: 0;
-box-sizing: border-box;
-}
-
-body {
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-min-height: 100vh;
-padding: 20px;
-animation: gradientShift 10s ease infinite;
-}
-
-@keyframes gradientShift {
-0% { background-position: 0% 50%; }
-50% { background-position: 100% 50%; }
-100% { background-position: 0% 50%; }
-}
-
-.container {
-max-width: 1400px;
-margin: 0 auto;
-background: rgba(255, 255, 255, 0.95);
-border-radius: 25px;
-box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-overflow: hidden;
-backdrop-filter: blur(10px);
-}
-
-.header {
-background: linear-gradient(45deg, #2196F3, #21CBF3, #00BCD4);
-color: white;
-padding: 40px;
-text-align: center;
-position: relative;
-overflow: hidden;
-}
-
-.header::before {
-content: '';
-position: absolute;
-top: 0;
-left: -100%;
-width: 100%;
-height: 100%;
-background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-animation: shimmer 3s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-0% { left: -100%; }
-100% { left: 100%; }
-}
-
-.header h1 {
-font-size: 3rem;
-margin-bottom: 15px;
-text-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-0%, 100% { transform: scale(1); }
-50% { transform: scale(1.02); }
-}
-
-.tabs {
-display: flex;
-background: linear-gradient(45deg, #f8f9fa, #ffffff);
-border-bottom: 2px solid #e9ecef;
-box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.tab {
-flex: 1;
-padding: 25px;
-text-align: center;
-border: none;
-cursor: pointer;
-font-size: 18px;
-font-weight: 700;
-color: #6c757d;
-transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-background: none;
-position: relative;
-overflow: hidden;
-}
-
-.tab::before {
-content: '';
-position: absolute;
-bottom: 0;
-left: 50%;
-width: 0;
-height: 4px;
-background: linear-gradient(45deg, #2196F3, #21CBF3);
-transition: all 0.4s ease;
-transform: translateX(-50%);
-}
-
-.tab.active {
-background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(255, 255, 255, 1));
-color: #2196F3;
-transform: translateY(-2px);
-}
-
-.tab.active::before {
-width: 80%;
-}
-
-.tab:hover {
-background: rgba(33, 150, 243, 0.05);
-transform: translateY(-1px);
-}
-
-.tab-content {
-display: none;
-padding: 40px;
-animation: fadeIn 0.5s ease-in-out;
-}
-
-@keyframes fadeIn {
-from { opacity: 0; transform: translateY(20px); }
-to { opacity: 1; transform: translateY(0); }
-}
-
-.tab-content.active {
-display: block;
-}
-
-.btn {
-background: linear-gradient(45deg, #2196F3, #21CBF3);
-color: white;
-border: none;
-padding: 12px 24px;
-border-radius: 25px;
-font-size: 16px;
-font-weight: 600;
-cursor: pointer;
-margin: 8px;
-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
-position: relative;
-overflow: hidden;
-}
-
-.btn::before {
-content: '';
-position: absolute;
-top: 50%;
-left: 50%;
-width: 0;
-height: 0;
-background: rgba(255, 255, 255, 0.3);
-border-radius: 50%;
-transition: all 0.3s ease;
-transform: translate(-50%, -50%);
-}
-
-.btn:hover {
-transform: translateY(-3px) scale(1.02);
-box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
-}
-
-.btn:hover::before {
-width: 300px;
-height: 300px;
-}
-
-.btn-sm {
-padding: 8px 16px;
-font-size: 14px;
-margin: 4px;
-}
-
-.btn-secondary {
-background: linear-gradient(45deg, #6c757d, #868e96);
-box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-}
-
-.btn-success {
-background: linear-gradient(45deg, #28a745, #20c997);
-box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-}
-
-.btn-warning {
-background: linear-gradient(45deg, #ffc107, #ffca2c);
-box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
-}
-
-.btn-danger {
-background: linear-gradient(45deg, #dc3545, #e74c3c);
-box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-}
-
-.stats-grid {
-display: grid;
-grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-gap: 25px;
-margin-bottom: 30px;
-}
-
-.stat-card {
-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-color: white;
-padding: 30px;
-border-radius: 20px;
-text-align: center;
-box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
-transition: all 0.3s ease;
-position: relative;
-overflow: hidden;
-}
-
-.stat-card::before {
-content: '';
-position: absolute;
-top: -50%;
-left: -50%;
-width: 200%;
-height: 200%;
-background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-animation: rotate 20s linear infinite;
-}
-
-@keyframes rotate {
-0% { transform: rotate(0deg); }
-100% { transform: rotate(360deg); }
-}
-
-.stat-card:hover {
-transform: translateY(-8px) scale(1.02);
-box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
-}
-
-.stat-number {
-font-size: 3rem;
-font-weight: 900;
-margin-bottom: 10px;
-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-position: relative;
-z-index: 1;
-}
-
-.stat-label {
-font-size: 16px;
-opacity: 0.95;
-font-weight: 600;
-position: relative;
-z-index: 1;
-}
-
-.bottle-grid {
-display: grid;
-grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-gap: 25px;
-margin-top: 30px;
-}
-
-.bottle-card {
-background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 249, 250, 0.9));
-border-radius: 20px;
-padding: 25px;
-box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-border-left: 6px solid #2196F3;
-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-position: relative;
-overflow: hidden;
-}
-
-.bottle-card::before {
-content: '';
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), transparent);
-transition: all 0.3s ease;
-}
-
-.bottle-card:hover {
-transform: translateY(-5px) scale(1.02);
-box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
-}
-
-.bottle-card:hover::before {
-background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), transparent);
-}
-
-.bottle-id {
-font-size: 1.4rem;
-font-weight: 900;
-color: #2196F3;
-margin-bottom: 12px;
-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.status {
-padding: 8px 16px;
-border-radius: 25px;
-font-size: 14px;
-font-weight: 700;
-display: inline-block;
-margin-bottom: 15px;
-text-transform: uppercase;
-letter-spacing: 0.5px;
-box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.status.available {
-background: linear-gradient(45deg, #d4edda, #c3e6cb);
-color: #155724;
-}
-
-.status.with-client {
-background: linear-gradient(45deg, #fff3cd, #ffeaa7);
-color: #856404;
-}
-
-.status.needs-refill {
-background: linear-gradient(45deg, #f8d7da, #f5c6cb);
-color: #721c24;
-}
-
-.status.maintenance {
-background: linear-gradient(45deg, #d1ecf1, #bee5eb);
-color: #0c5460;
-}
-
-.modal {
-display: none;
-position: fixed;
-z-index: 2000;
-left: 0;
-top: 0;
-width: 100%;
-height: 100%;
-background: rgba(0, 0, 0, 0.6);
-backdrop-filter: blur(8px);
-animation: modalFadeIn 0.3s ease;
-}
-
-@keyframes modalFadeIn {
-from { opacity: 0; }
-to { opacity: 1; }
-}
-
-.modal-content {
-background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95));
-margin: 5% auto;
-padding: 40px;
-border-radius: 25px;
-width: 95%;
-max-width: 650px;
-box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
-animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-backdrop-filter: blur(10px);
-}
-
-@keyframes modalSlideIn {
-from { transform: translateY(-50px) scale(0.9); opacity: 0; }
-to { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-.close {
-color: #aaa;
-float: right;
-font-size: 32px;
-font-weight: bold;
-cursor: pointer;
-transition: all 0.3s ease;
-}
-
-.close:hover {
-color: #2196F3;
-transform: scale(1.1);
-}
-
-.barcode-input {
-display: flex;
-flex-direction: column;
-gap: 15px;
-max-width: 500px;
-margin: 20px auto;
-}
-
-.barcode-display {
-background: linear-gradient(135deg, #f8f9fa, #ffffff);
-border: 2px solid #e9ecef;
-border-radius: 15px;
-padding: 20px;
-text-align: center;
-min-height: 100px;
-display: flex;
-align-items: center;
-justify-content: center;
-font-family: monospace;
-font-size: 18px;
-font-weight: bold;
-color: #495057;
-box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.search-row {
-display: flex;
-gap: 12px;
-align-items: center;
-margin: 20px 0;
-flex-wrap: wrap;
-}
-
-.search-input {
-padding: 12px 20px;
-border-radius: 25px;
-border: 2px solid #e9ecef;
-flex: 1;
-min-width: 200px;
-font-size: 16px;
-transition: all 0.3s ease;
-box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.search-input:focus {
-border-color: #2196F3;
-box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-outline: none;
-}
-
-.small {
-font-size: 14px;
-color: #6c757d;
-line-height: 1.5;
-}
-
-@media(max-width: 768px) {
-.tabs {
-flex-direction: column;
-}
-.header h1 {
-font-size: 2.2rem;
-}
-.bottle-grid {
-grid-template-columns: 1fr;
-}
-.stats-grid {
-grid-template-columns: 1fr;
-}
-.tab-content {
-padding: 20px;
-}
-}
-
-.floating-particles {
-position: fixed;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-pointer-events: none;
-z-index: -1;
-}
-
-.particle {
-position: absolute;
-width: 4px;
-height: 4px;
-background: rgba(255, 255, 255, 0.6);
-border-radius: 50%;
-animation: float 15s infinite linear;
-}
-
-@keyframes float {
-0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-10% { opacity: 1; }
-90% { opacity: 1; }
-100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
-}
-</style>
-
 </body>
 </html>
