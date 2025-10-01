@@ -785,17 +785,12 @@ function initBarcodeScanner() {
     const input = document.getElementById('barcode-scanner-input');
     if (!input) return;
 
-    input.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const barcode = this.value.trim().replace(/[^0-9]/g, '');
-
-            if (barcode.length >= 6) {
-                addScannedBarcode(barcode);
-                this.value = '';
-            }
-
-            setTimeout(() => this.focus(), 100);
+    input.addEventListener('input', function(e) {
+        // Auto-submit when a barcode is scanned (most scanners send Enter or fill instantly)
+        const barcode = this.value.trim().replace(/[^0-9]/g, '');
+        if (barcode.length >= 6) {
+            addScannedBarcode(barcode);
+            this.value = '';
         }
     });
 
