@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>5-Gallon Bottle + Smart Pallet Tracking System</title>
+<title>5-Gallon Bottle Tracking System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { 
@@ -20,15 +21,13 @@
   .header h1 { margin: 0 0 8px 0; font-size: 2rem; color: #1565c0; }
   .header .subtitle { font-size: 0.95rem; color: #6c757d; line-height: 1.5; }
   
-  .user-badge { 
-    position: absolute; top: 0; right: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  .export-badge { 
+    position: absolute; top: 0; right: 0; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); 
     border-radius: 20px; padding: 12px 20px; display: flex; align-items: center; gap: 14px; 
-    box-shadow: 0 4px 12px rgba(102,126,234,0.25); color: white;
+    box-shadow: 0 4px 12px rgba(67,233,123,0.25); color: white; cursor: pointer;
+    transition: all 0.3s;
   }
-  .user-badge .role { 
-    background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 10px; 
-    font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
-  }
+  .export-badge:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(67,233,123,0.35); }
   
   .tabs { 
     display: flex; justify-content: center; gap: 10px; margin-bottom: 32px; 
@@ -86,7 +85,7 @@
     transition: all 0.3s;
   }
   .mode-toggle label:hover { background: rgba(255,255,255,0.25); }
-  .mode-toggle input[type="checkbox"] { 
+  .mode-toggle input[type="radio"] { 
     width: 20px; height: 20px; cursor: pointer; 
   }
 
@@ -267,13 +266,12 @@
 <div class="container">
   <div class="header">
     <h1>🏭 5-Gallon Bottle Tracking System</h1>
-    <div class="subtitle">Auto-create pallets at 32 bottles • Deliver individually or in bulk • Real-time tracking</div>
-    <div class="user-badge">
+    <div class="subtitle">Auto-create pallets at 32 bottles • Deliver individually or in bulk • Export comprehensive reports</div>
+    <div class="export-badge" onclick="generateExcelReport()">
       <div>
-        <div style="font-weight:700; font-size:1.1rem;" id="user-name">Admin User</div>
-        <div class="role" id="user-role">ADMIN</div>
+        <div style="font-weight:700; font-size:1.1rem;">📊 Export Excel</div>
+        <div style="font-size:0.8rem; opacity:0.9;">5 detailed sheets</div>
       </div>
-      <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
     </div>
   </div>
 
@@ -292,7 +290,7 @@
       <h3>Barcode Scanner Active</h3>
       <div class="scanner-status" id="scanner-status">🟢 Ready to Scan</div>
       <div style="margin-top:20px;">
-        <input id="barcode-input" class="barcode-input-large" placeholder="Focus here • Auto-add length < 4 • Enter for longer" autocomplete="off" autofocus>
+        <input id="barcode-input" class="barcode-input-large" placeholder="Auto-add when 5+ characters • Keep scanning..." autocomplete="off" autofocus>
       </div>
       
       <div class="mode-toggle">
@@ -307,7 +305,7 @@
       </div>
       
       <div id="mode-help" class="small" style="opacity:0.9; margin-top:8px; background: rgba(255,255,255,0.15); padding:10px; border-radius:8px;">
-        💡 <strong>Bottle Mode:</strong> Scan bottles to build queue → auto-create pallet at 32
+        💡 <strong>Bottle Mode:</strong> Scan bottles (5+ chars) → auto-create pallet at 32
       </div>
     </div>
 
@@ -366,7 +364,9 @@
   <div id="inventory" class="tab-content">
     <div class="section-header">
       <h2>📊 Inventory (<span id="bottle-count">0</span>)</h2>
-      <div><button class="btn btn-sm" onclick="addBottlePrompt()" id="btn-add-bottle">➕ Add Bottle</button></div>
+      <div>
+        <button class="btn btn-sm" onclick="addBottlePrompt()">➕ Add Bottle</button>
+      </div>
     </div>
     <div class="search-row">
       <input id="search-bottles" class="search-input" placeholder="🔍 Search bottles..." oninput="searchBottles()">
@@ -396,6 +396,7 @@
   <div id="activity" class="tab-content">
     <div class="section-header">
       <h2>📋 Recent Activity</h2>
+      <button class="btn btn-sm btn-success" onclick="generateExcelReport()">📊 Export Excel</button>
     </div>
     <div id="activity-list" class="scanned-list"></div>
   </div>
@@ -437,10 +438,10 @@
     <div id="pallet-detail-info"></div>
     <div class="bottle-list-mini" id="pallet-detail-bottles"></div>
     <div class="right" style="margin-top:16px;">
-      <button class="btn btn-success" onclick="refillPalletById(currentPalletId)" id="btn-detail-refill">🔄 Refill All</button>
-      <button class="btn btn-warning" onclick="deliverPalletById(currentPalletId)" id="btn-detail-deliver">🚚 Deliver All</button>
-      <button class="btn btn-secondary" onclick="returnPalletById(currentPalletId)" id="btn-detail-return">↩️ Return All</button>
-      <button class="btn btn-danger" onclick="deletePallet(currentPalletId)" id="btn-detail-delete">🗑️ Delete</button>
+      <button class="btn btn-success" onclick="refillPalletById(currentPalletId)">🔄 Refill All</button>
+      <button class="btn btn-warning" onclick="deliverPalletById(currentPalletId)">🚚 Deliver All</button>
+      <button class="btn btn-secondary" onclick="returnPalletById(currentPalletId)">↩️ Return All</button>
+      <button class="btn btn-danger" onclick="deletePallet(currentPalletId)">🗑️ Delete</button>
     </div>
   </div>
 </div>
@@ -463,9 +464,9 @@
 
 <script>
 /* =========================
-   GLOBALS & PERMISSIONS
+   GLOBALS
    ========================= */
-const STORAGE_KEY = 'bottle_app_production_v1';
+const STORAGE_KEY = 'bottle_app_v5_excel';
 const PALLET_CAPACITY = 32;
 const MAX_BARCODES = 500;
 
@@ -473,41 +474,19 @@ let bottles = [];
 let clients = [];
 let pallets = [];
 let activityLog = [];
+let deletedRecords = []; // Track deleted bottles/pallets
 let scannedBarcodes = [];
 
 let deliveryClientMode = 'existing';
-let currentUser = { id: 'u1', name: 'Admin User', role: 'admin' }; // or 'worker', 'delivery'
 let currentPalletId = '';
-let scannerMode = 'bottle'; // 'bottle' or 'pallet'
+let scannerMode = 'bottle';
 let activePalletScan = null;
-
-// Permission system
-const PERMISSIONS = {
-  admin: ['scan', 'deliver', 'return', 'refill', 'add_bottle', 'delete_bottle', 'delete_pallet', 'add_client'],
-  worker: ['scan', 'deliver', 'return', 'refill'],
-  delivery: ['scan', 'deliver', 'return']
-};
-
-function hasPermission(action) {
-  const role = currentUser.role || 'worker';
-  return PERMISSIONS[role]?.includes(action) || false;
-}
-
-function updateUIPermissions() {
-  // Hide/disable delete buttons for non-admins
-  const canDelete = hasPermission('delete_bottle');
-  document.getElementById('btn-add-bottle')?.style.setProperty('display', hasPermission('add_bottle') ? 'inline-block' : 'none');
-  
-  // Update user badge
-  document.getElementById('user-name').textContent = currentUser.name;
-  document.getElementById('user-role').textContent = currentUser.role.toUpperCase();
-}
 
 /* =========================
    PERSISTENCE
    ========================= */
 function saveData() {
-  const payload = { bottles, clients, pallets, activityLog, lastUpdated: new Date().toISOString() };
+  const payload = { bottles, clients, pallets, activityLog, deletedRecords, lastUpdated: new Date().toISOString() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
@@ -520,11 +499,12 @@ function loadData() {
     clients = Array.isArray(data.clients) ? data.clients : [];
     pallets = Array.isArray(data.pallets) ? data.pallets : [];
     activityLog = Array.isArray(data.activityLog) ? data.activityLog : [];
+    deletedRecords = Array.isArray(data.deletedRecords) ? data.deletedRecords : [];
   } catch (e) { console.error('Load error:', e); }
 }
 
 function addActivity(msg) {
-  activityLog.unshift({ id: 'act_' + Date.now(), message: msg, timestamp: new Date().toISOString(), user: currentUser.name });
+  activityLog.unshift({ id: 'act_' + Date.now(), message: msg, timestamp: new Date().toISOString() });
   updateActivity();
   saveData();
 }
@@ -542,13 +522,25 @@ function showNotification(text, type='info', timeout=3000) {
    DATA HELPERS
    ========================= */
 function createNewBottleRecord(id, status='available', palletId='') {
-  const b = { id, status, palletId, deliveryCount: 0, refillCount: 0, clientId: '', clientName: '', clientPhone: '', created: new Date().toISOString(), lastUpdated: new Date().toISOString(), history: [{ action: 'Created', timestamp: new Date().toISOString(), user: currentUser.name }] };
+  const b = { 
+    id, status, palletId, deliveryCount: 0, refillCount: 0, 
+    clientId: '', clientName: '', clientPhone: '', 
+    created: new Date().toISOString(), 
+    lastUpdated: new Date().toISOString(), 
+    history: [{ action: 'Created', timestamp: new Date().toISOString() }] 
+  };
   bottles.push(b);
   return b;
 }
 
 function createNewClientRecord({ name, phone, address='' }) {
-  const c = { id: 'client_' + Date.now(), name, phone, address, created: new Date().toISOString(), lastUpdated: new Date().toISOString(), bottleCount: 0, history: [{ action: 'Client created', timestamp: new Date().toISOString(), user: currentUser.name }] };
+  const c = { 
+    id: 'client_' + Date.now(), name, phone, address, 
+    created: new Date().toISOString(), 
+    lastUpdated: new Date().toISOString(), 
+    bottleCount: 0, 
+    history: [{ action: 'Client created', timestamp: new Date().toISOString() }] 
+  };
   clients.push(c);
   saveData();
   return c;
@@ -565,7 +557,13 @@ function updateClientBottleCounts() {
    ========================= */
 function createNewPalletRecord(name='') {
   const id = 'PAL-' + Date.now();
-  const pallet = { id, name: name || id, bottleIds: [], capacity: PALLET_CAPACITY, status: 'empty', clientId: '', created: new Date().toISOString(), lastUpdated: new Date().toISOString(), history: [{ action: 'Pallet created', timestamp: new Date().toISOString(), user: currentUser.name }] };
+  const pallet = { 
+    id, name: name || id, bottleIds: [], capacity: PALLET_CAPACITY, 
+    status: 'empty', clientId: '', 
+    created: new Date().toISOString(), 
+    lastUpdated: new Date().toISOString(), 
+    history: [{ action: 'Pallet created', timestamp: new Date().toISOString() }] 
+  };
   pallets.push(pallet);
   return pallet;
 }
@@ -611,7 +609,7 @@ function autoRemoveFromPallet(bottleId) {
   pallet.bottleIds = pallet.bottleIds.filter(id => id !== bottleId);
   b.palletId = '';
   recalcPalletStatus(pallet);
-  pallet.history.push({ action: `Bottle ${bottleId} removed (delivered separately)`, timestamp: new Date().toISOString(), user: currentUser.name });
+  pallet.history.push({ action: `Bottle ${bottleId} removed (delivered separately)`, timestamp: new Date().toISOString() });
 }
 
 /* =========================
@@ -638,7 +636,7 @@ function setScannerMode(mode) {
   document.getElementById('bottle-queue').style.display = mode === 'bottle' ? 'block' : 'none';
   document.getElementById('pallet-scanner-panel').style.display = mode === 'pallet' ? 'block' : 'none';
   document.getElementById('mode-help').innerHTML = mode === 'bottle' 
-    ? '💡 <strong>Bottle Mode:</strong> Scan bottles to build queue → auto-create pallet at 32'
+    ? '💡 <strong>Bottle Mode:</strong> Scan bottles (5+ chars) → auto-create pallet at 32'
     : '💡 <strong>Pallet Mode:</strong> Scan a pallet barcode (PAL-xxx) for quick deliver/return/refill actions';
   document.getElementById('barcode-input').focus();
   activePalletScan = null;
@@ -706,11 +704,9 @@ function quickReturnPallet() {
    SCANNER INPUT HANDLER
    ========================= */
 function addScannedBarcode(code) {
-  if (!code) return;
-  if (!hasPermission('scan')) { showNotification('No scan permission', 'error'); return; }
+  if (!code || code.length < 5) return; // Must be 5+ characters
   
   if (scannerMode === 'pallet') {
-    // Check if it's a pallet ID
     if (/^PAL[-_]/i.test(code)) {
       activePalletScan = code;
       updatePalletScanUI();
@@ -741,7 +737,6 @@ function clearAllScanned() {
    ========================= */
 function batchRefill() {
   if (!scannedBarcodes.length) return showNotification('Queue is empty', 'warning');
-  if (!hasPermission('refill')) return showNotification('No refill permission', 'error');
   
   scannedBarcodes.forEach(id => {
     let b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'available');
@@ -749,10 +744,10 @@ function batchRefill() {
     b.clientId = ''; b.clientName = ''; b.clientPhone = '';
     b.refillCount = (b.refillCount||0) + 1;
     b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: 'Batch refilled', timestamp: new Date().toISOString(), user: currentUser.name });
+    b.history.push({ action: 'Batch refilled', timestamp: new Date().toISOString() });
   });
   
-  addActivity(`🔄 Batch refilled ${scannedBarcodes.length} bottles by ${currentUser.name}`);
+  addActivity(`🔄 Batch refilled ${scannedBarcodes.length} bottles`);
   showNotification(`✅ Refilled ${scannedBarcodes.length} bottles`, 'success');
   saveData();
   updateAllDisplays();
@@ -761,17 +756,16 @@ function batchRefill() {
 
 function batchReturn() {
   if (!scannedBarcodes.length) return showNotification('Queue is empty', 'warning');
-  if (!hasPermission('return')) return showNotification('No return permission', 'error');
   
   scannedBarcodes.forEach(id => {
     let b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'needs-refill');
     b.status = 'needs-refill';
     b.clientId = ''; b.clientName = ''; b.clientPhone = '';
     b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: 'Batch returned', timestamp: new Date().toISOString(), user: currentUser.name });
+    b.history.push({ action: 'Batch returned', timestamp: new Date().toISOString() });
   });
   
-  addActivity(`↩️ Batch returned ${scannedBarcodes.length} bottles by ${currentUser.name}`);
+  addActivity(`↩️ Batch returned ${scannedBarcodes.length} bottles`);
   showNotification(`✅ Returned ${scannedBarcodes.length} bottles`, 'success');
   saveData();
   updateAllDisplays();
@@ -780,13 +774,10 @@ function batchReturn() {
 
 function batchDeliver() {
   if (!scannedBarcodes.length) return showNotification('Queue is empty', 'warning');
-  if (!hasPermission('deliver')) return showNotification('No deliver permission', 'error');
   openDeliveryModal();
 }
 
 function confirmBatchDelivery() {
-  if (!hasPermission('deliver')) return showNotification('No deliver permission', 'error');
-  
   let client = null;
   if (deliveryClientMode === 'existing') {
     const id = document.getElementById('delivery-client-select').value;
@@ -812,12 +803,12 @@ function confirmBatchDelivery() {
     b.deliveryCount = (b.deliveryCount||0) + 1;
     b.clientId = client.id; b.clientName = client.name; b.clientPhone = client.phone;
     b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: `Delivered to ${client.name}`, timestamp: new Date().toISOString(), user: currentUser.name });
+    b.history.push({ action: `Delivered to ${client.name}`, timestamp: new Date().toISOString() });
     autoRemoveFromPallet(id);
   });
   
   updateClientBottleCounts();
-  addActivity(`🚚 Delivered ${scannedBarcodes.length} bottles to ${client.name} by ${currentUser.name}`);
+  addActivity(`🚚 Delivered ${scannedBarcodes.length} bottles to ${client.name}`);
   showNotification(`✅ Delivered ${scannedBarcodes.length} bottles to ${client.name}`, 'success');
   saveData();
   updateAllDisplays();
@@ -829,7 +820,6 @@ function confirmBatchDelivery() {
    PALLET ACTIONS
    ========================= */
 function deliverPalletById(palletId) {
-  if (!hasPermission('deliver')) return showNotification('No deliver permission', 'error');
   const pallet = findPalletById(palletId);
   if (!pallet) return alert('Pallet not found');
   if (!pallet.bottleIds.length) return alert('Pallet is empty');
@@ -839,7 +829,6 @@ function deliverPalletById(palletId) {
 }
 
 function returnPalletById(palletId) {
-  if (!hasPermission('return')) return showNotification('No return permission', 'error');
   const pallet = findPalletById(palletId);
   if (!pallet) return alert('Pallet not found');
   
@@ -848,20 +837,19 @@ function returnPalletById(palletId) {
     b.status = 'needs-refill';
     b.clientId = ''; b.clientName = ''; b.clientPhone = '';
     b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: `Returned from pallet ${pallet.id}`, timestamp: new Date().toISOString(), user: currentUser.name });
+    b.history.push({ action: `Returned from pallet ${pallet.id}`, timestamp: new Date().toISOString() });
   });
   
   pallet.clientId = '';
-  pallet.history.push({ action: 'Returned to store', timestamp: new Date().toISOString(), user: currentUser.name });
+  pallet.history.push({ action: 'Returned to store', timestamp: new Date().toISOString() });
   recalcPalletStatus(pallet);
-  addActivity(`↩️ Pallet ${pallet.id} returned (${pallet.bottleIds.length} bottles) by ${currentUser.name}`);
+  addActivity(`↩️ Pallet ${pallet.id} returned (${pallet.bottleIds.length} bottles)`);
   showNotification(`✅ Pallet ${pallet.id} returned`, 'success');
   saveData();
   updateAllDisplays();
 }
 
 function refillPalletById(palletId) {
-  if (!hasPermission('refill')) return showNotification('No refill permission', 'error');
   const pallet = findPalletById(palletId);
   if (!pallet) return alert('Pallet not found');
   
@@ -871,25 +859,32 @@ function refillPalletById(palletId) {
     b.clientId = ''; b.clientName = ''; b.clientPhone = '';
     b.refillCount = (b.refillCount||0) + 1;
     b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: `Refilled from pallet ${pallet.id}`, timestamp: new Date().toISOString(), user: currentUser.name });
+    b.history.push({ action: `Refilled from pallet ${pallet.id}`, timestamp: new Date().toISOString() });
   });
   
-  pallet.history.push({ action: 'Batch refilled', timestamp: new Date().toISOString(), user: currentUser.name });
+  pallet.history.push({ action: 'Batch refilled', timestamp: new Date().toISOString() });
   recalcPalletStatus(pallet);
-  addActivity(`🔄 Pallet ${pallet.id} refilled (${pallet.bottleIds.length} bottles) by ${currentUser.name}`);
+  addActivity(`🔄 Pallet ${pallet.id} refilled (${pallet.bottleIds.length} bottles)`);
   showNotification(`✅ Pallet ${pallet.id} refilled`, 'success');
   saveData();
   updateAllDisplays();
 }
 
 /* =========================
-   ADMIN DELETE ACTIONS
+   DELETE ACTIONS
    ========================= */
 function deleteBottle(id) {
-  if (!hasPermission('delete_bottle')) return alert('No delete permission');
   const b = bottles.find(x => x.id === id);
   if (!b) return alert('Bottle not found');
   if (!confirm(`Delete bottle ${id}? This cannot be undone.`)) return;
+
+  // Track deletion
+  deletedRecords.push({
+    type: 'bottle',
+    id: b.id,
+    data: {...b},
+    deletedAt: new Date().toISOString()
+  });
 
   pallets.forEach(p => {
     if (p.bottleIds.includes(id)) {
@@ -902,17 +897,24 @@ function deleteBottle(id) {
   bottles = bottles.filter(x => x.id !== id);
 
   updateClientBottleCounts();
-  addActivity(`🗑️ Deleted bottle ${id} by ${currentUser.name}`);
+  addActivity(`🗑️ Deleted bottle ${id}`);
   saveData();
   updateAllDisplays();
   showNotification(`Bottle ${id} deleted`, 'success');
 }
 
 function deletePallet(palletId) {
-  if (!hasPermission('delete_pallet')) return alert('No delete permission');
   const pallet = findPalletById(palletId);
   if (!pallet) return alert('Pallet not found');
   if (!confirm(`Delete pallet ${palletId}? Bottles will remain in inventory.`)) return;
+
+  // Track deletion
+  deletedRecords.push({
+    type: 'pallet',
+    id: pallet.id,
+    data: {...pallet},
+    deletedAt: new Date().toISOString()
+  });
 
   pallet.bottleIds.forEach(id => {
     const b = bottles.find(x => x.id === id);
@@ -920,11 +922,100 @@ function deletePallet(palletId) {
   });
 
   pallets = pallets.filter(p => p.id !== palletId);
-  addActivity(`🗑️ Deleted pallet ${palletId} by ${currentUser.name}`);
+  addActivity(`🗑️ Deleted pallet ${palletId}`);
   saveData();
   updateAllDisplays();
   closePalletDetails();
   showNotification(`Pallet ${palletId} deleted`, 'success');
+}
+
+/* =========================
+   EXCEL EXPORT
+   ========================= */
+function generateExcelReport() {
+  showNotification('📊 Generating Excel report...', 'info', 2000);
+  
+  // Sheet 1: Delivered Bottles
+  const deliveredBottles = bottles.filter(b => b.status === 'with-client' && b.clientId);
+  const deliveredData = deliveredBottles.map(b => ({
+    'Bottle ID': b.id,
+    'Client Name': b.clientName || '',
+    'Client Phone': b.clientPhone || '',
+    'Delivery Count': b.deliveryCount || 0,
+    'Pallet ID': b.palletId || 'None',
+    'Last Updated': new Date(b.lastUpdated).toLocaleString(),
+    'Created': new Date(b.created).toLocaleString()
+  }));
+
+  // Sheet 2: Refilled Bottles
+  const refilledBottles = bottles.filter(b => b.refillCount > 0);
+  const refilledData = refilledBottles.map(b => ({
+    'Bottle ID': b.id,
+    'Status': b.status,
+    'Refill Count': b.refillCount || 0,
+    'Delivery Count': b.deliveryCount || 0,
+    'Pallet ID': b.palletId || 'None',
+    'Last Updated': new Date(b.lastUpdated).toLocaleString()
+  }));
+
+  // Sheet 3: Deleted Records
+  const deletedData = deletedRecords.map(r => ({
+    'Type': r.type,
+    'ID': r.id,
+    'Deleted At': new Date(r.deletedAt).toLocaleString(),
+    'Details': r.type === 'bottle' ? `Status: ${r.data.status}, Deliveries: ${r.data.deliveryCount || 0}` : `Bottles: ${r.data.bottleIds?.length || 0}`
+  }));
+
+  // Sheet 4: Clients
+  const clientsData = clients.map(c => ({
+    'Client ID': c.id,
+    'Name': c.name,
+    'Phone': c.phone,
+    'Address': c.address || '',
+    'Active Bottles': c.bottleCount || 0,
+    'Created': new Date(c.created).toLocaleString()
+  }));
+
+  // Sheet 5: New Bottles (created in last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const newBottles = bottles.filter(b => new Date(b.created) > thirtyDaysAgo);
+  const newBottlesData = newBottles.map(b => ({
+    'Bottle ID': b.id,
+    'Status': b.status,
+    'Created': new Date(b.created).toLocaleString(),
+    'Delivery Count': b.deliveryCount || 0,
+    'Refill Count': b.refillCount || 0,
+    'Pallet ID': b.palletId || 'None'
+  }));
+
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  
+  const ws1 = XLSX.utils.json_to_sheet(deliveredData.length ? deliveredData : [{'Info': 'No delivered bottles'}]);
+  XLSX.utils.book_append_sheet(wb, ws1, "Delivered Bottles");
+  
+  const ws2 = XLSX.utils.json_to_sheet(refilledData.length ? refilledData : [{'Info': 'No refilled bottles'}]);
+  XLSX.utils.book_append_sheet(wb, ws2, "Refilled Bottles");
+  
+  const ws3 = XLSX.utils.json_to_sheet(deletedData.length ? deletedData : [{'Info': 'No deleted records'}]);
+  XLSX.utils.book_append_sheet(wb, ws3, "Deleted Records");
+  
+  const ws4 = XLSX.utils.json_to_sheet(clientsData.length ? clientsData : [{'Info': 'No clients'}]);
+  XLSX.utils.book_append_sheet(wb, ws4, "Clients");
+  
+  const ws5 = XLSX.utils.json_to_sheet(newBottlesData.length ? newBottlesData : [{'Info': 'No new bottles in last 30 days'}]);
+  XLSX.utils.book_append_sheet(wb, ws5, "New Bottles (30d)");
+
+  // Generate filename with timestamp
+  const timestamp = new Date().toISOString().split('T')[0];
+  const filename = `Bottle_Tracking_Report_${timestamp}.xlsx`;
+  
+  // Download
+  XLSX.writeFile(wb, filename);
+  
+  showNotification(`✅ Excel report downloaded: ${filename}`, 'success', 4000);
+  addActivity(`📊 Excel report generated: ${filename}`);
 }
 
 /* =========================
@@ -948,7 +1039,7 @@ function renderPallets(items=pallets) {
       <div class="progress-bar" style="margin:10px 0;">
         <div class="progress-fill" style="width:${(p.bottleIds.length/p.capacity*100).toFixed(0)}%;">${p.bottleIds.length} / ${p.capacity}</div>
       </div>
-      ${hasPermission('delete_pallet') ? `<button class="btn btn-sm btn-danger badge-danger" onclick="event.stopPropagation(); deletePallet('${p.id}')">🗑️</button>` : ''}
+      <button class="btn btn-sm btn-danger badge-danger" onclick="event.stopPropagation(); deletePallet('${p.id}')">🗑️</button>
     </div>
   `).join('');
 }
@@ -975,13 +1066,6 @@ function openPalletDetails(palletId) {
         return `<div><strong>${idx+1}.</strong> ${id} ${b ? `<span class="status ${b.status}" style="padding:3px 8px; font-size:0.75rem; margin-left:8px;">${b.status}</span>` : ''}</div>`;
       }).join('');
   }
-  
-  // Show/hide action buttons based on permissions
-  document.getElementById('btn-detail-refill').style.display = hasPermission('refill') ? 'inline-block' : 'none';
-  document.getElementById('btn-detail-deliver').style.display = hasPermission('deliver') ? 'inline-block' : 'none';
-  document.getElementById('btn-detail-return').style.display = hasPermission('return') ? 'inline-block' : 'none';
-  document.getElementById('btn-detail-delete').style.display = hasPermission('delete_pallet') ? 'inline-block' : 'none';
-  
   document.getElementById('pallet-details-modal').style.display = 'flex';
 }
 
@@ -1006,7 +1090,6 @@ function renderInventory(items=bottles) {
     host.innerHTML = '<div class="empty-state"><div class="icon">🧴</div><div class="message">No bottles in inventory</div></div>'; 
     return; 
   }
-  const canDelete = hasPermission('delete_bottle');
   host.innerHTML = items.map(b => `
     <div class="bottle-card">
       <div class="bottle-id">🧴 ${b.id}</div>
@@ -1020,7 +1103,7 @@ function renderInventory(items=bottles) {
         <button class="btn btn-sm" onclick="setBottleStatus('${b.id}','available')">✅ Available</button>
         <button class="btn btn-sm btn-secondary" onclick="setBottleStatus('${b.id}','needs-refill')">⚠️ Needs Refill</button>
         <button class="btn btn-sm btn-warning" onclick="quickReturn('${b.id}')">↩️ Return</button>
-        ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteBottle('${b.id}')">🗑️</button>` : ''}
+        <button class="btn btn-sm btn-danger" onclick="deleteBottle('${b.id}')">🗑️</button>
       </div>
     </div>
   `).join('');
@@ -1032,28 +1115,27 @@ function setBottleStatus(id, status) {
   b.status = status;
   if (status !== 'with-client') { b.clientId=''; b.clientName=''; b.clientPhone=''; }
   b.lastUpdated = new Date().toISOString();
-  b.history.push({ action: `Status changed to ${status}`, timestamp: new Date().toISOString(), user: currentUser.name });
+  b.history.push({ action: `Status changed to ${status}`, timestamp: new Date().toISOString() });
   saveData();
   updateAllDisplays();
   showNotification(`Bottle ${id} set to ${status}`, 'success');
 }
 
 function quickReturn(id) {
-  if (!hasPermission('return')) return showNotification('No return permission', 'error');
   let b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'needs-refill');
   b.status = 'needs-refill';
   b.clientId=''; b.clientName=''; b.clientPhone='';
   b.lastUpdated = new Date().toISOString();
-  b.history.push({ action: 'Quick returned', timestamp: new Date().toISOString(), user: currentUser.name });
+  b.history.push({ action: 'Quick returned', timestamp: new Date().toISOString() });
   saveData();
   updateAllDisplays();
   showNotification(`Bottle ${id} returned`, 'success');
 }
 
 function addBottlePrompt() {
-  if (!hasPermission('add_bottle')) return showNotification('No add bottle permission', 'error');
-  const id = prompt('Enter new bottle ID:');
+  const id = prompt('Enter new bottle ID (5+ characters):');
   if (!id) return;
+  if (id.length < 5) return alert('Bottle ID must be 5+ characters');
   if (bottles.some(x => x.id === id)) return alert('Bottle ID already exists');
   createNewBottleRecord(id, 'available');
   saveData();
@@ -1098,10 +1180,7 @@ function searchClients() {
   renderClients(items);
 }
 
-function openAddClient() { 
-  if (!hasPermission('add_client')) return showNotification('No add client permission', 'error');
-  document.getElementById('add-client-modal').style.display = 'flex'; 
-}
+function openAddClient() { document.getElementById('add-client-modal').style.display = 'flex'; }
 function closeAddClient() { document.getElementById('add-client-modal').style.display = 'none'; }
 function createNewClient() {
   const name = document.getElementById('new-client-name').value.trim();
@@ -1125,7 +1204,7 @@ function updateActivity() {
     <div class="scanned-item">
       <div>
         <div style="font-weight:600; color:#1565c0;">${a.message}</div>
-        <div class="small">📅 ${new Date(a.timestamp).toLocaleString()} • 👤 ${a.user || 'System'}</div>
+        <div class="small">📅 ${new Date(a.timestamp).toLocaleString()}</div>
       </div>
     </div>
   `).join('');
@@ -1200,19 +1279,11 @@ function openTab(id, btn) {
   document.getElementById('barcode-input').focus();
 }
 
-function logout() { 
-  if (confirm('Logout and clear session?')) {
-    showNotification('Logged out', 'success'); 
-    // In production, redirect to login page
-  }
-}
-
 function updateAllDisplays() {
   renderInventory();
   renderClients();
   renderPallets();
   updateActivity();
-  updateUIPermissions();
 }
 
 /* =========================
@@ -1221,26 +1292,28 @@ function updateAllDisplays() {
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
   updateAllDisplays();
-  updateUIPermissions();
 
   const inp = document.getElementById('barcode-input');
 
-  // Auto-include when length < 4 (non-empty), then clear
+  // Auto-scan on input when 5+ characters
   inp.addEventListener('input', () => {
     const code = inp.value.trim();
-    if (code && code.length < 4) {
+    if (code.length >= 5) {
       addScannedBarcode(code);
       inp.value = '';
     }
   });
 
-  // Enter to include any length
+  // Enter also works
   inp.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       const code = inp.value.trim();
-      if (!code) return;
-      addScannedBarcode(code);
-      inp.value = '';
+      if (code.length >= 5) {
+        addScannedBarcode(code);
+        inp.value = '';
+      } else if (code.length > 0) {
+        showNotification('Barcode must be 5+ characters', 'warning');
+      }
     }
   });
 
