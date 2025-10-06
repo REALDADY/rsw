@@ -567,7 +567,9 @@ input:focus, select:focus, textarea:focus {
 <div id="clients" class="tab-content">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:25px;">
 <h2>👥 Client Management</h2>
-<div id="add-client-btn-container"></div>
+<div id="add-client-btn-container">
+    <button class="btn btn-success" onclick="document.getElementById('add-client-modal').style.display='flex'">➕ Add Client</button>
+</div>
 </div>
 
 <div class="search-row">
@@ -634,7 +636,6 @@ input:focus, select:focus, textarea:focus {
 <input type="text" id="new-client-name" placeholder="Client Name">
 <input type="tel" id="new-client-phone" placeholder="Phone Number">
 <input type="text" id="new-client-address" placeholder="Address (optional)">
-<textarea id="new-client-notes" placeholder="Notes (optional)" style="resize:vertical;min-height:80px;"></textarea>
 <button class="btn btn-success" onclick="createNewClient()">✅ Create Client</button>
 </div>
 </div>
@@ -664,12 +665,10 @@ input:focus, select:focus, textarea:focus {
 <input type="text" id="delivery-new-client-name" placeholder="Client Name *">
 <input type="tel" id="delivery-new-client-phone" placeholder="Phone Number *">
 <input type="text" id="delivery-new-client-address" placeholder="Address (optional)">
-<textarea id="delivery-new-client-notes" placeholder="Notes (optional)" style="resize:vertical;min-height:60px;"></textarea>
 </div>
 
 <input type="date" id="delivery-date">
 <input type="time" id="delivery-time">
-<textarea id="delivery-notes" placeholder="Delivery notes (optional)" style="resize:vertical;min-height:80px;"></textarea>
 <button class="btn btn-success" onclick="confirmBatchDelivery()">✅ Confirm Batch Delivery</button>
 </div>
 </div>
@@ -785,15 +784,42 @@ function initBarcodeScanner() {
     const input = document.getElementById('barcode-scanner-input');
     if (!input) return;
 
-    input.addEventListener('input', function(e) {
-        // Auto-submit when a barcode is scanned (most scanners send Enter or fill instantly)
-        const barcode = this.value.trim().replace(/[^0-9]/g, '');
-        if (barcode.length >= 6) {
+    // Remove previous listeners to avoid duplicates
+    input.oninput = null;
+    input.onpaste = null;
+    input.onblur = null;
+
+    // Auto-submit when a barcode is scanned (most scanners send Enter or fill instantly)
+    input.addEventListener('input', function() {
+        // Accept numbers and letters, trim spaces
+        const barcode = this.value.trim();
+        // Accept barcodes with at least 4 characters (adjust as needed)
+        if (barcode.length >= 4) {
             addScannedBarcode(barcode);
             this.value = '';
         }
     });
 
+    // Allow pasting multiple barcodes (comma, space, or newline separated)
+    input.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        const codes = pasted.split(/[\s,;\n]+/)
+            .map(code => code.trim())
+            .filter(code => code.length >= 4);
+        let added = 0;
+        codes.forEach(code => {
+            if (scannedBarcodes.length < MAX_BARCODES && !scannedBarcodes.includes(code)) {
+                scannedBarcodes.push(code);
+                added++;
+            }
+        });
+        updateScannedList();
+        showNotification(`✅ ${added} barcode(s) added from paste`, 'success');
+        this.value = '';
+    });
+
+    // Keep input focused for fast scanning
     input.addEventListener('blur', function() {
         setTimeout(() => this.focus(), 200);
     });
@@ -1372,6 +1398,42 @@ function updateClientBottleCounts() {
     });
 }
 
+function updateScannerActions() {
+    // Show/hide batch action buttons based on user role
+    const refillBtn = document.querySelector('.btn-success[onclick="batchRefill()"]');
+    const deliverBtn = document.querySelector('.btn-warning[onclick="batchDeliver()"]');
+    const returnBtn = document.querySelector('.btn-secondary[onclick="batchReturn()"]');
+
+    if (!currentUser) {
+        if (refillBtn) refillBtn.style.display = 'none';
+        if (deliverBtn) deliverBtn.style.display = 'none';
+        if (returnBtn) returnBtn.style.display = 'none';
+        return;
+    }
+
+    switch (currentUser.role) {
+        case 'admin':
+        case 'manager':
+            if (refillBtn) refillBtn.style.display = '';
+            if (deliverBtn) deliverBtn.style.display = '';
+            if (returnBtn) returnBtn.style.display = '';
+            break;
+        case 'driver':
+            if (refillBtn) refillBtn.style.display = 'none';
+            if (deliverBtn) deliverBtn.style.display = '';
+            if (returnBtn) returnBtn.style.display = 'none';
+            break;
+        case 'worker':
+            if (refillBtn) refillBtn.style.display = '';
+            if (deliverBtn) deliverBtn.style.display = 'none';
+            if (returnBtn) returnBtn.style.display = '';
+            break;
+        default:
+            if (refillBtn) refillBtn.style.display = 'none';
+            if (deliverBtn) deliverBtn.style.display = 'none';
+            if (returnBtn) returnBtn.style.display = 'none';
+    }
+}
 
 // ============================================
 // UI DISPLAY FUNCTIONS
@@ -1404,11 +1466,31 @@ function showTab(event, tabName) {
     document.getElementById(tabName).classList.add('active');
 
     if (tabName === 'dashboard') updateDashboard();
-    if (tabName === 'scanner') setTimeout(initBarcodeScanner, 300);
+    if (tabName === 'scanner') {
+        setTimeout(initBarcodeScanner, 300);
+        updateScannerActions(); // <-- Ensure buttons are set on tab switch
+    }
     if (tabName === 'inventory') updateInventoryDisplay();
     if (tabName === 'clients') updateClientDisplay();
     if (tabName === 'reports') updateReports();
 }
+
+// Make showTab globally accessible for inline onclick handlers
+window.showTab = showTab;
+
+// Ensure updateScannerActions is called after login and tab switch
+window.onload = function() {
+    if (!checkAuth()) {
+        document.getElementById('login-screen').style.display = 'flex';
+    } else {
+        document.getElementById('login-screen').style.display = 'none';
+        initializeApp();
+        showUserInfo();
+        setupDefaultDates();
+        updateScannerActions(); // <-- Ensure buttons are set after login
+    }
+    setTimeout(initBarcodeScanner, 300);
+};
 
 function updateAllDisplays() {
     updateDashboard();
@@ -1488,25 +1570,32 @@ function updateInventoryDisplay() {
     });
 
     if (filteredBottles.length > 0) {
-        inventoryDiv.innerHTML = filteredBottles.map(bottle => `
-            <div class="bottle-card">
-                <div class="bottle-id">Bottle #${bottle.id}</div>
-                <div class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</div>
-                <div style="margin:15px 0;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                        <div><strong>🔄 Refills:</strong> ${bottle.refillCount || 0}</div>
-                        <div><strong>🚚 Deliveries:</strong> ${bottle.deliveryCount || 0}</div>
-                    </div>
-                    ${bottle.clientName ? `
-                        <div style="background:rgba(40,167,69,0.1);padding:10px;border-radius:8px;margin:10px 0;">
-                            <strong>👤 Client:</strong> ${bottle.clientName}<br>
-                            <strong>📞 Phone:</strong> ${bottle.clientPhone}
+        inventoryDiv.innerHTML = filteredBottles.map(bottle => {
+            let actionButtons = '';
+            if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager')) {
+                actionButtons += `<button class="btn btn-danger btn-sm" onclick="deleteBottle('${bottle.id}')">🗑️ Delete</button>`;
+            }
+            return `
+                <div class="bottle-card">
+                    <div class="bottle-id">Bottle #${bottle.id}</div>
+                    <div class="status ${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</div>
+                    <div style="margin:15px 0;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div><strong>🔄 Refills:</strong> ${bottle.refillCount || 0}</div>
+                            <div><strong>🚚 Deliveries:</strong> ${bottle.deliveryCount || 0}</div>
                         </div>
-                    ` : '<div><strong>👤 Client:</strong> None</div>'}
-                    <div style="margin-top:10px;"><strong>📅 Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}</div>
+                        ${bottle.clientName ? `
+                            <div style="background:rgba(40,167,69,0.1);padding:10px;border-radius:8px;margin:10px 0;">
+                                <strong>👤 Client:</strong> ${bottle.clientName}<br>
+                                <strong>📞 Phone:</strong> ${bottle.clientPhone}
+                            </div>
+                        ` : '<div><strong>👤 Client:</strong> None</div>'}
+                        <div style="margin-top:10px;"><strong>📅 Updated:</strong> ${new Date(bottle.lastUpdated).toLocaleString()}</div>
+                    </div>
+                    ${actionButtons}
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     } else {
         inventoryDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No bottles found</div>';
     }
@@ -1541,7 +1630,6 @@ function updateClientDisplay() {
                     <div><strong>📞 Phone:</strong> ${client.phone}</div>
                     ${client.address ? `<div><strong>📍 Address:</strong> ${client.address}</div>` : ''}
                     <div><strong>🍶 Bottles:</strong> ${client.bottleCount || 0}</div>
-                    ${client.notes ? `<div style="margin-top:10px;"><strong>📝 Notes:</strong> ${client.notes}</div>` : ''}
                     <div style="margin-top:10px;"><strong>📅 Added:</strong> ${new Date(client.created).toLocaleString()}</div>
                 </div>
             </div>
@@ -1564,8 +1652,8 @@ window.onload = function() {
         initializeApp();
         showUserInfo();
         setupDefaultDates();
+        updateScannerActions(); // <-- Ensure buttons are set after login
     }
-    // Always initialize scanner input
     setTimeout(initBarcodeScanner, 300);
 };
 
@@ -1593,12 +1681,121 @@ function updateReports() {
     document.getElementById('report-summary').innerHTML = '<p class="small">Select date range and click "Generate Report"</p>';
 }
 function generateReport() {
-    alert('Report generation not implemented in this demo.');
+    const start = document.getElementById('report-start').value;
+    const end = document.getElementById('report-end').value;
+    if (!start || !end) {
+        alert('Please select a date range.');
+        return;
+    }
+
+    // Example: filter activityLog by date
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const filtered = activityLog.filter(log => {
+        const logDate = new Date(log.timestamp);
+        return logDate >= startDate && logDate <= endDate;
+    });
+
+    document.getElementById('report-summary').innerHTML = filtered.length
+        ? filtered.map(log => `<div>${log.action} <span style="color:#6c757d;">(${new Date(log.timestamp).toLocaleString()})</span></div>`).join('')
+        : '<p class="small">No activity in selected range.</p>';
 }
+
 function exportToExcel() {
-    alert('Export to Excel not implemented in this demo.');
+    // Export activityLog to CSV
+    let csv = 'Action,Timestamp\n';
+    activityLog.forEach(log => {
+        csv += `"${log.action.replace(/"/g, '""')}","${log.timestamp}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'report.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Update createNewClient to remove notes
+function createNewClient() {
+    const name = document.getElementById('new-client-name').value.trim();
+    const phone = document.getElementById('new-client-phone').value.trim();
+    const address = document.getElementById('new-client-address').value.trim();
+
+    if (!name || !phone) {
+        alert('Please enter client name and phone.');
+        return;
+    }
+
+    const newClient = {
+        id: 'client_' + Date.now(),
+        name,
+        phone,
+        address,
+        created: new Date().toISOString(),
+        bottleCount: 0
+    };
+
+    clients.push(newClient);
+    saveData();
+    updateClientDisplay();
+    closeClientModal();
+
+    // Clear modal fields
+    document.getElementById('new-client-name').value = '';
+    document.getElementById('new-client-phone').value = '';
+    document.getElementById('new-client-address').value = '';
+}
+
+// Remove notes display from client cards
+function updateClientDisplay() {
+    updateClientBottleCounts();
+    const clientDiv = document.getElementById('client-list');
+    const searchTerm = (document.getElementById('search-clients')?.value || '').toLowerCase();
+
+    let filteredClients = clients.filter(client => {
+        return !searchTerm || 
+            client.name.toLowerCase().includes(searchTerm) ||
+            client.phone.toLowerCase().includes(searchTerm) ||
+            (client.address && client.address.toLowerCase().includes(searchTerm));
+    });
+
+    if (filteredClients.length > 0) {
+        clientDiv.innerHTML = filteredClients.map(client => `
+            <div class="bottle-card">
+                <div class="bottle-id">👤 ${client.name}</div>
+                <div class="status with-client">CLIENT</div>
+                <div style="margin:15px 0;">
+                    <div><strong>📞 Phone:</strong> ${client.phone}</div>
+                    ${client.address ? `<div><strong>📍 Address:</strong> ${client.address}</div>` : ''}
+                    <div><strong>🍶 Bottles:</strong> ${client.bottleCount || 0}</div>
+                    <div style="margin-top:10px;"><strong>📅 Added:</strong> ${new Date(client.created).toLocaleString()}</div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        clientDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">No clients found</div>';
+    }
+}
+function deleteBottle(bottleId) {
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'manager')) {
+        alert('❌ Only admin or manager can delete bottles!');
+        return;
+    }
+    if (!confirm(`Are you sure you want to delete bottle #${bottleId}? This cannot be undone.`)) {
+        return;
+    }
+    bottles = bottles.filter(b => b.id !== bottleId);
+    addActivity(`Bottle #${bottleId} deleted by ${currentUser.name}`);
+    saveData();
+    updateAllDisplays();
+    showNotification(`Bottle #${bottleId} deleted`, 'success');
 }
 </script>
 </body>
 </html>
-
+ 
