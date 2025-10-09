@@ -284,21 +284,60 @@
   /* Compact print styles for 2" x 1" thermal label */
   @media print {
     @page {
-      size: 2in 1in;
+      size: A4 portrait;
       margin: 0;
     }
-    body * { visibility: hidden; }
-    #print-area, #print-area * { visibility: visible; }
+    body * {
+      visibility: hidden !important;
+    }
+    #print-area,
+    #print-area *,
+    #print-content,
+    #print-content *,
+    #barcode-print-container,
+    #barcode-print-container * {
+      visibility: visible !important;
+    }
     #print-area {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 2in;
-      height: 1in;
-      padding: 0;
-      margin: 0;
-      overflow: hidden;
+      display: block !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100vh !important;
+      z-index: 99999 !important;
+      background: white !important;
+      page-break-after: avoid !important;
     }
+    #print-content {
+      width: 100% !important;
+      height: 100% !important;
+      page-break-after: avoid !important;
+    }
+    #barcode-print-container {
+      width: 100% !important;
+      height: 100vh !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+      page-break-before: avoid !important;
+    }
+  }
+
+  /* ensure print-area is visible on screen when not printing, but hidden by default */
+  #print-area, #print-area * { visibility: visible; }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2in;
+    height: 1in;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
   }
 
 </style>
@@ -1372,19 +1411,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Robust pallet label printing and modal barcode generator.
- * Adds two functions:
- *  - printPalletBarcode(palletId, palletName, opts) -> creates print area and calls window.print()
- *  - addBarcodeToDetails(palletId) -> renders barcode inside pallet details modal
- *
- * Place before the existing #print-area element (or before </body>).
+ * FIXED: Mobile-friendly pallet barcode printing
+ * Ensures single page print with visible barcode on all devices
  */
 function _ensurePrintArea() {
   let printArea = document.getElementById('print-area');
   if (!printArea) {
     printArea = document.createElement('div');
     printArea.id = 'print-area';
-    printArea.style.display = 'none';
+    printArea.style.cssText = `
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 99999;
+      background: white;
+    `;
     printArea.innerHTML = '<div id="print-content"></div>';
     document.body.appendChild(printArea);
   }
@@ -1395,132 +1439,169 @@ function _ensurePrintArea() {
 }
 
 /**
- * Print pallet barcode.
- * palletId - string id to encode
- * palletName - optional label shown above barcode
- * opts - optional: { widthIn: number, heightIn: number, format: 'CODE128'|'EAN13', dpiScale: number }
+ * Print pallet barcode - MOBILE FIXED VERSION
+ * Works on phones, tablets, and desktop
  */
-function printPalletBarcode(palletId, palletName = '', opts = {}) {
-  if (!palletId) return showNotification('No pallet id provided', 'warning');
-  const o = Object.assign({ widthIn: 4, heightIn: 6, format: 'CODE128', dpiScale: 1 }, opts);
+function printPalletBarcode(palletId, palletName = '') {
+  if (!palletId) {
+    showNotification('No pallet id provided', 'warning');
+    return;
+  }
 
   const printArea = _ensurePrintArea();
   const printContent = document.getElementById('print-content');
-  printContent.innerHTML = ''; // clear previous
+  printContent.innerHTML = '';
 
-  // build container sized in inches for accurate printer scaling
+  // Create print container optimized for mobile
   const container = document.createElement('div');
-  container.style.width = (o.widthIn) + 'in';
-  container.style.height = (o.heightIn) + 'in';
-  container.style.boxSizing = 'border-box';
-  container.style.padding = '0.2in';
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'center';
-  container.style.justifyContent = 'center';
-  container.style.background = '#fff';
-  container.style.fontFamily = 'Arial, Helvetica, sans-serif';
-  container.style.color = '#000';
+  container.id = 'barcode-print-container';
+  container.style.cssText = `
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    padding: 20px;
+    box-sizing: border-box;
+    page-break-after: avoid;
+  `;
 
   // Title
   if (palletName) {
     const title = document.createElement('div');
     title.textContent = palletName;
-    title.style.fontSize = '16px';
-    title.style.fontWeight = '700';
-    title.style.marginBottom = '8px';
+    title.style.cssText = `
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      color: #000;
+    `;
     container.appendChild(title);
   }
 
-  // Unique SVG element
-  const svgId = 'print-pallet-svg-' + Date.now() + '-' + Math.floor(Math.random()*9999);
+  // Barcode wrapper
+  const barcodeWrap = document.createElement('div');
+  barcodeWrap.style.cssText = `
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+  `;
+
+  // Create unique SVG ID
+  const svgId = 'print-barcode-' + Date.now();
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('id', svgId);
-  svg.style.width = '100%';
-  svg.style.maxHeight = '80%';
-  container.appendChild(svg);
+  svg.style.cssText = 'width: 100%; height: auto;';
+  barcodeWrap.appendChild(svg);
+  container.appendChild(barcodeWrap);
 
-  // human readable label
-  const label = document.createElement('div');
-  label.textContent = palletId;
-  label.style.fontSize = '14px';
-  label.style.fontWeight = '700';
-  label.style.marginTop = '8px';
-  container.appendChild(label);
+  // Human readable ID
+  const idLabel = document.createElement('div');
+  idLabel.textContent = palletId;
+  idLabel.style.cssText = `
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 15px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    color: #000;
+  `;
+  container.appendChild(idLabel);
 
   printContent.appendChild(container);
-  printArea.style.display = 'block';
 
   try {
-    // Configure JsBarcode based on container size
-    // width param controls bar thickness; height is in px
-    const heightPx = Math.min(600, Math.round(o.heightIn * 96 * 0.5)); // safe height value
-    const width = Math.max(1, Math.round(2 * o.dpiScale));
-
+    // Generate barcode
     JsBarcode('#' + svgId, palletId, {
-      format: o.format,
-      width: width,
-      height: heightPx,
-      displayValue: true,
-      fontSize: Math.round(16 * o.dpiScale),
-      margin: 8,
+      format: 'CODE128',
+      width: 3,
+      height: 100,
+      displayValue: false,
+      fontSize: 0,
+      margin: 5,
       lineColor: '#000',
       background: '#fff'
     });
 
-    // allow rendering, then print
+    // Show print area
+    printArea.style.display = 'block';
+
+    // Wait for barcode to render then print
     setTimeout(() => {
-      // focus and print
       window.print();
-      // hide and clear soon after print dialog opens
+
+      // Clean up after print
       setTimeout(() => {
         printArea.style.display = 'none';
         printContent.innerHTML = '';
-      }, 600);
-    }, 160);
+      }, 1000);
+    }, 500);
 
-    if (typeof showNotification === 'function') showNotification('Printing label: ' + (palletName || palletId), 'success', 1800);
+    showNotification('Print ready: ' + (palletName || palletId), 'success', 2000);
   } catch (err) {
-    console.error('printPalletBarcode error', err);
-    alert('Error generating barcode: ' + (err && err.message ? err.message : err));
+    console.error('Barcode error:', err);
+    showNotification('Error generating barcode: ' + err.message, 'error');
     printArea.style.display = 'none';
+    printContent.innerHTML = '';
   }
 }
 
 /**
- * Render barcode inside pallet details modal (non-printing preview).
- * Inserts SVG into #pallet-detail-info under id 'pallet-detail-barcode'
+ * Render barcode in pallet details modal
  */
 function addBarcodeToDetails(palletId) {
   if (!palletId) return;
-  const pallet = pallets.find(p => p.id === palletId);
+
   const host = document.getElementById('pallet-detail-info');
   if (!host) return;
 
-  // remove previous preview if exists
   const prev = document.getElementById('pallet-detail-barcode');
   if (prev) prev.remove();
 
   const wrap = document.createElement('div');
   wrap.id = 'pallet-detail-barcode';
-  wrap.style.marginTop = '12px';
-  wrap.style.display = 'flex';
-  wrap.style.flexDirection = 'column';
-  wrap.style.alignItems = 'center';
+  wrap.style.cssText = `
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 12px;
+  `;
 
-  const svgId = 'pallet-detail-svg-' + Date.now();
+  const svgId = 'pallet-modal-barcode-' + Date.now();
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('id', svgId);
-  svg.style.maxWidth = '280px';
-  svg.style.width = '100%';
+  svg.style.cssText = 'max-width: 280px; width: 100%;';
   wrap.appendChild(svg);
 
   const label = document.createElement('div');
   label.textContent = palletId;
-  label.style.fontSize = '12px';
-  label.style.fontWeight = '700';
-  label.style.marginTop = '6px';
+  label.style.cssText = `
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 8px;
+    color: #1565c0;
+  `;
   wrap.appendChild(label);
+
+  // Print button
+  const printBtn = document.createElement('button');
+  printBtn.className = 'btn btn-sm';
+  printBtn.style.marginTop = '12px';
+  printBtn.innerHTML = '🖨️ Print Label';
+  printBtn.onclick = function(e) {
+    e.stopPropagation();
+    printPalletBarcode(palletId, 'PALLET: ' + palletId);
+  };
+  wrap.appendChild(printBtn);
 
   host.appendChild(wrap);
 
@@ -1528,14 +1609,16 @@ function addBarcodeToDetails(palletId) {
     JsBarcode('#' + svgId, palletId, {
       format: 'CODE128',
       width: 2,
-      height: 60,
+      height: 70,
       displayValue: true,
       fontSize: 14,
-      margin: 6,
-      lineColor: '#000'
+      margin: 8,
+      lineColor: '#000',
+      background: 'transparent'
     });
   } catch (err) {
-    console.error('addBarcodeToDetails error', err);
+    console.error('Modal barcode error:', err);
+    wrap.innerHTML = '<div style="color: #dc3545;">Error generating barcode</div>';
   }
 }
 </script>
