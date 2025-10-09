@@ -299,45 +299,27 @@
       visibility: visible !important;
     }
     #print-area {
-      display: block !important;
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
       width: 100% !important;
-      height: 100vh !important;
+      height: 100% !important;
+      display: block !important;
       z-index: 99999 !important;
       background: white !important;
-      page-break-after: avoid !important;
     }
     #print-content {
       width: 100% !important;
       height: 100% !important;
-      page-break-after: avoid !important;
     }
     #barcode-print-container {
       width: 100% !important;
-      height: 100vh !important;
+      min-height: 100% !important;
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
       justify-content: center !important;
-      page-break-after: avoid !important;
-      page-break-inside: avoid !important;
-      page-break-before: avoid !important;
     }
-  }
-
-  /* ensure print-area is visible on screen when not printing, but hidden by default */
-  #print-area, #print-area * { visibility: visible; }
-  #print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 2in;
-    height: 1in;
-    padding: 0;
-    margin: 0;
-    overflow: hidden;
   }
 
 </style>
@@ -1450,6 +1432,8 @@ function printPalletBarcode(palletId, palletName = '') {
 
   const printArea = _ensurePrintArea();
   const printContent = document.getElementById('print-content');
+
+  // Clear any previous content immediately
   printContent.innerHTML = '';
 
   // Create print container optimized for mobile
@@ -1517,7 +1501,7 @@ function printPalletBarcode(palletId, palletName = '') {
   printContent.appendChild(container);
 
   try {
-    // Generate barcode
+    // Generate barcode synchronously
     JsBarcode('#' + svgId, palletId, {
       format: 'CODE128',
       width: 3,
@@ -1529,21 +1513,33 @@ function printPalletBarcode(palletId, palletName = '') {
       background: '#fff'
     });
 
+    // Verify SVG was created successfully
+    const generatedSvg = document.getElementById(svgId);
+    if (!generatedSvg || !generatedSvg.innerHTML) {
+      throw new Error('Barcode generation failed');
+    }
+
     // Show print area
     printArea.style.display = 'block';
 
-    // Wait for barcode to render then print
+    // Use single setTimeout with proper cleanup
     setTimeout(() => {
-      window.print();
-
-      // Clean up after print
-      setTimeout(() => {
-        printArea.style.display = 'none';
-        printContent.innerHTML = '';
-      }, 1000);
-    }, 500);
+      try {
+        window.print();
+      } catch (printErr) {
+        console.error('Print error:', printErr);
+        showNotification('Print failed: ' + printErr.message, 'error');
+      } finally {
+        // Cleanup happens in finally block to ensure it runs
+        setTimeout(() => {
+          printArea.style.display = 'none';
+          printContent.innerHTML = '';
+        }, 500);
+      }
+    }, 300);
 
     showNotification('Print ready: ' + (palletName || palletId), 'success', 2000);
+
   } catch (err) {
     console.error('Barcode error:', err);
     showNotification('Error generating barcode: ' + err.message, 'error');
