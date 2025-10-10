@@ -972,1372 +972,1074 @@
     </audio>
     
     <script>
-        // Constants
-        const STORAGE_KEY = 'bottle_app_v5_excel';
-        const MAX_BARCODES = 500;
-        const PALLET_CAPACITY = 32;
-        
-        // Global State
-        let bottles = [];
-        let pallets = [];
-        let clients = [];
-        let activityLog = [];
-        let deletedRecords = [];
-        let stores = [];
-        let scannedBarcodes = [];
-        let currentStoreId = null;
-        let scannerMode = 'bottle';
-        let debounceTimer = null;
-        
-        // Audio references
-        let successSound, warningSound;
-        
-        // Stub functions to prevent "not defined" errors
-        function openTab() {}
-        function setScannerMode() {}
-        function updatePalletScanUI() {}
-        function addScannedBarcode() {}
-        function clearAllScanned() {}
-        function batchRefill() {}
-        function batchReturn() {}
-        function batchDeliver() {}
-        function confirmBatchDelivery() {}
-        function createNewBottleRecord() {}
-        function createNewClientRecord() {}
-        function updateClientBottleCounts() {}
-        function createNewPalletRecord() {}
-        function findPalletById() {}
-        function recalcPalletStatus() {}
-        function addBottleToPallet() {}
-        function removeBottleFromPallet() {}
-        function autoRemoveFromPallet() {}
-        function deliverPalletById() {}
-        function returnPalletById() {}
-        function refillPalletById() {}
-        function deleteBottle() {}
-        function deletePallet() {}
-        function generateExcelReport() {}
-        function renderPallets() {}
-        function renderInventory() {}
-        function renderClients() {}
-        function updateActivity() {}
-        function openPalletDetails() {}
-        function closePalletDetails() {}
-        function openAddClient() {}
-        function closeAddClient() {}
-        function createNewClient() {}
-        function populateClientDropdowns() {}
-        function filterDeliveryClients() {}
-        function updateScannedList() {}
-        function printPalletBarcode() {}
-        function addBarcodeToDetails() {}
-        function manualGeneratePallet() {}
-        function switchStore() {}
-        function openAddBottle() {}
-        function closeAddBottle() {}
-        function createManualBottle() {}
-        function openTransferBottle() {}
-        function openTransferPallet() {}
-        function closeTransferModal() {}
-        function confirmTransfer() {}
-        function openBulkTransferBottles() {}
-        function closeBulkTransferBottles() {}
-        function openBulkTransferPallets() {}
-        function closeBulkTransferPallets() {}
-        
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            successSound = document.getElementById('successSound');
-            warningSound = document.getElementById('warningSound');
-            
-            loadData();
-            initializeStores();
-            migrateDataToStores();
-            renderStoreSwitcher();
-            setupScanner();
-            updateAllDisplays();
-            
-            // Auto-focus scanner
-            document.getElementById('scannerInput').focus();
-            
-            // Restore last active tab
-            const lastTab = localStorage.getItem('lastActiveTab') || 'scanner';
-            const tabBtn = document.querySelector(`[onclick*="${lastTab}"]`);
-            if (tabBtn) {
-                openTab(lastTab, tabBtn);
+       // Constants
+const STORAGE_KEY = 'bottle_app_v5_excel';
+const MAX_BARCODES = 500;
+const PALLET_CAPACITY = 32;
+
+// Global State
+let bottles = [];
+let pallets = [];
+let clients = [];
+let activityLog = [];
+let deletedRecords = [];
+let stores = [];
+let scannedBarcodes = [];
+let currentStoreId = null;
+let scannerMode = 'bottle';
+let debounceTimer = null;
+
+// Audio references
+let successSound, warningSound;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    successSound = document.getElementById('successSound');
+    warningSound = document.getElementById('warningSound');
+    
+    loadData();
+    initializeStores();
+    migrateDataToStores();
+    renderStoreSwitcher();
+    setupScanner();
+    updateAllDisplays();
+    
+    // Auto-focus scanner
+    document.getElementById('scannerInput').focus();
+    
+    // Restore last active tab
+    const lastTab = localStorage.getItem('lastActiveTab') || 'scanner';
+    const tabBtn = document.querySelector(`[onclick*="${lastTab}"]`);
+    if (tabBtn) {
+        openTab(lastTab, tabBtn);
+    }
+});
+
+// Data Persistence
+function saveData() {
+    const data = {
+        bottles,
+        pallets,
+        clients,
+        activityLog: activityLog.slice(0, 100),
+        deletedRecords,
+        stores,
+        currentStoreId,
+        version: 5
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadData() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            bottles = data.bottles || [];
+            pallets = data.pallets || [];
+            clients = data.clients || [];
+            activityLog = data.activityLog || [];
+            deletedRecords = data.deletedRecords || [];
+            stores = data.stores || [];
+            currentStoreId = data.currentStoreId || null;
+        }
+    } catch (e) {
+        console.error('Error loading data:', e);
+        showToast('Error loading saved data', 'error');
+    }
+}
+
+// Store Management
+function initializeStores() {
+    if (stores.length === 0) {
+        const now = new Date().toISOString();
+        stores = [
+            {
+                id: 'store_main',
+                name: 'Main Store',
+                type: 'main',
+                created: now,
+                lastUpdated: now
             }
+        ];
+        
+        for (let i = 1; i <= 6; i++) {
+            stores.push({
+                id: `store_driver${i}`,
+                name: `Driver ${i}`,
+                type: 'driver',
+                created: now,
+                lastUpdated: now
+            });
+        }
+        
+        currentStoreId = 'store_main';
+        saveData();
+        addActivity('✨ Initialized 7-store system (1 Main + 6 Drivers)');
+    }
+    
+    if (!currentStoreId) {
+        currentStoreId = 'store_main';
+    }
+}
+
+function migrateDataToStores() {
+    let migrated = false;
+    const mainStore = stores.find(s => s.type === 'main');
+    
+    bottles.forEach(bottle => {
+        if (!bottle.storeId) {
+            bottle.storeId = mainStore.id;
+            bottle.storeName = mainStore.name;
+            migrated = true;
+        }
+    });
+    
+    pallets.forEach(pallet => {
+        if (!pallet.storeId) {
+            pallet.storeId = mainStore.id;
+            pallet.storeName = mainStore.name;
+            migrated = true;
+        }
+    });
+    
+    if (migrated) {
+        saveData();
+        addActivity('🔄 Migrated legacy data to Main Store');
+    }
+}
+
+function renderStoreSwitcher() {
+    const switcher = document.getElementById('storeSwitcher');
+    switcher.innerHTML = stores.map(store => 
+        `<option value="${store.id}" ${store.id === currentStoreId ? 'selected' : ''}>${store.name}</option>`
+    ).join('');
+}
+
+function switchStore() {
+    const switcher = document.getElementById('storeSwitcher');
+    currentStoreId = switcher.value;
+    const store = stores.find(s => s.id === currentStoreId);
+    saveData();
+    updateAllDisplays();
+    showToast(`📍 Switched to ${store.name}`, 'success');
+}
+
+function getCurrentStore() {
+    return stores.find(s => s.id === currentStoreId);
+}
+
+// Transfer Functions
+function openTransferBottle(bottleId) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    if (!bottle) return;
+    
+    const otherStores = stores.filter(s => s.id !== bottle.storeId);
+    
+    const content = `
+        <div class="form-group">
+            <p><strong>Bottle:</strong> ${bottle.id}</p>
+            <p><strong>Current Store:</strong> ${bottle.storeName}</p>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Transfer to Store *</label>
+            <select id="transferTargetStore" class="form-input">
+                ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="confirmTransfer('bottle', '${bottleId}')">Confirm Transfer</button>
+    `;
+    
+    document.getElementById('transferModalTitle').textContent = 'Transfer Bottle';
+    document.getElementById('transferContent').innerHTML = content;
+    document.getElementById('transferModal').classList.add('active');
+}
+
+function openTransferPallet(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet) return;
+    
+    const otherStores = stores.filter(s => s.id !== pallet.storeId);
+    
+    const content = `
+        <div class="form-group">
+            <p><strong>Pallet:</strong> ${pallet.name || pallet.id}</p>
+            <p><strong>Current Store:</strong> ${pallet.storeName}</p>
+            <p><strong>Bottles:</strong> ${pallet.bottleIds.length}</p>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Transfer to Store *</label>
+            <select id="transferTargetStore" class="form-input">
+                ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+        </div>
+        <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 15px;">
+            Note: All bottles in this pallet will also be transferred to the target store.
+        </p>
+        <button class="btn btn-primary" style="width: 100%;" onclick="confirmTransfer('pallet', '${palletId}')">Confirm Transfer</button>
+    `;
+    
+    document.getElementById('transferModalTitle').textContent = 'Transfer Pallet';
+    document.getElementById('transferContent').innerHTML = content;
+    document.getElementById('transferModal').classList.add('active');
+}
+
+function closeTransferModal() {
+    document.getElementById('transferModal').classList.remove('active');
+}
+
+function confirmTransfer(type, id) {
+    const targetStoreId = document.getElementById('transferTargetStore').value;
+    const targetStore = stores.find(s => s.id === targetStoreId);
+    
+    if (!targetStore) return;
+    
+    if (type === 'bottle') {
+        const bottle = bottles.find(b => b.id === id);
+        if (!bottle) return;
+        
+        const fromStore = bottle.storeName;
+        bottle.storeId = targetStore.id;
+        bottle.storeName = targetStore.name;
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history.push({
+            action: 'transferred',
+            from: fromStore,
+            to: targetStore.name,
+            timestamp: new Date().toISOString()
         });
         
-        // Data Persistence
-        function saveData() {
-            const data = {
-                bottles,
-                pallets,
-                clients,
-                activityLog: activityLog.slice(0, 100),
-                deletedRecords,
-                stores,
-                currentStoreId,
-                version: 5
-            };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        }
+        addActivity(`🔄 Transferred bottle ${id} from ${fromStore} to ${targetStore.name}`);
+        showToast(`✅ Bottle transferred to ${targetStore.name}`, 'success');
+    } else if (type === 'pallet') {
+        const pallet = findPalletById(id);
+        if (!pallet) return;
         
-        function loadData() {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    bottles = data.bottles || [];
-                    pallets = data.pallets || [];
-                    clients = data.clients || [];
-                    activityLog = data.activityLog || [];
-                    deletedRecords = data.deletedRecords || [];
-                    stores = data.stores || [];
-                    currentStoreId = data.currentStoreId || null;
-                }
-            } catch (e) {
-                console.error('Error loading data:', e);
-                showToast('Error loading saved data', 'error');
-            }
-        }
+        const fromStore = pallet.storeName;
+        pallet.storeId = targetStore.id;
+        pallet.storeName = targetStore.name;
+        pallet.lastUpdated = new Date().toISOString();
+        pallet.history.push({
+            action: 'transferred',
+            from: fromStore,
+            to: targetStore.name,
+            timestamp: new Date().toISOString()
+        });
         
-        // Store Management
-        function initializeStores() {
-            if (stores.length === 0) {
-                const now = new Date().toISOString();
-                stores = [
-                    {
-                        id: 'store_main',
-                        name: 'Main Store',
-                        type: 'main',
-                        created: now,
-                        lastUpdated: now
-                    }
-                ];
-                
-                for (let i = 1; i <= 6; i++) {
-                    stores.push({
-                        id: `store_driver${i}`,
-                        name: `Driver ${i}`,
-                        type: 'driver',
-                        created: now,
-                        lastUpdated: now
-                    });
-                }
-                
-                currentStoreId = 'store_main';
-                saveData();
-                addActivity('✨ Initialized 7-store system (1 Main + 6 Drivers)');
-            }
-            
-            if (!currentStoreId) {
-                currentStoreId = 'store_main';
-            }
-        }
-        
-        function migrateDataToStores() {
-            let migrated = false;
-            const mainStore = stores.find(s => s.type === 'main');
-            
-            bottles.forEach(bottle => {
-                if (!bottle.storeId) {
-                    bottle.storeId = mainStore.id;
-                    bottle.storeName = mainStore.name;
-                    migrated = true;
-                }
-            });
-            
-            pallets.forEach(pallet => {
-                if (!pallet.storeId) {
-                    pallet.storeId = mainStore.id;
-                    pallet.storeName = mainStore.name;
-                    migrated = true;
-                }
-            });
-            
-            if (migrated) {
-                saveData();
-                addActivity('🔄 Migrated legacy data to Main Store');
-            }
-        }
-        
-        function renderStoreSwitcher() {
-            const switcher = document.getElementById('storeSwitcher');
-            switcher.innerHTML = stores.map(store => 
-                `<option value="${store.id}" ${store.id === currentStoreId ? 'selected' : ''}>${store.name}</option>`
-            ).join('');
-        }
-        
-        switchStore = function() {
-            const switcher = document.getElementById('storeSwitcher');
-            currentStoreId = switcher.value;
-            const store = stores.find(s => s.id === currentStoreId);
-            saveData();
-            updateAllDisplays();
-            showToast(`📍 Switched to ${store.name}`, 'success');
-        }
-        
-        function getCurrentStore() {
-            return stores.find(s => s.id === currentStoreId);
-        }
-        
-        // Transfer Functions
-        openTransferBottle = function(bottleId) {
+        // Transfer all bottles in the pallet
+        pallet.bottleIds.forEach(bottleId => {
             const bottle = bottles.find(b => b.id === bottleId);
-            if (!bottle) return;
-            
-            const otherStores = stores.filter(s => s.id !== bottle.storeId);
-            
-            const content = `
-                <div class="form-group">
-                    <p><strong>Bottle:</strong> ${bottle.id}</p>
-                    <p><strong>Current Store:</strong> ${bottle.storeName}</p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Transfer to Store *</label>
-                    <select id="transferTargetStore" class="form-input">
-                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                    </select>
-                </div>
-                <button class="btn btn-primary" style="width: 100%;" onclick="confirmTransfer('bottle', '${bottleId}')">Confirm Transfer</button>
-            `;
-            
-            document.getElementById('transferModalTitle').textContent = 'Transfer Bottle';
-            document.getElementById('transferContent').innerHTML = content;
-            document.getElementById('transferModal').classList.add('active');
-        }
-        
-        openTransferPallet = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet) return;
-            
-            const otherStores = stores.filter(s => s.id !== pallet.storeId);
-            
-            const content = `
-                <div class="form-group">
-                    <p><strong>Pallet:</strong> ${pallet.name || pallet.id}</p>
-                    <p><strong>Current Store:</strong> ${pallet.storeName}</p>
-                    <p><strong>Bottles:</strong> ${pallet.bottleIds.length}</p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Transfer to Store *</label>
-                    <select id="transferTargetStore" class="form-input">
-                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                    </select>
-                </div>
-                <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 15px;">
-                    Note: All bottles in this pallet will also be transferred to the target store.
-                </p>
-                <button class="btn btn-primary" style="width: 100%;" onclick="confirmTransfer('pallet', '${palletId}')">Confirm Transfer</button>
-            `;
-            
-            document.getElementById('transferModalTitle').textContent = 'Transfer Pallet';
-            document.getElementById('transferContent').innerHTML = content;
-            document.getElementById('transferModal').classList.add('active');
-        }
-        
-        closeTransferModal = function() {
-            document.getElementById('transferModal').classList.remove('active');
-        }
-        
-        confirmTransfer = function(type, id) {
-            const targetStoreId = document.getElementById('transferTargetStore').value;
-            const targetStore = stores.find(s => s.id === targetStoreId);
-            
-            if (!targetStore) return;
-            
-            if (type === 'bottle') {
-                const bottle = bottles.find(b => b.id === id);
-                if (!bottle) return;
-                
-                const fromStore = bottle.storeName;
+            if (bottle) {
                 bottle.storeId = targetStore.id;
                 bottle.storeName = targetStore.name;
                 bottle.lastUpdated = new Date().toISOString();
                 bottle.history.push({
-                    action: 'transferred',
+                    action: 'transferred_with_pallet',
                     from: fromStore,
                     to: targetStore.name,
                     timestamp: new Date().toISOString()
                 });
-                
-                addActivity(`🔄 Transferred bottle ${id} from ${fromStore} to ${targetStore.name}`);
-                showToast(`✅ Bottle transferred to ${targetStore.name}`, 'success');
-            } else if (type === 'pallet') {
-                const pallet = findPalletById(id);
-                if (!pallet) return;
-                
-                const fromStore = pallet.storeName;
-                pallet.storeId = targetStore.id;
-                pallet.storeName = targetStore.name;
-                pallet.lastUpdated = new Date().toISOString();
-                pallet.history.push({
-                    action: 'transferred',
-                    from: fromStore,
-                    to: targetStore.name,
-                    timestamp: new Date().toISOString()
-                });
-                
-                // Transfer all bottles in the pallet
-                pallet.bottleIds.forEach(bottleId => {
-                    const bottle = bottles.find(b => b.id === bottleId);
-                    if (bottle) {
-                        bottle.storeId = targetStore.id;
-                        bottle.storeName = targetStore.name;
-                        bottle.lastUpdated = new Date().toISOString();
-                        bottle.history.push({
-                            action: 'transferred_with_pallet',
-                            from: fromStore,
-                            to: targetStore.name,
-                            timestamp: new Date().toISOString()
-                        });
-                    }
-                });
-                
-                addActivity(`🔄 Transferred pallet ${pallet.name || pallet.id} with ${pallet.bottleIds.length} bottles from ${fromStore} to ${targetStore.name}`);
-                showToast(`✅ Pallet and ${pallet.bottleIds.length} bottles transferred to ${targetStore.name}`, 'success');
+            }
+        });
+        
+        addActivity(`🔄 Transferred pallet ${pallet.name || pallet.id} with ${pallet.bottleIds.length} bottles from ${fromStore} to ${targetStore.name}`);
+        showToast(`✅ Pallet and ${pallet.bottleIds.length} bottles transferred to ${targetStore.name}`, 'success');
+    }
+    
+    saveData();
+    updateAllDisplays();
+    closeTransferModal();
+}
+
+// Bulk Transfer Functions
+function openBulkTransferBottles() {
+    const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
+    const otherStores = stores.filter(s => s.id !== currentStoreId);
+    
+    if (storeBottles.length === 0) {
+        showToast('⚠️ No bottles in current store', 'warning');
+        return;
+    }
+    
+    const content = `
+        <div class="form-group">
+            <p><strong>Current Store:</strong> ${getCurrentStore().name}</p>
+            <p><strong>Available Bottles:</strong> ${storeBottles.length}</p>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Select Bottles to Transfer</label>
+            <div class="checkbox-group" id="bulkBottleCheckboxes">
+                ${storeBottles.map(b => `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${b.id}" class="bulk-bottle-checkbox">
+                        <span><strong>${b.id}</strong> - ${b.status} ${b.palletId ? `(${b.palletId})` : ''}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Transfer to Store *</label>
+            <select id="bulkTransferTargetStore" class="form-input">
+                ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllBottles(true)">Select All</button>
+            <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllBottles(false)">Deselect All</button>
+        </div>
+        
+        <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="confirmBulkTransferBottles()">Transfer Selected Bottles</button>
+    `;
+    
+    document.getElementById('bulkTransferBottlesContent').innerHTML = content;
+    document.getElementById('bulkTransferBottlesModal').classList.add('active');
+}
+
+function closeBulkTransferBottles() {
+    document.getElementById('bulkTransferBottlesModal').classList.remove('active');
+}
+
+function selectAllBottles(select) {
+    document.querySelectorAll('.bulk-bottle-checkbox').forEach(cb => {
+        cb.checked = select;
+    });
+}
+
+function confirmBulkTransferBottles() {
+    const selectedBottleIds = Array.from(document.querySelectorAll('.bulk-bottle-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedBottleIds.length === 0) {
+        showToast('⚠️ Please select at least one bottle', 'warning');
+        return;
+    }
+    
+    const targetStoreId = document.getElementById('bulkTransferTargetStore').value;
+    const targetStore = stores.find(s => s.id === targetStoreId);
+    const fromStore = getCurrentStore();
+    
+    selectedBottleIds.forEach(bottleId => {
+        const bottle = bottles.find(b => b.id === bottleId);
+        if (bottle) {
+            // Remove from pallet if in different store
+            if (bottle.palletId) {
+                const pallet = findPalletById(bottle.palletId);
+                if (pallet && pallet.storeId !== targetStoreId) {
+                    removeBottleFromPallet(bottleId, bottle.palletId);
+                }
             }
             
-            saveData();
-            updateAllDisplays();
-            closeTransferModal();
-        }
-        
-        // Bulk Transfer Functions
-        openBulkTransferBottles = function() {
-            const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
-            const otherStores = stores.filter(s => s.id !== currentStoreId);
-            
-            if (storeBottles.length === 0) {
-                showToast('⚠️ No bottles in current store', 'warning');
-                return;
-            }
-            
-            const content = `
-                <div class="form-group">
-                    <p><strong>Current Store:</strong> ${getCurrentStore().name}</p>
-                    <p><strong>Available Bottles:</strong> ${storeBottles.length}</p>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Select Bottles to Transfer</label>
-                    <div class="checkbox-group" id="bulkBottleCheckboxes">
-                        ${storeBottles.map(b => `
-                            <label class="checkbox-label">
-                                <input type="checkbox" value="${b.id}" class="bulk-bottle-checkbox">
-                                <span><strong>${b.id}</strong> - ${b.status} ${b.palletId ? `(${b.palletId})` : ''}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Transfer to Store *</label>
-                    <select id="bulkTransferTargetStore" class="form-input">
-                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllBottles(true)">Select All</button>
-                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllBottles(false)">Deselect All</button>
-                </div>
-                
-                <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="confirmBulkTransferBottles()">Transfer Selected Bottles</button>
-            `;
-            
-            document.getElementById('bulkTransferBottlesContent').innerHTML = content;
-            document.getElementById('bulkTransferBottlesModal').classList.add('active');
-        }
-        
-        closeBulkTransferBottles = function() {
-            document.getElementById('bulkTransferBottlesModal').classList.remove('active');
-        }
-        
-        function selectAllBottles(select) {
-            document.querySelectorAll('.bulk-bottle-checkbox').forEach(cb => {
-                cb.checked = select;
+            bottle.storeId = targetStore.id;
+            bottle.storeName = targetStore.name;
+            bottle.lastUpdated = new Date().toISOString();
+            bottle.history.push({
+                action: 'bulk_transferred',
+                from: fromStore.name,
+                to: targetStore.name,
+                timestamp: new Date().toISOString()
             });
         }
+    });
+    
+    addActivity(`🔄 Bulk transferred ${selectedBottleIds.length} bottles from ${fromStore.name} to ${targetStore.name}`);
+    saveData();
+    updateAllDisplays();
+    closeBulkTransferBottles();
+    showToast(`✅ Transferred ${selectedBottleIds.length} bottles to ${targetStore.name}`, 'success');
+}
+
+function openBulkTransferPallets() {
+    const storePallets = pallets.filter(p => p.storeId === currentStoreId);
+    const otherStores = stores.filter(s => s.id !== currentStoreId);
+    
+    if (storePallets.length === 0) {
+        showToast('⚠️ No pallets in current store', 'warning');
+        return;
+    }
+    
+    const content = `
+        <div class="form-group">
+            <p><strong>Current Store:</strong> ${getCurrentStore().name}</p>
+            <p><strong>Available Pallets:</strong> ${storePallets.length}</p>
+        </div>
         
-        function confirmBulkTransferBottles() {
-            const selectedBottleIds = Array.from(document.querySelectorAll('.bulk-bottle-checkbox:checked')).map(cb => cb.value);
+        <div class="form-group">
+            <label class="form-label">Select Pallets to Transfer</label>
+            <div class="checkbox-group" id="bulkPalletCheckboxes">
+                ${storePallets.map(p => `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${p.id}" class="bulk-pallet-checkbox">
+                        <span><strong>${p.name || p.id}</strong> - ${p.status} (${p.bottleIds.length} bottles)</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Transfer to Store *</label>
+            <select id="bulkTransferTargetStorePallet" class="form-input">
+                ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllPallets(true)">Select All</button>
+            <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllPallets(false)">Deselect All</button>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 0.9rem; margin: 15px 0;">
+            Note: All bottles in selected pallets will also be transferred.
+        </p>
+        
+        <button class="btn btn-primary" style="width: 100%;" onclick="confirmBulkTransferPallets()">Transfer Selected Pallets</button>
+    `;
+    
+    document.getElementById('bulkTransferPalletsContent').innerHTML = content;
+    document.getElementById('bulkTransferPalletsModal').classList.add('active');
+}
+
+function closeBulkTransferPallets() {
+    document.getElementById('bulkTransferPalletsModal').classList.remove('active');
+}
+
+function selectAllPallets(select) {
+    document.querySelectorAll('.bulk-pallet-checkbox').forEach(cb => {
+        cb.checked = select;
+    });
+}
+
+function confirmBulkTransferPallets() {
+    const selectedPalletIds = Array.from(document.querySelectorAll('.bulk-pallet-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedPalletIds.length === 0) {
+        showToast('⚠️ Please select at least one pallet', 'warning');
+        return;
+    }
+    
+    const targetStoreId = document.getElementById('bulkTransferTargetStorePallet').value;
+    const targetStore = stores.find(s => s.id === targetStoreId);
+    const fromStore = getCurrentStore();
+    
+    let totalBottles = 0;
+    
+    selectedPalletIds.forEach(palletId => {
+        const pallet = findPalletById(palletId);
+        if (pallet) {
+            pallet.storeId = targetStore.id;
+            pallet.storeName = targetStore.name;
+            pallet.lastUpdated = new Date().toISOString();
+            pallet.history.push({
+                action: 'bulk_transferred',
+                from: fromStore.name,
+                to: targetStore.name,
+                timestamp: new Date().toISOString()
+            });
             
-            if (selectedBottleIds.length === 0) {
-                showToast('⚠️ Please select at least one bottle', 'warning');
-                return;
-            }
-            
-            const targetStoreId = document.getElementById('bulkTransferTargetStore').value;
-            const targetStore = stores.find(s => s.id === targetStoreId);
-            const fromStore = getCurrentStore();
-            
-            selectedBottleIds.forEach(bottleId => {
+            // Transfer all bottles
+            pallet.bottleIds.forEach(bottleId => {
                 const bottle = bottles.find(b => b.id === bottleId);
                 if (bottle) {
-                    // Remove from pallet if in different store
-                    if (bottle.palletId) {
-                        const pallet = findPalletById(bottle.palletId);
-                        if (pallet && pallet.storeId !== targetStoreId) {
-                            removeBottleFromPallet(bottleId, bottle.palletId);
-                        }
-                    }
-                    
                     bottle.storeId = targetStore.id;
                     bottle.storeName = targetStore.name;
                     bottle.lastUpdated = new Date().toISOString();
                     bottle.history.push({
-                        action: 'bulk_transferred',
+                        action: 'bulk_transferred_with_pallet',
                         from: fromStore.name,
                         to: targetStore.name,
                         timestamp: new Date().toISOString()
                     });
-                }
-            });
-            
-            addActivity(`🔄 Bulk transferred ${selectedBottleIds.length} bottles from ${fromStore.name} to ${targetStore.name}`);
-            saveData();
-            updateAllDisplays();
-            closeBulkTransferBottles();
-            showToast(`✅ Transferred ${selectedBottleIds.length} bottles to ${targetStore.name}`, 'success');
-        }
-        
-        openBulkTransferPallets = function() {
-            const storePallets = pallets.filter(p => p.storeId === currentStoreId);
-            const otherStores = stores.filter(s => s.id !== currentStoreId);
-            
-            if (storePallets.length === 0) {
-                showToast('⚠️ No pallets in current store', 'warning');
-                return;
-            }
-            
-            const content = `
-                <div class="form-group">
-                    <p><strong>Current Store:</strong> ${getCurrentStore().name}</p>
-                    <p><strong>Available Pallets:</strong> ${storePallets.length}</p>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Select Pallets to Transfer</label>
-                    <div class="checkbox-group" id="bulkPalletCheckboxes">
-                        ${storePallets.map(p => `
-                            <label class="checkbox-label">
-                                <input type="checkbox" value="${p.id}" class="bulk-pallet-checkbox">
-                                <span><strong>${p.name || p.id}</strong> - ${p.status} (${p.bottleIds.length} bottles)</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Transfer to Store *</label>
-                    <select id="bulkTransferTargetStorePallet" class="form-input">
-                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllPallets(true)">Select All</button>
-                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllPallets(false)">Deselect All</button>
-                </div>
-                
-                <p style="color: #6b7280; font-size: 0.9rem; margin: 15px 0;">
-                    Note: All bottles in selected pallets will also be transferred.
-                </p>
-                
-                <button class="btn btn-primary" style="width: 100%;" onclick="confirmBulkTransferPallets()">Transfer Selected Pallets</button>
-            `;
-            
-            document.getElementById('bulkTransferPalletsContent').innerHTML = content;
-            document.getElementById('bulkTransferPalletsModal').classList.add('active');
-        }
-        
-        closeBulkTransferPallets = function() {
-            document.getElementById('bulkTransferPalletsModal').classList.remove('active');
-        }
-        
-        function selectAllPallets(select) {
-            document.querySelectorAll('.bulk-pallet-checkbox').forEach(cb => {
-                cb.checked = select;
-            });
-        }
-        
-        function confirmBulkTransferPallets() {
-            const selectedPalletIds = Array.from(document.querySelectorAll('.bulk-pallet-checkbox:checked')).map(cb => cb.value);
-            
-            if (selectedPalletIds.length === 0) {
-                showToast('⚠️ Please select at least one pallet', 'warning');
-                return;
-            }
-            
-            const targetStoreId = document.getElementById('bulkTransferTargetStorePallet').value;
-            const targetStore = stores.find(s => s.id === targetStoreId);
-            const fromStore = getCurrentStore();
-            
-            let totalBottles = 0;
-            
-            selectedPalletIds.forEach(palletId => {
-                const pallet = findPalletById(palletId);
-                if (pallet) {
-                    pallet.storeId = targetStore.id;
-                    pallet.storeName = targetStore.name;
-                    pallet.lastUpdated = new Date().toISOString();
-                    pallet.history.push({
-                        action: 'bulk_transferred',
-                        from: fromStore.name,
-                        to: targetStore.name,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    // Transfer all bottles
-                    pallet.bottleIds.forEach(bottleId => {
-                        const bottle = bottles.find(b => b.id === bottleId);
-                        if (bottle) {
-                            bottle.storeId = targetStore.id;
-                            bottle.storeName = targetStore.name;
-                            bottle.lastUpdated = new Date().toISOString();
-                            bottle.history.push({
-                                action: 'bulk_transferred_with_pallet',
-                                from: fromStore.name,
-                                to: targetStore.name,
-                                timestamp: new Date().toISOString()
-                            });
-                            totalBottles++;
-                        }
-                    });
-                }
-            });
-            
-            addActivity(`🔄 Bulk transferred ${selectedPalletIds.length} pallets with ${totalBottles} bottles from ${fromStore.name} to ${targetStore.name}`);
-            saveData();
-            updateAllDisplays();
-            closeBulkTransferPallets();
-            showToast(`✅ Transferred ${selectedPalletIds.length} pallets and ${totalBottles} bottles to ${targetStore.name}`, 'success');
-        }
-        
-        // Tab Navigation
-        openTab = function(tabId, btn) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Remove active from all buttons
-            document.querySelectorAll('.tab-btn').forEach(button => {
-                button.classList.remove('active');
-            });
-            
-            // Show selected tab
-            document.getElementById(tabId).classList.add('active');
-            btn.classList.add('active');
-            
-            // Auto-focus scanner when switching to Scanner tab
-            if (tabId === 'scanner') {
-                setTimeout(() => {
-                    document.getElementById('scannerInput').focus();
-                }, 100);
-            }
-            
-            // Save last active tab
-            localStorage.setItem('lastActiveTab', tabId);
-        }
-        
-        // Scanner Setup
-        function setupScanner() {
-            const input = document.getElementById('scannerInput');
-            
-            // Auto-submit on 6+ digits with debounce
-            input.addEventListener('input', function(e) {
-                clearTimeout(debounceTimer);
-                
-                // Strip non-digits
-                let value = e.target.value.replace(/\D/g, '');
-                e.target.value = value;
-                
-                if (value.length >= 6) {
-                    debounceTimer = setTimeout(() => {
-                        handleScannerSubmit(value);
-                    }, 120);
-                }
-            });
-            
-            // Enter key fallback
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    clearTimeout(debounceTimer);
-                    const value = e.target.value.replace(/\D/g, '');
-                    if (value.length >= 6) {
-                        handleScannerSubmit(value);
-                    } else {
-                        showToast('⚠️ Please enter at least 6 digits', 'warning');
-                        warningSound.play();
-                    }
+                    totalBottles++;
                 }
             });
         }
-        
-        function handleScannerSubmit(barcode) {
-            const input = document.getElementById('scannerInput');
-            
-            if (scannerMode === 'pallet') {
-                handlePalletScan(barcode);
-            } else {
-                addScannedBarcode(barcode);
-            }
-            
-            input.value = '';
-            input.focus();
-        }
-        
-        setScannerMode = function(mode) {
-            scannerMode = mode;
-            updatePalletScanUI();
+    });
+    
+    addActivity(`🔄 Bulk transferred ${selectedPalletIds.length} pallets with ${totalBottles} bottles from ${fromStore.name} to ${targetStore.name}`);
+    saveData();
+    updateAllDisplays();
+    closeBulkTransferPallets();
+    showToast(`✅ Transferred ${selectedPalletIds.length} pallets and ${totalBottles} bottles to ${targetStore.name}`, 'success');
+}
+
+// Tab Navigation
+function openTab(tabId, btn) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active from all buttons
+    document.querySelectorAll('.tab-btn').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+    
+    // Auto-focus scanner when switching to Scanner tab
+    if (tabId === 'scanner') {
+        setTimeout(() => {
             document.getElementById('scannerInput').focus();
-        }
+        }, 100);
+    }
+    
+    // Save last active tab
+    localStorage.setItem('lastActiveTab', tabId);
+}
+
+// Scanner Setup
+function setupScanner() {
+    const input = document.getElementById('scannerInput');
+    
+    // Auto-submit on 6+ digits with debounce
+    input.addEventListener('input', function(e) {
+        clearTimeout(debounceTimer);
         
-        updatePalletScanUI = function() {
-            const quickActions = document.getElementById('palletQuickActions');
-            if (scannerMode === 'pallet') {
-                quickActions.style.display = 'block';
+        // Strip non-digits
+        let value = e.target.value.replace(/\D/g, '');
+        e.target.value = value;
+        
+        if (value.length >= 6) {
+            debounceTimer = setTimeout(() => {
+                handleScannerSubmit(value);
+            }, 120);
+        }
+    });
+    
+    // Enter key fallback
+    input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(debounceTimer);
+            const value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 6) {
+                handleScannerSubmit(value);
             } else {
-                quickActions.style.display = 'none';
-                window.currentScannedPallet = null;
-            }
-        }
-        
-        function handlePalletScan(palletId) {
-            const formattedId = palletId.startsWith('PAL-') ? palletId : `PAL-${palletId}`;
-            const pallet = findPalletById(formattedId);
-            
-            if (!pallet) {
-                showToast(`⚠️ Pallet ${formattedId} not found`, 'warning');
+                showToast('⚠️ Please enter at least 6 digits', 'warning');
                 warningSound.play();
-                return;
-            }
-            
-            window.currentScannedPallet = formattedId;
-            
-            const card = document.getElementById('palletSummaryCard');
-            card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <strong style="font-size: 1.1rem;">${pallet.name || pallet.id}</strong>
-                    <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
-                </div>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
-                    <span class="badge">📦 ${pallet.bottleIds.length} / ${pallet.capacity}</span>
-                </div>
-            `;
-            
-            successSound.play();
-            showToast(`✅ Loaded ${pallet.name || pallet.id}`, 'success');
-        }
-        
-        // Bottle Queue Management
-        addScannedBarcode = function(barcode) {
-            if (scannedBarcodes.length >= MAX_BARCODES) {
-                showToast('⚠️ Queue is full (500 max)', 'warning');
-                warningSound.play();
-                return;
-            }
-            
-            if (scannedBarcodes.includes(barcode)) {
-                showToast('⚠️ Bottle already in queue', 'warning');
-                warningSound.play();
-                return;
-            }
-            
-            scannedBarcodes.push(barcode);
-            updateScannedList();
-            successSound.play();
-            
-            // Auto-create pallet at 32 bottles
-            if (scannedBarcodes.length === 32) {
-                setTimeout(() => {
-                    autoCreatePallet();
-                }, 300);
             }
         }
-        
-        function removeFromQueue(barcode) {
-            scannedBarcodes = scannedBarcodes.filter(b => b !== barcode);
-            updateScannedList();
+    });
+}
+
+function handleScannerSubmit(barcode) {
+    const input = document.getElementById('scannerInput');
+    
+    if (scannerMode === 'pallet') {
+        handlePalletScan(barcode);
+    } else {
+        addScannedBarcode(barcode);
+    }
+    
+    input.value = '';
+    input.focus();
+}
+
+function setScannerMode(mode) {
+    scannerMode = mode;
+    updatePalletScanUI();
+    document.getElementById('scannerInput').focus();
+}
+
+function updatePalletScanUI() {
+    const quickActions = document.getElementById('palletQuickActions');
+    if (scannerMode === 'pallet') {
+        quickActions.style.display = 'block';
+    } else {
+        quickActions.style.display = 'none';
+        window.currentScannedPallet = null;
+    }
+}
+
+function handlePalletScan(palletId) {
+    const formattedId = palletId.startsWith('PAL-') ? palletId : `PAL-${palletId}`;
+    const pallet = findPalletById(formattedId);
+    
+    if (!pallet) {
+        showToast(`⚠️ Pallet ${formattedId} not found`, 'warning');
+        warningSound.play();
+        return;
+    }
+    
+    window.currentScannedPallet = formattedId;
+    
+    const card = document.getElementById('palletSummaryCard');
+    card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <strong style="font-size: 1.1rem;">${pallet.name || pallet.id}</strong>
+            <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
+            <span class="badge">📦 ${pallet.bottleIds.length} / ${pallet.capacity}</span>
+        </div>
+    `;
+    
+    successSound.play();
+    showToast(`✅ Loaded ${pallet.name || pallet.id}`, 'success');
+}
+
+// Bottle Queue Management
+function addScannedBarcode(barcode) {
+    if (scannedBarcodes.length >= MAX_BARCODES) {
+        showToast('⚠️ Queue is full (500 max)', 'warning');
+        warningSound.play();
+        return;
+    }
+    
+    if (scannedBarcodes.includes(barcode)) {
+        showToast('⚠️ Bottle already in queue', 'warning');
+        warningSound.play();
+        return;
+    }
+    
+    scannedBarcodes.push(barcode);
+    updateScannedList();
+    successSound.play();
+    
+    // Auto-create pallet at 32 bottles
+    if (scannedBarcodes.length === 32) {
+        setTimeout(() => {
+            autoCreatePallet();
+        }, 300);
+    }
+}
+
+function removeFromQueue(barcode) {
+    scannedBarcodes = scannedBarcodes.filter(b => b !== barcode);
+    updateScannedList();
+}
+
+function updateScannedList() {
+    const count = scannedBarcodes.length;
+    const percentage = Math.min((count / 32) * 100, 100);
+    
+    document.getElementById('queueCount').textContent = count;
+    const progressFill = document.getElementById('progressFill');
+    progressFill.style.width = percentage + '%';
+    progressFill.textContent = Math.round(percentage) + '%';
+    
+    const list = document.getElementById('scannedList');
+    list.innerHTML = scannedBarcodes.map((barcode, index) => `
+        <div class="scanned-item">
+            <div class="scanned-item-info">
+                <strong>#${index + 1}</strong>
+                <span>${barcode}</span>
+            </div>
+            <button class="remove-btn" onclick="removeFromQueue('${barcode}')">Remove</button>
+        </div>
+    `).join('');
+}
+
+function clearAllScanned() {
+    if (scannedBarcodes.length === 0) return;
+    
+    if (confirm(`Clear all ${scannedBarcodes.length} bottles from queue?`)) {
+        scannedBarcodes = [];
+        updateScannedList();
+        showToast('🗑️ Queue cleared', 'success');
+    }
+}
+
+function autoCreatePallet() {
+    if (scannedBarcodes.length !== 32) return;
+    
+    const store = getCurrentStore();
+    const pallet = createNewPalletRecord(store.id, store.name);
+    
+    // First, ensure all bottles exist and are assigned to the current store
+    scannedBarcodes.forEach(bottleId => {
+        let bottle = bottles.find(b => b.id === bottleId);
+        if (!bottle) {
+            bottle = createNewBottleRecord(bottleId, store.id, store.name);
+            bottles.push(bottle);
+        } else {
+            // Update bottle to current store if needed
+            bottle.storeId = store.id;
+            bottle.storeName = store.name;
+        }
+    });
+    
+    // Add pallet to array
+    pallets.push(pallet);
+    
+    // Now add bottles to pallet (they're all in the same store now)
+    scannedBarcodes.forEach(bottleId => {
+        addBottleToPallet(bottleId, pallet.id);
+    });
+    
+    recalcPalletStatus(pallet.id);
+    
+    scannedBarcodes = [];
+    updateScannedList();
+    
+    addActivity(`[${store.name}] 🎉 Auto-created ${pallet.name || pallet.id} with 32 bottles`);
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Created ${pallet.name || pallet.id}`, 'success');
+    successSound.play();
+}
+
+function manualGeneratePallet() {
+    if (scannedBarcodes.length === 0) {
+        showToast('⚠️ Queue is empty', 'warning');
+        return;
+    }
+    
+    const store = getCurrentStore();
+    const pallet = createNewPalletRecord(store.id, store.name);
+    
+    // First, ensure all bottles exist and are assigned to the current store
+    scannedBarcodes.forEach(bottleId => {
+        let bottle = bottles.find(b => b.id === bottleId);
+        if (!bottle) {
+            bottle = createNewBottleRecord(bottleId, store.id, store.name);
+            bottles.push(bottle);
+        } else {
+            // Update bottle to current store if needed
+            bottle.storeId = store.id;
+            bottle.storeName = store.name;
+        }
+    });
+    
+    // Add pallet to array
+    pallets.push(pallet);
+    
+    // Now add bottles to pallet (they're all in the same store now)
+    scannedBarcodes.forEach(bottleId => {
+        addBottleToPallet(bottleId, pallet.id);
+    });
+    
+    recalcPalletStatus(pallet.id);
+    
+    addActivity(`[${store.name}] 📦 Created ${pallet.name || pallet.id} with ${scannedBarcodes.length} bottles`);
+    
+    scannedBarcodes = [];
+    updateScannedList();
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Created ${pallet.name || pallet.id}`, 'success');
+}
+
+// Batch Actions
+function batchRefill() {
+    if (scannedBarcodes.length === 0) {
+        showToast('⚠️ Queue is empty', 'warning');
+        return;
+    }
+    
+    const store = getCurrentStore();
+    let refilled = 0;
+    
+    scannedBarcodes.forEach(bottleId => {
+        let bottle = bottles.find(b => b.id === bottleId);
+        if (!bottle) {
+            bottle = createNewBottleRecord(bottleId, store.id, store.name);
+            bottles.push(bottle);
         }
         
-        updateScannedList = function() {
-            const count = scannedBarcodes.length;
-            const percentage = Math.min((count / 32) * 100, 100);
-            
-            document.getElementById('queueCount').textContent = count;
-            const progressFill = document.getElementById('progressFill');
-            progressFill.style.width = percentage + '%';
-            progressFill.textContent = Math.round(percentage) + '%';
-            
-            const list = document.getElementById('scannedList');
-            list.innerHTML = scannedBarcodes.map((barcode, index) => `
-                <div class="scanned-item">
-                    <div class="scanned-item-info">
-                        <strong>#${index + 1}</strong>
-                        <span>${barcode}</span>
-                    </div>
-                    <button class="remove-btn" onclick="removeFromQueue('${barcode}')">Remove</button>
-                </div>
-            `).join('');
+        const oldClientId = bottle.clientId;
+        
+        bottle.status = 'available';
+        bottle.clientId = null;
+        bottle.clientName = null;
+        bottle.clientPhone = null;
+        bottle.refillCount++;
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history.push({
+            action: 'refilled',
+            timestamp: new Date().toISOString()
+        });
+        
+        if (oldClientId) {
+            updateClientBottleCounts(oldClientId);
         }
         
-        clearAllScanned = function() {
-            if (scannedBarcodes.length === 0) return;
-            
-            if (confirm(`Clear all ${scannedBarcodes.length} bottles from queue?`)) {
-                scannedBarcodes = [];
-                updateScannedList();
-                showToast('🗑️ Queue cleared', 'success');
-            }
+        refilled++;
+    });
+    
+    addActivity(`[${store.name}] 🔄 Refilled ${refilled} bottles`);
+    scannedBarcodes = [];
+    updateScannedList();
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Refilled ${refilled} bottles`, 'success');
+}
+
+function batchReturn() {
+    if (scannedBarcodes.length === 0) {
+        showToast('⚠️ Queue is empty', 'warning');
+        return;
+    }
+    
+    const store = getCurrentStore();
+    let returned = 0;
+    
+    scannedBarcodes.forEach(bottleId => {
+        let bottle = bottles.find(b => b.id === bottleId);
+        if (!bottle) {
+            bottle = createNewBottleRecord(bottleId, store.id, store.name);
+            bottles.push(bottle);
         }
         
-        function autoCreatePallet() {
-            if (scannedBarcodes.length !== 32) return;
-            
-            const store = getCurrentStore();
-            const pallet = createNewPalletRecord(store.id, store.name);
-            
-            scannedBarcodes.forEach(bottleId => {
-                let bottle = bottles.find(b => b.id === bottleId);
-                if (!bottle) {
-                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
-                    bottles.push(bottle);
-                }
-                addBottleToPallet(bottle.id, pallet.id);
-            });
-            
-            pallets.push(pallet);
-            recalcPalletStatus(pallet.id);
-            
-            scannedBarcodes = [];
-            updateScannedList();
-            
-            addActivity(`[${store.name}] 🎉 Auto-created ${pallet.name || pallet.id} with 32 bottles`);
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Created ${pallet.name || pallet.id}`, 'success');
-            successSound.play();
+        const oldClientId = bottle.clientId;
+        
+        bottle.status = 'needs-refill';
+        bottle.clientId = null;
+        bottle.clientName = null;
+        bottle.clientPhone = null;
+        bottle.lastUpdated = new Date().toISOString();
+        bottle.history.push({
+            action: 'returned',
+            timestamp: new Date().toISOString()
+        });
+        
+        if (oldClientId) {
+            updateClientBottleCounts(oldClientId);
         }
         
-        manualGeneratePallet = function() {
-            if (scannedBarcodes.length === 0) {
-                showToast('⚠️ Queue is empty', 'warning');
-                return;
-            }
-            
-            const store = getCurrentStore();
-            const pallet = createNewPalletRecord(store.id, store.name);
-            
-            scannedBarcodes.forEach(bottleId => {
-                let bottle = bottles.find(b => b.id === bottleId);
-                if (!bottle) {
-                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
-                    bottles.push(bottle);
-                }
-                addBottleToPallet(bottle.id, pallet.id);
-            });
-            
-            pallets.push(pallet);
-            recalcPalletStatus(pallet.id);
-            
-            addActivity(`[${store.name}] 📦 Created ${pallet.name || pallet.id} with ${scannedBarcodes.length} bottles`);
-            
-            scannedBarcodes = [];
-            updateScannedList();
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Created ${pallet.name || pallet.id}`, 'success');
+        returned++;
+    });
+    
+    addActivity(`[${store.name}] ↩️ Returned ${returned} bottles (needs refill)`);
+    scannedBarcodes = [];
+    updateScannedList();
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Returned ${returned} bottles`, 'success');
+}
+
+function batchDeliver() {
+    if (scannedBarcodes.length === 0) {
+        showToast('⚠️ Queue is empty', 'warning');
+        return;
+    }
+    
+    populateClientDropdowns();
+    document.getElementById('deliverModal').classList.add('active');
+}
+
+function confirmBatchDelivery() {
+    const clientSelect = document.getElementById('deliverClientSelect');
+    const clientId = clientSelect.value;
+    
+    if (!clientId) {
+        showToast('⚠️ Please select a client', 'warning');
+        return;
+    }
+    
+    const client = clients.find(c => c.id === clientId);
+    const store = getCurrentStore();
+    let delivered = 0;
+    
+    scannedBarcodes.forEach(bottleId => {
+        let bottle = bottles.find(b => b.id === bottleId);
+        if (!bottle) {
+            bottle = createNewBottleRecord(bottleId, store.id, store.name);
+            bottles.push(bottle);
         }
         
-        // Batch Actions
-        batchRefill = function() {
-            if (scannedBarcodes.length === 0) {
-                showToast('⚠️ Queue is empty', 'warning');
-                return;
-            }
+        if (bottle.status === 'available' || !bottle.status) {
+            autoRemoveFromPallet(bottle.id);
             
-            const store = getCurrentStore();
-            let refilled = 0;
-            
-            scannedBarcodes.forEach(bottleId => {
-                let bottle = bottles.find(b => b.id === bottleId);
-                if (!bottle) {
-                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
-                    bottles.push(bottle);
-                }
-                
-                bottle.status = 'available';
-                bottle.clientId = null;
-                bottle.clientName = null;
-                bottle.clientPhone = null;
-                bottle.refillCount++;
-                bottle.lastUpdated = new Date().toISOString();
-                bottle.history.push({
-                    action: 'refilled',
-                    timestamp: new Date().toISOString()
-                });
-                
-                if (bottle.clientId) {
-                    updateClientBottleCounts(bottle.clientId);
-                }
-                
-                refilled++;
-            });
-            
-            addActivity(`[${store.name}] 🔄 Refilled ${refilled} bottles`);
-            scannedBarcodes = [];
-            updateScannedList();
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Refilled ${refilled} bottles`, 'success');
-        }
-        
-        batchReturn = function() {
-            if (scannedBarcodes.length === 0) {
-                showToast('⚠️ Queue is empty', 'warning');
-                return;
-            }
-            
-            const store = getCurrentStore();
-            let returned = 0;
-            
-            scannedBarcodes.forEach(bottleId => {
-                let bottle = bottles.find(b => b.id === bottleId);
-                if (!bottle) {
-                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
-                    bottles.push(bottle);
-                }
-                
-                const oldClientId = bottle.clientId;
-                
-                bottle.status = 'needs-refill';
-                bottle.clientId = null;
-                bottle.clientName = null;
-                bottle.clientPhone = null;
-                bottle.lastUpdated = new Date().toISOString();
-                bottle.history.push({
-                    action: 'returned',
-                    timestamp: new Date().toISOString()
-                });
-                
-                if (oldClientId) {
-                    updateClientBottleCounts(oldClientId);
-                }
-                
-                returned++;
-            });
-            
-            addActivity(`[${store.name}] ↩️ Returned ${returned} bottles (needs refill)`);
-            scannedBarcodes = [];
-            updateScannedList();
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Returned ${returned} bottles`, 'success');
-        }
-        
-        batchDeliver = function() {
-            if (scannedBarcodes.length === 0) {
-                showToast('⚠️ Queue is empty', 'warning');
-                return;
-            }
-            
-            populateClientDropdowns();
-            document.getElementById('deliverModal').classList.add('active');
-        }
-        
-        confirmBatchDelivery = function() {
-            const clientSelect = document.getElementById('deliverClientSelect');
-            const clientId = clientSelect.value;
-            
-            if (!clientId) {
-                showToast('⚠️ Please select a client', 'warning');
-                return;
-            }
-            
-            const client = clients.find(c => c.id === clientId);
-            const store = getCurrentStore();
-            let delivered = 0;
-            
-            scannedBarcodes.forEach(bottleId => {
-                let bottle = bottles.find(b => b.id === bottleId);
-                if (!bottle) {
-                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
-                    bottles.push(bottle);
-                }
-                
-                if (bottle.status === 'available' || !bottle.status) {
-                    autoRemoveFromPallet(bottle.id);
-                    
-                    bottle.status = 'with-client';
-                    bottle.clientId = client.id;
-                    bottle.clientName = client.name;
-                    bottle.clientPhone = client.phone;
-                    bottle.deliveryCount++;
-                    bottle.lastUpdated = new Date().toISOString();
-                    bottle.history.push({
-                        action: 'delivered',
-                        client: client.name,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    delivered++;
-                }
-            });
-            
-            updateClientBottleCounts(client.id);
-            addActivity(`[${store.name}] 🚚 Delivered ${delivered} bottles to ${client.name}`);
-            
-            scannedBarcodes = [];
-            updateScannedList();
-            closeDeliverModal();
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Delivered ${delivered} bottles to ${client.name}`, 'success');
-        }
-        
-        function closeDeliverModal() {
-            document.getElementById('deliverModal').classList.remove('active');
-        }
-        
-        // Data Model Functions
-        createNewBottleRecord = function(id, storeId, storeName) {
-            return {
-                id,
-                status: 'available',
-                palletId: null,
-                deliveryCount: 0,
-                refillCount: 0,
-                clientId: null,
-                clientName: null,
-                clientPhone: null,
-                storeId,
-                storeName,
-                created: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                history: [{
-                    action: 'created',
-                    timestamp: new Date().toISOString()
-                }]
-            };
-        }
-        
-        createNewClientRecord = function(name, phone, address = '') {
-            return {
-                id: 'client_' + Date.now(),
-                name,
-                phone,
-                address,
-                bottleCount: 0,
-                created: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                history: [{
-                    action: 'created',
-                    timestamp: new Date().toISOString()
-                }]
-            };
-        }
-        
-        updateClientBottleCounts = function(clientId) {
-            const client = clients.find(c => c.id === clientId);
-            if (!client) return;
-            
-            client.bottleCount = bottles.filter(b => b.clientId === clientId).length;
-            client.lastUpdated = new Date().toISOString();
-        }
-        
-        createNewPalletRecord = function(storeId, storeName) {
-            const timestamp = Date.now();
-            return {
-                id: `PAL-${timestamp}`,
-                name: `Pallet ${timestamp}`,
-                bottleIds: [],
-                capacity: PALLET_CAPACITY,
-                status: 'empty',
-                clientId: null,
-                storeId,
-                storeName,
-                created: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                history: [{
-                    action: 'created',
-                    timestamp: new Date().toISOString()
-                }]
-            };
-        }
-        
-        findPalletById = function(palletId) {
-            return pallets.find(p => p.id === palletId);
-        }
-        
-        recalcPalletStatus = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet) return;
-            
-            const count = pallet.bottleIds.length;
-            const palletBottles = bottles.filter(b => pallet.bottleIds.includes(b.id));
-            
-            if (count === 0) {
-                pallet.status = 'empty';
-            } else if (palletBottles.every(b => b.status === 'with-client')) {
-                pallet.status = 'with-client';
-            } else if (palletBottles.some(b => b.status === 'needs-refill')) {
-                pallet.status = 'needs-refill';
-            } else if (count === pallet.capacity) {
-                pallet.status = 'full';
-            } else {
-                pallet.status = 'partial';
-            }
-            
-            pallet.lastUpdated = new Date().toISOString();
-        }
-        
-        addBottleToPallet = function(bottleId, palletId) {
-            const bottle = bottles.find(b => b.id === bottleId);
-            const pallet = findPalletById(palletId);
-            
-            if (!bottle || !pallet) return false;
-            
-            // Check store match
-            if (bottle.storeId !== pallet.storeId) {
-                showToast('⚠️ Bottle and pallet are in different stores', 'warning');
-                return false;
-            }
-            
-            if (pallet.bottleIds.includes(bottleId)) return false;
-            
-            if (bottle.palletId) {
-                removeBottleFromPallet(bottleId, bottle.palletId);
-            }
-            
-            pallet.bottleIds.push(bottleId);
-            bottle.palletId = palletId;
-            bottle.lastUpdated = new Date().toISOString();
-            
-            return true;
-        }
-        
-        removeBottleFromPallet = function(bottleId, palletId) {
-            const bottle = bottles.find(b => b.id === bottleId);
-            const pallet = findPalletById(palletId);
-            
-            if (!bottle || !pallet) return false;
-            
-            pallet.bottleIds = pallet.bottleIds.filter(id => id !== bottleId);
-            bottle.palletId = null;
-            bottle.lastUpdated = new Date().toISOString();
-            
-            recalcPalletStatus(palletId);
-            return true;
-        }
-        
-        autoRemoveFromPallet = function(bottleId) {
-            const bottle = bottles.find(b => b.id === bottleId);
-            if (bottle && bottle.palletId) {
-                removeBottleFromPallet(bottleId, bottle.palletId);
-            }
-        }
-        
-        // Pallet Actions
-        deliverPalletById = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet) return;
-            
-            populateClientDropdowns();
-            
-            const modal = document.getElementById('deliverModal');
-            modal.setAttribute('data-pallet-id', palletId);
-            modal.classList.add('active');
-        }
-        
-        refillPalletById = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet || pallet.bottleIds.length === 0) {
-                showToast('⚠️ Pallet is empty', 'warning');
-                return;
-            }
-            
-            let refilled = 0;
-            pallet.bottleIds.forEach(bottleId => {
-                const bottle = bottles.find(b => b.id === bottleId);
-                if (bottle) {
-                    const oldClientId = bottle.clientId;
-                    
-                    bottle.status = 'available';
-                    bottle.clientId = null;
-                    bottle.clientName = null;
-                    bottle.clientPhone = null;
-                    bottle.refillCount++;
-                    bottle.lastUpdated = new Date().toISOString();
-                    bottle.history.push({
-                        action: 'refilled',
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    if (oldClientId) {
-                        updateClientBottleCounts(oldClientId);
-                    }
-                    
-                    refilled++;
-                }
-            });
-            
-            recalcPalletStatus(palletId);
-            addActivity(`[${pallet.storeName}] 🔄 Refilled ${refilled} bottles in ${pallet.name || pallet.id}`);
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Refilled ${refilled} bottles`, 'success');
-        }
-        
-        returnPalletById = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet || pallet.bottleIds.length === 0) {
-                showToast('⚠️ Pallet is empty', 'warning');
-                return;
-            }
-            
-            let returned = 0;
-            pallet.bottleIds.forEach(bottleId => {
-                const bottle = bottles.find(b => b.id === bottleId);
-                if (bottle) {
-                    const oldClientId = bottle.clientId;
-                    
-                    bottle.status = 'needs-refill';
-                    bottle.clientId = null;
-                    bottle.clientName = null;
-                    bottle.clientPhone = null;
-                    bottle.lastUpdated = new Date().toISOString();
-                    bottle.history.push({
-                        action: 'returned',
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    if (oldClientId) {
-                        updateClientBottleCounts(oldClientId);
-                    }
-                    
-                    returned++;
-                }
-            });
-            
-            recalcPalletStatus(palletId);
-            addActivity(`[${pallet.storeName}] ↩️ Returned ${returned} bottles in ${pallet.name || pallet.id}`);
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Returned ${returned} bottles`, 'success');
-        }
-        
-        // Delete Functions
-        deleteBottle = function(bottleId) {
-            if (!confirm(`Delete bottle ${bottleId}?`)) return;
-            
-            const bottle = bottles.find(b => b.id === bottleId);
-            if (!bottle) return;
-            
-            if (bottle.palletId) {
-                removeBottleFromPallet(bottleId, bottle.palletId);
-            }
-            
-            if (bottle.clientId) {
-                updateClientBottleCounts(bottle.clientId);
-            }
-            
-            deletedRecords.push({
-                ...bottle,
-                deletedAt: new Date().toISOString()
-            });
-            
-            bottles = bottles.filter(b => b.id !== bottleId);
-            addActivity(`[${bottle.storeName}] 🗑️ Deleted bottle ${bottleId}`);
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Deleted bottle ${bottleId}`, 'success');
-        }
-        
-        deletePallet = function(palletId) {
-            if (!confirm(`Delete pallet ${palletId}? All bottles will be removed from it.`)) return;
-            
-            const pallet = findPalletById(palletId);
-            if (!pallet) return;
-            
-            pallet.bottleIds.forEach(bottleId => {
-                const bottle = bottles.find(b => b.id === bottleId);
-                if (bottle) {
-                    bottle.palletId = null;
-                }
-            });
-            
-            deletedRecords.push({
-                ...pallet,
-                deletedAt: new Date().toISOString()
-            });
-            
-            pallets = pallets.filter(p => p.id !== palletId);
-            addActivity(`[${pallet.storeName}] 🗑️ Deleted pallet ${palletId}`);
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Deleted pallet ${palletId}`, 'success');
-        }
-        
-        // Render Functions
-        renderPallets = function() {
-            const search = document.getElementById('palletSearch').value.toLowerCase();
-            const statusFilter = document.getElementById('palletStatusFilter').value;
-            
-            let filtered = pallets.filter(p => p.storeId === currentStoreId);
-            
-            if (search) {
-                filtered = filtered.filter(p => 
-                    p.id.toLowerCase().includes(search) || 
-                    (p.name && p.name.toLowerCase().includes(search))
-                );
-            }
-            
-            if (statusFilter) {
-                filtered = filtered.filter(p => p.status === statusFilter);
-            }
-            
-            // Render KPIs
-            const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
-            const storePallets = pallets.filter(p => p.storeId === currentStoreId);
-            const kpisHtml = `
-                <div class="kpi-card">
-                    <div class="kpi-value">${storePallets.filter(p => p.status === 'empty').length}</div>
-                    <div class="kpi-label">Empty</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">${storePallets.filter(p => p.status === 'partial').length}</div>
-                    <div class="kpi-label">Partial</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">${storePallets.filter(p => p.status === 'full').length}</div>
-                    <div class="kpi-label">Full</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">${storePallets.filter(p => p.status === 'with-client').length}</div>
-                    <div class="kpi-label">With Client</div>
-                </div>
-            `;
-            document.getElementById('palletKPIs').innerHTML = kpisHtml;
-            
-            // Render grid
-            const grid = document.getElementById('palletGrid');
-            if (filtered.length === 0) {
-                grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No pallets found</p>';
-                return;
-            }
-            
-            grid.innerHTML = filtered.map(pallet => `
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">${pallet.name || pallet.id}</div>
-                        <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                        <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
-                    </div>
-                    <div class="progress-bar" style="margin-bottom: 10px;">
-                        <div class="progress-fill" style="width: ${(pallet.bottleIds.length / pallet.capacity) * 100}%;">
-                            ${pallet.bottleIds.length} / ${pallet.capacity}
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <span class="badge">📦 ${pallet.bottleIds.length} bottles</span>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn btn-primary btn-small" onclick="openPalletDetails('${pallet.id}')">Details</button>
-                        <button class="btn btn-info btn-small" onclick="openTransferPallet('${pallet.id}')">🔄 Transfer</button>
-                        <button class="btn btn-secondary btn-small" onclick="printPalletBarcode('${pallet.id}')">🖨️ Print</button>
-                        <button class="btn btn-danger btn-small" onclick="deletePallet('${pallet.id}')">Delete</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        renderInventory = function() {
-            const search = document.getElementById('inventorySearch').value.toLowerCase();
-            const statusFilter = document.getElementById('inventoryStatusFilter').value;
-            
-            let filtered = bottles.filter(b => b.storeId === currentStoreId);
-            
-            if (search) {
-                filtered = filtered.filter(b => b.id.toLowerCase().includes(search));
-            }
-            
-            if (statusFilter) {
-                filtered = filtered.filter(b => b.status === statusFilter);
-            }
-            
-            // Render KPIs
-            const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
-            const kpisHtml = `
-                <div class="kpi-card">
-                    <div class="kpi-value">${storeBottles.filter(b => b.status === 'available').length}</div>
-                    <div class="kpi-label">Available</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">${storeBottles.filter(b => b.status === 'needs-refill').length}</div>
-                    <div class="kpi-label">Needs Refill</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">${storeBottles.filter(b => b.status === 'with-client').length}</div>
-                    <div class="kpi-label">With Client</div>
-                </div>
-            `;
-            document.getElementById('inventoryKPIs').innerHTML = kpisHtml;
-            
-            // Render grid
-            const grid = document.getElementById('inventoryGrid');
-            if (filtered.length === 0) {
-                grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No bottles found</p>';
-                return;
-            }
-            
-            grid.innerHTML = filtered.map(bottle => `
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">${bottle.id}</div>
-                        <span class="chip ${getStoreChipClass(bottle.storeId)}">${bottle.storeName}</span>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                        <span class="chip chip-${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span>
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                        <span class="badge">🚚 ${bottle.deliveryCount} deliveries</span>
-                        <span class="badge">🔄 ${bottle.refillCount} refills</span>
-                    </div>
-                    ${bottle.palletId ? `<div style="margin-bottom: 10px;"><span class="badge">📦 ${bottle.palletId}</span></div>` : ''}
-                    ${bottle.clientName ? `<div style="margin-bottom: 10px;"><span class="badge">👤 ${bottle.clientName}</span></div>` : ''}
-                    <div class="card-actions">
-                        <button class="btn btn-success btn-small" onclick="setBottleStatus('${bottle.id}', 'available')">Available</button>
-                        <button class="btn btn-warning btn-small" onclick="setBottleStatus('${bottle.id}', 'needs-refill')">Needs Refill</button>
-                        <button class="btn btn-info btn-small" onclick="openTransferBottle('${bottle.id}')">🔄 Transfer</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteBottle('${bottle.id}')">Delete</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        function setBottleStatus(bottleId, status) {
-            const bottle = bottles.find(b => b.id === bottleId);
-            if (!bottle) return;
-            
-            const oldClientId = bottle.clientId;
-            bottle.status = status;
-            
-            if (status === 'available' || status === 'needs-refill') {
-                bottle.clientId = null;
-                bottle.clientName = null;
-                bottle.clientPhone = null;
-            }
-            
+            bottle.status = 'with-client';
+            bottle.clientId = client.id;
+            bottle.clientName = client.name;
+            bottle.clientPhone = client.phone;
+            bottle.deliveryCount++;
             bottle.lastUpdated = new Date().toISOString();
             bottle.history.push({
-                action: `status_changed_to_${status}`,
+                action: 'delivered',
+                client: client.name,
+                timestamp: new Date().toISOString()
+            });
+            
+            delivered++;
+        }
+    });
+    
+    updateClientBottleCounts(client.id);
+    addActivity(`[${store.name}] 🚚 Delivered ${delivered} bottles to ${client.name}`);
+    
+    scannedBarcodes = [];
+    updateScannedList();
+    closeDeliverModal();
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Delivered ${delivered} bottles to ${client.name}`, 'success');
+}
+
+function closeDeliverModal() {
+    document.getElementById('deliverModal').classList.remove('active');
+}
+
+// Data Model Functions
+function createNewBottleRecord(id, storeId, storeName) {
+    return {
+        id,
+        status: 'available',
+        palletId: null,
+        deliveryCount: 0,
+        refillCount: 0,
+        clientId: null,
+        clientName: null,
+        clientPhone: null,
+        storeId,
+        storeName,
+        created: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        history: [{
+            action: 'created',
+            timestamp: new Date().toISOString()
+        }]
+    };
+}
+
+function createNewClientRecord(name, phone, address = '') {
+    return {
+        id: 'client_' + Date.now(),
+        name,
+        phone,
+        address,
+        bottleCount: 0,
+        created: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        history: [{
+            action: 'created',
+            timestamp: new Date().toISOString()
+        }]
+    };
+}
+
+function updateClientBottleCounts(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    client.bottleCount = bottles.filter(b => b.clientId === clientId).length;
+    client.lastUpdated = new Date().toISOString();
+}
+
+function createNewPalletRecord(storeId, storeName) {
+    const timestamp = Date.now();
+    return {
+        id: `PAL-${timestamp}`,
+        name: `Pallet ${timestamp}`,
+        bottleIds: [],
+        capacity: PALLET_CAPACITY,
+        status: 'empty',
+        clientId: null,
+        storeId,
+        storeName,
+        created: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        history: [{
+            action: 'created',
+            timestamp: new Date().toISOString()
+        }]
+    };
+}
+
+function findPalletById(palletId) {
+    return pallets.find(p => p.id === palletId);
+}
+
+function recalcPalletStatus(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet) return;
+    
+    const count = pallet.bottleIds.length;
+    const palletBottles = bottles.filter(b => pallet.bottleIds.includes(b.id));
+    
+    if (count === 0) {
+        pallet.status = 'empty';
+    } else if (palletBottles.every(b => b.status === 'with-client')) {
+        pallet.status = 'with-client';
+    } else if (palletBottles.some(b => b.status === 'needs-refill')) {
+        pallet.status = 'needs-refill';
+    } else if (count === pallet.capacity) {
+        pallet.status = 'full';
+    } else {
+        pallet.status = 'partial';
+    }
+    
+    pallet.lastUpdated = new Date().toISOString();
+}
+
+function addBottleToPallet(bottleId, palletId) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    const pallet = findPalletById(palletId);
+    
+    if (!bottle || !pallet) return false;
+    
+    if (pallet.bottleIds.includes(bottleId)) return false;
+    
+    if (bottle.palletId) {
+        removeBottleFromPallet(bottleId, bottle.palletId);
+    }
+    
+    pallet.bottleIds.push(bottleId);
+    bottle.palletId = palletId;
+    bottle.lastUpdated = new Date().toISOString();
+    
+    return true;
+}
+
+function removeBottleFromPallet(bottleId, palletId) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    const pallet = findPalletById(palletId);
+    
+    if (!bottle || !pallet) return false;
+    
+    pallet.bottleIds = pallet.bottleIds.filter(id => id !== bottleId);
+    bottle.palletId = null;
+    bottle.lastUpdated = new Date().toISOString();
+    
+    recalcPalletStatus(palletId);
+    return true;
+}
+
+function autoRemoveFromPallet(bottleId) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    if (bottle && bottle.palletId) {
+        removeBottleFromPallet(bottleId, bottle.palletId);
+    }
+}
+
+// Pallet Actions
+function deliverPalletById(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet) return;
+    
+    populateClientDropdowns();
+    
+    const modal = document.getElementById('deliverModal');
+    modal.setAttribute('data-pallet-id', palletId);
+    modal.classList.add('active');
+}
+
+function refillPalletById(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet || pallet.bottleIds.length === 0) {
+        showToast('⚠️ Pallet is empty', 'warning');
+        return;
+    }
+    
+    let refilled = 0;
+    pallet.bottleIds.forEach(bottleId => {
+        const bottle = bottles.find(b => b.id === bottleId);
+        if (bottle) {
+            const oldClientId = bottle.clientId;
+            
+            bottle.status = 'available';
+            bottle.clientId = null;
+            bottle.clientName = null;
+            bottle.clientPhone = null;
+            bottle.refillCount++;
+            bottle.lastUpdated = new Date().toISOString();
+            bottle.history.push({
+                action: 'refilled',
                 timestamp: new Date().toISOString()
             });
             
@@ -2345,401 +2047,664 @@
                 updateClientBottleCounts(oldClientId);
             }
             
-            if (bottle.palletId) {
-                recalcPalletStatus(bottle.palletId);
-            }
-            
-            addActivity(`[${bottle.storeName}] 📝 Bottle ${bottleId} status: ${status}`);
-            saveData();
-            updateAllDisplays();
-            showToast(`✅ Updated bottle ${bottleId}`, 'success');
+            refilled++;
         }
-        
-        renderClients = function() {
-            const search = document.getElementById('clientSearch').value.toLowerCase();
+    });
+    
+    recalcPalletStatus(palletId);
+    addActivity(`[${pallet.storeName}] 🔄 Refilled ${refilled} bottles in ${pallet.name || pallet.id}`);
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Refilled ${refilled} bottles`, 'success');
+}
+
+function returnPalletById(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet || pallet.bottleIds.length === 0) {
+        showToast('⚠️ Pallet is empty', 'warning');
+        return;
+    }
+    
+    let returned = 0;
+    pallet.bottleIds.forEach(bottleId => {
+        const bottle = bottles.find(b => b.id === bottleId);
+        if (bottle) {
+            const oldClientId = bottle.clientId;
             
-            let filtered = clients;
-            if (search) {
-                filtered = clients.filter(c => 
-                    c.name.toLowerCase().includes(search) || 
-                    c.phone.toLowerCase().includes(search)
-                );
-            }
-            
-            const grid = document.getElementById('clientGrid');
-            if (filtered.length === 0) {
-                grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No clients found</p>';
-                return;
-            }
-            
-            grid.innerHTML = filtered.map(client => `
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">${client.name}</div>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                        <span class="badge">📞 ${client.phone}</span>
-                    </div>
-                    ${client.address ? `<div style="margin-bottom: 10px;"><span class="badge">📍 ${client.address}</span></div>` : ''}
-                    <div style="margin-bottom: 10px;">
-                        <span class="badge">📦 ${client.bottleCount} active bottles</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        updateActivity = function() {
-            const feed = document.getElementById('activityFeed');
-            if (activityLog.length === 0) {
-                feed.innerHTML = '<p style="text-align: center; color: #6b7280;">No activity yet</p>';
-                return;
-            }
-            
-            feed.innerHTML = activityLog.slice().reverse().map(item => `
-                <div class="activity-item">
-                    <div class="activity-time">${new Date(item.timestamp).toLocaleString()}</div>
-                    <div class="activity-message">${item.message}</div>
-                </div>
-            `).join('');
-        }
-        
-        function addActivity(message) {
-            activityLog.push({
-                id: Date.now().toString(),
-                message,
+            bottle.status = 'needs-refill';
+            bottle.clientId = null;
+            bottle.clientName = null;
+            bottle.clientPhone = null;
+            bottle.lastUpdated = new Date().toISOString();
+            bottle.history.push({
+                action: 'returned',
                 timestamp: new Date().toISOString()
             });
             
-            // Keep only last 100
-            if (activityLog.length > 100) {
-                activityLog = activityLog.slice(-100);
+            if (oldClientId) {
+                updateClientBottleCounts(oldClientId);
             }
+            
+            returned++;
         }
+    });
+    
+    recalcPalletStatus(palletId);
+    addActivity(`[${pallet.storeName}] ↩️ Returned ${returned} bottles in ${pallet.name || pallet.id}`);
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Returned ${returned} bottles`, 'success');
+}
+
+// Delete Functions
+function deleteBottle(bottleId) {
+    if (!confirm(`Delete bottle ${bottleId}?`)) return;
+    
+    const bottle = bottles.find(b => b.id === bottleId);
+    if (!bottle) return;
+    
+    if (bottle.palletId) {
+        removeBottleFromPallet(bottleId, bottle.palletId);
+    }
+    
+    if (bottle.clientId) {
+        updateClientBottleCounts(bottle.clientId);
+    }
+    
+    deletedRecords.push({
+        ...bottle,
+        deletedAt: new Date().toISOString()
+    });
+    
+    bottles = bottles.filter(b => b.id !== bottleId);
+    addActivity(`[${bottle.storeName}] 🗑️ Deleted bottle ${bottleId}`);
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Deleted bottle ${bottleId}`, 'success');
+}
+
+function deletePallet(palletId) {
+    if (!confirm(`Delete pallet ${palletId}? All bottles will be removed from it.`)) return;
+    
+    const pallet = findPalletById(palletId);
+    if (!pallet) return;
+    
+    pallet.bottleIds.forEach(bottleId => {
+        const bottle = bottles.find(b => b.id === bottleId);
+        if (bottle) {
+            bottle.palletId = null;
+        }
+    });
+    
+    deletedRecords.push({
+        ...pallet,
+        deletedAt: new Date().toISOString()
+    });
+    
+    pallets = pallets.filter(p => p.id !== palletId);
+    addActivity(`[${pallet.storeName}] 🗑️ Deleted pallet ${palletId}`);
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Deleted pallet ${palletId}`, 'success');
+}
+
+// Render Functions
+function renderPallets() {
+    const search = document.getElementById('palletSearch').value.toLowerCase();
+    const statusFilter = document.getElementById('palletStatusFilter').value;
+    
+    let filtered = pallets.filter(p => p.storeId === currentStoreId);
+    
+    if (search) {
+        filtered = filtered.filter(p => 
+            p.id.toLowerCase().includes(search) || 
+            (p.name && p.name.toLowerCase().includes(search))
+        );
+    }
+    
+    if (statusFilter) {
+        filtered = filtered.filter(p => p.status === statusFilter);
+    }
+    
+    // Render KPIs
+    const storePallets = pallets.filter(p => p.storeId === currentStoreId);
+    const kpisHtml = `
+        <div class="kpi-card">
+            <div class="kpi-value">${storePallets.filter(p => p.status === 'empty').length}</div>
+            <div class="kpi-label">Empty</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">${storePallets.filter(p => p.status === 'partial').length}</div>
+            <div class="kpi-label">Partial</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">${storePallets.filter(p => p.status === 'full').length}</div>
+            <div class="kpi-label">Full</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">${storePallets.filter(p => p.status === 'with-client').length}</div>
+            <div class="kpi-label">With Client</div>
+        </div>
+    `;
+    document.getElementById('palletKPIs').innerHTML = kpisHtml;
+    
+    // Render grid
+    const grid = document.getElementById('palletGrid');
+    if (filtered.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No pallets found</p>';
+        return;
+    }
+    
+    grid.innerHTML = filtered.map(pallet => `
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">${pallet.name || pallet.id}</div>
+                <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
+            </div>
+            <div class="progress-bar" style="margin-bottom: 10px;">
+                <div class="progress-fill" style="width: ${(pallet.bottleIds.length / pallet.capacity) * 100}%;">
+                    ${pallet.bottleIds.length} / ${pallet.capacity}
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <span class="badge">📦 ${pallet.bottleIds.length} bottles</span>
+            </div>
+            <div class="card-actions">
+                <button class="btn btn-primary btn-small" onclick="openPalletDetails('${pallet.id}')">Details</button>
+                <button class="btn btn-info btn-small" onclick="openTransferPallet('${pallet.id}')">🔄 Transfer</button>
+                <button class="btn btn-secondary btn-small" onclick="printPalletBarcode('${pallet.id}')">🖨️ Print</button>
+                <button class="btn btn-danger btn-small" onclick="deletePallet('${pallet.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderInventory() {
+    const search = document.getElementById('inventorySearch').value.toLowerCase();
+    const statusFilter = document.getElementById('inventoryStatusFilter').value;
+    
+    let filtered = bottles.filter(b => b.storeId === currentStoreId);
+    
+    if (search) {
+        filtered = filtered.filter(b => b.id.toLowerCase().includes(search));
+    }
+    
+    if (statusFilter) {
+        filtered = filtered.filter(b => b.status === statusFilter);
+    }
+    
+    // Render KPIs
+    const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
+    const kpisHtml = `
+        <div class="kpi-card">
+            <div class="kpi-value">${storeBottles.filter(b => b.status === 'available').length}</div>
+            <div class="kpi-label">Available</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">${storeBottles.filter(b => b.status === 'needs-refill').length}</div>
+            <div class="kpi-label">Needs Refill</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">${storeBottles.filter(b => b.status === 'with-client').length}</div>
+            <div class="kpi-label">With Client</div>
+        </div>
+    `;
+    document.getElementById('inventoryKPIs').innerHTML = kpisHtml;
+    
+    // Render grid
+    const grid = document.getElementById('inventoryGrid');
+    if (filtered.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No bottles found</p>';
+        return;
+    }
+    
+    grid.innerHTML = filtered.map(bottle => `
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">${bottle.id}</div>
+                <span class="chip ${getStoreChipClass(bottle.storeId)}">${bottle.storeName}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span class="chip chip-${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <span class="badge">🚚 ${bottle.deliveryCount} deliveries</span>
+                <span class="badge">🔄 ${bottle.refillCount} refills</span>
+            </div>
+            ${bottle.palletId ? `<div style="margin-bottom: 10px;"><span class="badge">📦 ${bottle.palletId}</span></div>` : ''}
+            ${bottle.clientName ? `<div style="margin-bottom: 10px;"><span class="badge">👤 ${bottle.clientName}</span></div>` : ''}
+            <div class="card-actions">
+                <button class="btn btn-success btn-small" onclick="setBottleStatus('${bottle.id}', 'available')">Available</button>
+                <button class="btn btn-warning btn-small" onclick="setBottleStatus('${bottle.id}', 'needs-refill')">Needs Refill</button>
+                <button class="btn btn-info btn-small" onclick="openTransferBottle('${bottle.id}')">🔄 Transfer</button>
+                <button class="btn btn-danger btn-small" onclick="deleteBottle('${bottle.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function setBottleStatus(bottleId, status) {
+    const bottle = bottles.find(b => b.id === bottleId);
+    if (!bottle) return;
+    
+    const oldClientId = bottle.clientId;
+    bottle.status = status;
+    
+    if (status === 'available' || status === 'needs-refill') {
+        bottle.clientId = null;
+        bottle.clientName = null;
+        bottle.clientPhone = null;
+    }
+    
+    bottle.lastUpdated = new Date().toISOString();
+    bottle.history.push({
+        action: `status_changed_to_${status}`,
+        timestamp: new Date().toISOString()
+    });
+    
+    if (oldClientId) {
+        updateClientBottleCounts(oldClientId);
+    }
+    
+    if (bottle.palletId) {
+        recalcPalletStatus(bottle.palletId);
+    }
+    
+    addActivity(`[${bottle.storeName}] 📝 Bottle ${bottleId} status: ${status}`);
+    saveData();
+    updateAllDisplays();
+    showToast(`✅ Updated bottle ${bottleId}`, 'success');
+}
+
+function renderClients() {
+    const search = document.getElementById('clientSearch').value.toLowerCase();
+    
+    let filtered = clients;
+    if (search) {
+        filtered = clients.filter(c => 
+            c.name.toLowerCase().includes(search) || 
+            c.phone.toLowerCase().includes(search)
+        );
+    }
+    
+    const grid = document.getElementById('clientGrid');
+    if (filtered.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No clients found</p>';
+        return;
+    }
+    
+    grid.innerHTML = filtered.map(client => `
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">${client.name}</div>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span class="badge">📞 ${client.phone}</span>
+            </div>
+            ${client.address ? `<div style="margin-bottom: 10px;"><span class="badge">📍 ${client.address}</span></div>` : ''}
+            <div style="margin-bottom: 10px;">
+                <span class="badge">📦 ${client.bottleCount} active bottles</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateActivity() {
+    const feed = document.getElementById('activityFeed');
+    if (activityLog.length === 0) {
+        feed.innerHTML = '<p style="text-align: center; color: #6b7280;">No activity yet</p>';
+        return;
+    }
+    
+    feed.innerHTML = activityLog.slice().reverse().map(item => `
+        <div class="activity-item">
+            <div class="activity-time">${new Date(item.timestamp).toLocaleString()}</div>
+            <div class="activity-message">${item.message}</div>
+        </div>
+    `).join('');
+}
+
+function addActivity(message) {
+    activityLog.push({
+        id: Date.now().toString(),
+        message,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 100
+    if (activityLog.length > 100) {
+        activityLog = activityLog.slice(-100);
+    }
+}
+
+// Pallet Details Modal
+function openPalletDetails(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet) return;
+    
+    const palletBottles = bottles.filter(b => pallet.bottleIds.includes(b.id));
+    
+    const content = `
+        <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>${pallet.name || pallet.id}</h3>
+                <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
+                <span class="badge">📦 ${pallet.bottleIds.length} / ${pallet.capacity}</span>
+            </div>
+            <div id="palletBarcode" style="text-align: center; margin: 20px 0;"></div>
+        </div>
         
-        // Pallet Details Modal
-        openPalletDetails = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet) return;
-            
-            const palletBottles = bottles.filter(b => pallet.bottleIds.includes(b.id));
-            
-            const content = `
-                <div style="margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3>${pallet.name || pallet.id}</h3>
-                        <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+        <h4 style="margin-bottom: 10px;">Bottles in Pallet</h4>
+        <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+            ${palletBottles.length === 0 ? '<p style="color: #6b7280;">No bottles in this pallet</p>' : 
+                palletBottles.map(b => `
+                    <div style="padding: 10px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${b.id}</strong>
+                            <span class="chip chip-${b.status}" style="margin-left: 10px;">${b.status}</span>
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="removeBottleFromPallet('${b.id}', '${pallet.id}'); openPalletDetails('${pallet.id}'); updateAllDisplays();">Remove</button>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
-                        <span class="badge">📦 ${pallet.bottleIds.length} / ${pallet.capacity}</span>
-                    </div>
-                    <div id="palletBarcode" style="text-align: center; margin: 20px 0;"></div>
-                </div>
-                
-                <h4 style="margin-bottom: 10px;">Bottles in Pallet</h4>
-                <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
-                    ${palletBottles.length === 0 ? '<p style="color: #6b7280;">No bottles in this pallet</p>' : 
-                        palletBottles.map(b => `
-                            <div style="padding: 10px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>${b.id}</strong>
-                                    <span class="chip chip-${b.status}" style="margin-left: 10px;">${b.status}</span>
-                                </div>
-                                <button class="btn btn-danger btn-small" onclick="removeBottleFromPallet('${b.id}', '${pallet.id}'); openPalletDetails('${pallet.id}'); updateAllDisplays();">Remove</button>
-                            </div>
-                        `).join('')
-                    }
-                </div>
-                
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-success" onclick="refillPalletById('${pallet.id}'); closePalletDetails();">Refill All</button>
-                    <button class="btn btn-primary" onclick="deliverPalletById('${pallet.id}'); closePalletDetails();">Deliver All</button>
-                    <button class="btn btn-warning" onclick="returnPalletById('${pallet.id}'); closePalletDetails();">Return All</button>
-                    <button class="btn btn-info" onclick="openTransferPallet('${pallet.id}'); closePalletDetails();">🔄 Transfer</button>
-                    <button class="btn btn-secondary" onclick="printPalletBarcode('${pallet.id}')">🖨️ Print</button>
-                    <button class="btn btn-danger" onclick="deletePallet('${pallet.id}'); closePalletDetails();">Delete</button>
-                </div>
-            `;
-            
-            document.getElementById('palletDetailsContent').innerHTML = content;
-            document.getElementById('palletDetailsModal').classList.add('active');
-            
-            addBarcodeToDetails(pallet.id);
-        }
-        
-        closePalletDetails = function() {
-            document.getElementById('palletDetailsModal').classList.remove('active');
-        }
-        
-        addBarcodeToDetails = function(palletId) {
-            try {
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.setAttribute('id', 'barcodeDetails');
-                document.getElementById('palletBarcode').innerHTML = '';
-                document.getElementById('palletBarcode').appendChild(svg);
-                
-                JsBarcode('#barcodeDetails', palletId, {
-                    format: 'CODE128',
-                    width: 2,
-                    height: 60,
-                    displayValue: true
-                });
-            } catch (e) {
-                console.error('Barcode generation error:', e);
+                `).join('')
             }
-        }
+        </div>
         
-        // Client Management
-        openAddClient = function() {
-            document.getElementById('addClientModal').classList.add('active');
-            document.getElementById('clientName').value = '';
-            document.getElementById('clientPhone').value = '';
-            document.getElementById('clientAddress').value = '';
-        }
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-success" onclick="refillPalletById('${pallet.id}'); closePalletDetails();">Refill All</button>
+            <button class="btn btn-primary" onclick="deliverPalletById('${pallet.id}'); closePalletDetails();">Deliver All</button>
+            <button class="btn btn-warning" onclick="returnPalletById('${pallet.id}'); closePalletDetails();">Return All</button>
+            <button class="btn btn-info" onclick="openTransferPallet('${pallet.id}'); closePalletDetails();">🔄 Transfer</button>
+            <button class="btn btn-secondary" onclick="printPalletBarcode('${pallet.id}')">🖨️ Print</button>
+            <button class="btn btn-danger" onclick="deletePallet('${pallet.id}'); closePalletDetails();">Delete</button>
+        </div>
+    `;
+    
+    document.getElementById('palletDetailsContent').innerHTML = content;
+    document.getElementById('palletDetailsModal').classList.add('active');
+    
+    addBarcodeToDetails(pallet.id);
+}
+
+function closePalletDetails() {
+    document.getElementById('palletDetailsModal').classList.remove('active');
+}
+
+function addBarcodeToDetails(palletId) {
+    try {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('id', 'barcodeDetails');
+        document.getElementById('palletBarcode').innerHTML = '';
+        document.getElementById('palletBarcode').appendChild(svg);
         
-        closeAddClient = function() {
-            document.getElementById('addClientModal').classList.remove('active');
-        }
+        JsBarcode('#barcodeDetails', palletId, {
+            format: 'CODE128',
+            width: 2,
+            height: 60,
+            displayValue: true
+        });
+    } catch (e) {
+        console.error('Barcode generation error:', e);
+    }
+}
+
+// Client Management
+function openAddClient() {
+    document.getElementById('addClientModal').classList.add('active');
+    document.getElementById('clientName').value = '';
+    document.getElementById('clientPhone').value = '';
+    document.getElementById('clientAddress').value = '';
+}
+
+function closeAddClient() {
+    document.getElementById('addClientModal').classList.remove('active');
+}
+
+function createNewClient(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('clientName').value.trim();
+    const phone = document.getElementById('clientPhone').value.trim();
+    const address = document.getElementById('clientAddress').value.trim();
+    
+    if (!name || !phone) {
+        showToast('⚠️ Name and phone are required', 'warning');
+        return;
+    }
+    
+    const client = createNewClientRecord(name, phone, address);
+    clients.push(client);
+    
+    addActivity(`👤 Created client: ${name}`);
+    saveData();
+    renderClients();
+    populateClientDropdowns();
+    closeAddClient();
+    showToast(`✅ Created client ${name}`, 'success');
+}
+
+function populateClientDropdowns() {
+    const select = document.getElementById('deliverClientSelect');
+    select.innerHTML = '<option value="">Choose a client...</option>' + 
+        clients.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+}
+
+function filterDeliveryClients() {
+    const search = document.getElementById('clientSearchInput').value.toLowerCase();
+    const select = document.getElementById('deliverClientSelect');
+    
+    const filtered = clients.filter(c => 
+        c.name.toLowerCase().includes(search) || 
+        c.phone.toLowerCase().includes(search)
+    );
+    
+    select.innerHTML = '<option value="">Choose a client...</option>' + 
+        filtered.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+}
+
+// Add Bottle
+function openAddBottle() {
+    document.getElementById('addBottleModal').classList.add('active');
+    document.getElementById('manualBottleId').value = '';
+}
+
+function closeAddBottle() {
+    document.getElementById('addBottleModal').classList.remove('active');
+}
+
+function createManualBottle(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('manualBottleId').value.trim();
+    
+    if (id.length < 6) {
+        showToast('⚠️ Bottle ID must be at least 6 digits', 'warning');
+        return;
+    }
+    
+    if (bottles.find(b => b.id === id)) {
+        showToast('⚠️ Bottle ID already exists', 'warning');
+        return;
+    }
+    
+    const store = getCurrentStore();
+    const bottle = createNewBottleRecord(id, store.id, store.name);
+    bottles.push(bottle);
+    
+    addActivity(`[${store.name}] ➕ Added bottle ${id}`);
+    saveData();
+    updateAllDisplays();
+    closeAddBottle();
+    showToast(`✅ Added bottle ${id}`, 'success');
+}
+
+// Barcode Printing
+function printPalletBarcode(palletId) {
+    const pallet = findPalletById(palletId);
+    if (!pallet) return;
+    
+    const printArea = document.getElementById('printArea');
+    const printContent = document.getElementById('printContent');
+    
+    printContent.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <h2 style="margin-bottom: 20px;">${pallet.name || pallet.id}</h2>
+            <svg id="printBarcode"></svg>
+            <p style="margin-top: 20px; font-size: 1.2rem;">${pallet.storeName}</p>
+            <p style="margin-top: 10px;">${pallet.bottleIds.length} / ${pallet.capacity} bottles</p>
+        </div>
+    `;
+    
+    try {
+        JsBarcode('#printBarcode', palletId, {
+            format: 'CODE128',
+            width: 3,
+            height: 100,
+            displayValue: true,
+            fontSize: 20
+        });
         
-        createNewClient = function(event) {
-            event.preventDefault();
-            
-            const name = document.getElementById('clientName').value.trim();
-            const phone = document.getElementById('clientPhone').value.trim();
-            const address = document.getElementById('clientAddress').value.trim();
-            
-            if (!name || !phone) {
-                showToast('⚠️ Name and phone are required', 'warning');
-                return;
-            }
-            
-            const client = createNewClientRecord(name, phone, address);
-            clients.push(client);
-            
-            addActivity(`👤 Created client: ${name}`);
-            saveData();
-            renderClients();
-            populateClientDropdowns();
-            closeAddClient();
-            showToast(`✅ Created client ${name}`, 'success');
-        }
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    } catch (e) {
+        console.error('Print barcode error:', e);
+        showToast('⚠️ Error generating barcode', 'error');
+    }
+}
+
+// Excel Export
+function generateExcelReport() {
+    const wb = XLSX.utils.book_new();
+    
+    // Delivered Bottles
+    const deliveredBottles = bottles.filter(b => b.status === 'with-client');
+    const deliveredData = deliveredBottles.length > 0 ? deliveredBottles.map(b => ({
+        'Bottle ID': b.id,
+        'Client Name': b.clientName || '',
+        'Client Phone': b.clientPhone || '',
+        'Store': b.storeName,
+        'Delivery Count': b.deliveryCount,
+        'Pallet ID': b.palletId || 'None',
+        'Created': new Date(b.created).toLocaleString(),
+        'Last Updated': new Date(b.lastUpdated).toLocaleString()
+    })) : [{ Info: 'No delivered bottles' }];
+    const ws1 = XLSX.utils.json_to_sheet(deliveredData);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Delivered Bottles');
+    
+    // Refilled Bottles
+    const refilledBottles = bottles.filter(b => b.refillCount > 0);
+    const refilledData = refilledBottles.length > 0 ? refilledBottles.map(b => ({
+        'Bottle ID': b.id,
+        'Status': b.status,
+        'Store': b.storeName,
+        'Refill Count': b.refillCount,
+        'Delivery Count': b.deliveryCount,
+        'Pallet ID': b.palletId || 'None',
+        'Created': new Date(b.created).toLocaleString()
+    })) : [{ Info: 'No refilled bottles' }];
+    const ws2 = XLSX.utils.json_to_sheet(refilledData);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Refilled Bottles');
+    
+    // Deleted Records
+    const deletedData = deletedRecords.length > 0 ? deletedRecords.map(r => ({
+        'Type': r.bottleIds ? 'Pallet' : 'Bottle',
+        'ID': r.id,
+        'Store': r.storeName || '',
+        'Status': r.status || '',
+        'Deleted At': new Date(r.deletedAt).toLocaleString()
+    })) : [{ Info: 'No deleted records' }];
+    const ws3 = XLSX.utils.json_to_sheet(deletedData);
+    XLSX.utils.book_append_sheet(wb, ws3, 'Deleted Records');
+    
+    // Clients
+    const clientData = clients.length > 0 ? clients.map(c => ({
+        'Name': c.name,
+        'Phone': c.phone,
+        'Address': c.address || '',
+        'Active Bottles': c.bottleCount,
+        'Created': new Date(c.created).toLocaleString()
+    })) : [{ Info: 'No clients' }];
+    const ws4 = XLSX.utils.json_to_sheet(clientData);
+    XLSX.utils.book_append_sheet(wb, ws4, 'Clients');
+    
+    // New Bottles (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const newBottles = bottles.filter(b => new Date(b.created) > thirtyDaysAgo);
+    const newBottlesData = newBottles.length > 0 ? newBottles.map(b => ({
+        'Bottle ID': b.id,
+        'Status': b.status,
+        'Store': b.storeName,
+        'Pallet ID': b.palletId || 'None',
+        'Created': new Date(b.created).toLocaleString()
+    })) : [{ Info: 'No new bottles in last 30 days' }];
+    const ws5 = XLSX.utils.json_to_sheet(newBottlesData);
+    XLSX.utils.book_append_sheet(wb, ws5, 'New Bottles');
+    
+    // Stores Summary
+    const storesSummary = stores.map(store => {
+        const storeBottles = bottles.filter(b => b.storeId === store.id);
+        const storePallets = pallets.filter(p => p.storeId === store.id);
         
-        populateClientDropdowns = function() {
-            const select = document.getElementById('deliverClientSelect');
-            select.innerHTML = '<option value="">Choose a client...</option>' + 
-                clients.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
-        }
-        
-        filterDeliveryClients = function() {
-            const search = document.getElementById('clientSearchInput').value.toLowerCase();
-            const select = document.getElementById('deliverClientSelect');
-            
-            const filtered = clients.filter(c => 
-                c.name.toLowerCase().includes(search) || 
-                c.phone.toLowerCase().includes(search)
-            );
-            
-            select.innerHTML = '<option value="">Choose a client...</option>' + 
-                filtered.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
-        }
-        
-        // Add Bottle
-        openAddBottle = function() {
-            document.getElementById('addBottleModal').classList.add('active');
-            document.getElementById('manualBottleId').value = '';
-        }
-        
-        closeAddBottle = function() {
-            document.getElementById('addBottleModal').classList.remove('active');
-        }
-        
-        createManualBottle = function(event) {
-            event.preventDefault();
-            
-            const id = document.getElementById('manualBottleId').value.trim();
-            
-            if (id.length < 6) {
-                showToast('⚠️ Bottle ID must be at least 6 digits', 'warning');
-                return;
-            }
-            
-            if (bottles.find(b => b.id === id)) {
-                showToast('⚠️ Bottle ID already exists', 'warning');
-                return;
-            }
-            
-            const store = getCurrentStore();
-            const bottle = createNewBottleRecord(id, store.id, store.name);
-            bottles.push(bottle);
-            
-            addActivity(`[${store.name}] ➕ Added bottle ${id}`);
-            saveData();
-            updateAllDisplays();
-            closeAddBottle();
-            showToast(`✅ Added bottle ${id}`, 'success');
-        }
-        
-        // Barcode Printing
-        printPalletBarcode = function(palletId) {
-            const pallet = findPalletById(palletId);
-            if (!pallet) return;
-            
-            const printArea = document.getElementById('printArea');
-            const printContent = document.getElementById('printContent');
-            
-            printContent.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <h2 style="margin-bottom: 20px;">${pallet.name || pallet.id}</h2>
-                    <svg id="printBarcode"></svg>
-                    <p style="margin-top: 20px; font-size: 1.2rem;">${pallet.storeName}</p>
-                    <p style="margin-top: 10px;">${pallet.bottleIds.length} / ${pallet.capacity} bottles</p>
-                </div>
-            `;
-            
-            try {
-                JsBarcode('#printBarcode', palletId, {
-                    format: 'CODE128',
-                    width: 3,
-                    height: 100,
-                    displayValue: true,
-                    fontSize: 20
-                });
-                
-                setTimeout(() => {
-                    window.print();
-                }, 500);
-            } catch (e) {
-                console.error('Print barcode error:', e);
-                showToast('⚠️ Error generating barcode', 'error');
-            }
-        }
-        
-        // Excel Export
-        generateExcelReport = function() {
-            const wb = XLSX.utils.book_new();
-            
-            // Delivered Bottles
-            const deliveredBottles = bottles.filter(b => b.status === 'with-client');
-            const deliveredData = deliveredBottles.length > 0 ? deliveredBottles.map(b => ({
-                'Bottle ID': b.id,
-                'Client Name': b.clientName || '',
-                'Client Phone': b.clientPhone || '',
-                'Store': b.storeName,
-                'Delivery Count': b.deliveryCount,
-                'Pallet ID': b.palletId || 'None',
-                'Created': new Date(b.created).toLocaleString(),
-                'Last Updated': new Date(b.lastUpdated).toLocaleString()
-            })) : [{ Info: 'No delivered bottles' }];
-            const ws1 = XLSX.utils.json_to_sheet(deliveredData);
-            XLSX.utils.book_append_sheet(wb, ws1, 'Delivered Bottles');
-            
-            // Refilled Bottles
-            const refilledBottles = bottles.filter(b => b.refillCount > 0);
-            const refilledData = refilledBottles.length > 0 ? refilledBottles.map(b => ({
-                'Bottle ID': b.id,
-                'Status': b.status,
-                'Store': b.storeName,
-                'Refill Count': b.refillCount,
-                'Delivery Count': b.deliveryCount,
-                'Pallet ID': b.palletId || 'None',
-                'Created': new Date(b.created).toLocaleString()
-            })) : [{ Info: 'No refilled bottles' }];
-            const ws2 = XLSX.utils.json_to_sheet(refilledData);
-            XLSX.utils.book_append_sheet(wb, ws2, 'Refilled Bottles');
-            
-            // Deleted Records
-            const deletedData = deletedRecords.length > 0 ? deletedRecords.map(r => ({
-                'Type': r.bottleIds ? 'Pallet' : 'Bottle',
-                'ID': r.id,
-                'Store': r.storeName || '',
-                'Status': r.status || '',
-                'Deleted At': new Date(r.deletedAt).toLocaleString()
-            })) : [{ Info: 'No deleted records' }];
-            const ws3 = XLSX.utils.json_to_sheet(deletedData);
-            XLSX.utils.book_append_sheet(wb, ws3, 'Deleted Records');
-            
-            // Clients
-            const clientData = clients.length > 0 ? clients.map(c => ({
-                'Name': c.name,
-                'Phone': c.phone,
-                'Address': c.address || '',
-                'Active Bottles': c.bottleCount,
-                'Created': new Date(c.created).toLocaleString()
-            })) : [{ Info: 'No clients' }];
-            const ws4 = XLSX.utils.json_to_sheet(clientData);
-            XLSX.utils.book_append_sheet(wb, ws4, 'Clients');
-            
-            // New Bottles (last 30 days)
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            const newBottles = bottles.filter(b => new Date(b.created) > thirtyDaysAgo);
-            const newBottlesData = newBottles.length > 0 ? newBottles.map(b => ({
-                'Bottle ID': b.id,
-                'Status': b.status,
-                'Store': b.storeName,
-                'Pallet ID': b.palletId || 'None',
-                'Created': new Date(b.created).toLocaleString()
-            })) : [{ Info: 'No new bottles in last 30 days' }];
-            const ws5 = XLSX.utils.json_to_sheet(newBottlesData);
-            XLSX.utils.book_append_sheet(wb, ws5, 'New Bottles');
-            
-            // Stores Summary
-            const storesSummary = stores.map(store => {
-                const storeBottles = bottles.filter(b => b.storeId === store.id);
-                const storePallets = pallets.filter(p => p.storeId === store.id);
-                
-                return {
-                    'Store Name': store.name,
-                    'Type': store.type,
-                    'Total Bottles': storeBottles.length,
-                    'Available': storeBottles.filter(b => b.status === 'available').length,
-                    'Needs Refill': storeBottles.filter(b => b.status === 'needs-refill').length,
-                    'With Client': storeBottles.filter(b => b.status === 'with-client').length,
-                    'Total Pallets': storePallets.length,
-                    'Empty Pallets': storePallets.filter(p => p.status === 'empty').length,
-                    'Partial Pallets': storePallets.filter(p => p.status === 'partial').length,
-                    'Full Pallets': storePallets.filter(p => p.status === 'full').length
-                };
-            });
-            const ws6 = XLSX.utils.json_to_sheet(storesSummary);
-            XLSX.utils.book_append_sheet(wb, ws6, 'Stores Summary');
-            
-            // Generate file
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            XLSX.writeFile(wb, `Bottle_Tracking_Report_${timestamp}.xlsx`);
-            
-            addActivity('📊 Generated Excel report');
-            showToast('✅ Excel report downloaded', 'success');
-        }
-        
-        // Utility Functions
-        function getStoreChipClass(storeId) {
-            const store = stores.find(s => s.id === storeId);
-            return store && store.type === 'main' ? 'chip-main' : 'chip-driver';
-        }
-        
-        function updateAllDisplays() {
-            renderPallets();
-            renderInventory();
-            renderClients();
-            updateActivity();
-        }
-        
-        function showToast(message, type = 'success') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideIn 0.3s reverse';
-                setTimeout(() => {
-                    container.removeChild(toast);
-                }, 300);
-            }, 3000);
-        }
+        return {
+            'Store Name': store.name,
+            'Type': store.type,
+            'Total Bottles': storeBottles.length,
+            'Available': storeBottles.filter(b => b.status === 'available').length,
+            'Needs Refill': storeBottles.filter(b => b.status === 'needs-refill').length,
+            'With Client': storeBottles.filter(b => b.status === 'with-client').length,
+            'Total Pallets': storePallets.length,
+            'Empty Pallets': storePallets.filter(p => p.status === 'empty').length,
+            'Partial Pallets': storePallets.filter(p => p.status === 'partial').length,
+            'Full Pallets': storePallets.filter(p => p.status === 'full').length
+        };
+    });
+    const ws6 = XLSX.utils.json_to_sheet(storesSummary);
+    XLSX.utils.book_append_sheet(wb, ws6, 'Stores Summary');
+    
+    // Generate file
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    XLSX.writeFile(wb, `Bottle_Tracking_Report_${timestamp}.xlsx`);
+    
+    addActivity('📊 Generated Excel report');
+    showToast('✅ Excel report downloaded', 'success');
+}
+
+// Utility Functions
+function getStoreChipClass(storeId) {
+    const store = stores.find(s => s.id === storeId);
+    return store && store.type === 'main' ? 'chip-main' : 'chip-driver';
+}
+
+function updateAllDisplays() {
+    renderPallets();
+    renderInventory();
+    renderClients();
+    updateActivity();
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideIn 0.3s reverse';
+        setTimeout(() => {
+            container.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
+
     </script>
 </body>
 </html>
