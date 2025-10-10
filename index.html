@@ -325,6 +325,50 @@
 </style>
 </head>
 <body>
+<script>
+/* Prevent "function not defined" errors from inline handlers before the main script loads.
+   The real implementations later in the file will override these. */
+window.setScannerMode = window.setScannerMode || function(mode){
+  console.debug('stub setScannerMode called before main script loaded:', mode);
+};
+window.manualGeneratePallet = window.manualGeneratePallet || function(){
+  console.debug('stub manualGeneratePallet called before main script loaded');
+};
+window.batchRefill = window.batchRefill || function(){
+  console.debug('stub batchRefill called before main script loaded');
+};
+window.batchReturn = window.batchReturn || function(){
+  console.debug('stub batchReturn called before main script loaded');
+};
+window.batchDeliver = window.batchDeliver || function(){
+  console.debug('stub batchDeliver called before main script loaded');
+};
+window.clearAllScanned = window.clearAllScanned || function(){
+  console.debug('stub clearAllScanned called before main script loaded');
+};
+</script>
+<script>
+    console.log('Page loading...');
+    // Check XLSX
+    if (typeof XLSX === 'undefined') {
+        console.error('XLSX not loaded');
+        alert('Error: XLSX library not loaded');
+    }
+    // Check JsBarcode
+    if (typeof JsBarcode === 'undefined') {
+        console.error('JsBarcode not loaded');
+        alert('Error: JsBarcode library not loaded');
+    }
+
+    // Add this at the top of your first script tag
+    function openTab(id, btn) {
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('barcode-input').focus();
+    }
+</script>
 <div class="container">
   <div class="header">
     <h1>🏭 5-Gallon Bottle Tracking System</h1>
@@ -352,7 +396,9 @@
       <h3>Barcode Scanner Active</h3>
       <div class="scanner-status" id="scanner-status">🟢 Ready to Scan</div>
       <div style="margin-top:20px;">
-        <input id="barcode-input" class="barcode-input-large" placeholder="Auto-add when 5+ characters • Keep scanning..." autocomplete="off" autofocus>
+        <input id="barcode-input" class="barcode-input-large" 
+               placeholder="Auto-add when 5+ characters • Keep scanning..." 
+               autocomplete="off" autofocus>
       </div>
       
       <div class="mode-toggle">
@@ -383,11 +429,15 @@
           <div class="message">No bottles scanned yet</div>
         </div>
       </div>
+      <!-- Add this inside the "Bottle Queue" div, right before the closing </div> -->
       <div class="right" style="margin-top:14px;">
-        <button class="btn btn-success" onclick="batchRefill()" id="btn-batch-refill">🔄 Refill Queue (0)</button>
-        <button class="btn btn-warning" onclick="batchDeliver()" id="btn-batch-deliver">🚚 Deliver Queue (0)</button>
-        <button class="btn btn-secondary" onclick="batchReturn()" id="btn-batch-return">↩️ Return Queue (0)</button>
-        <button class="btn btn-danger" onclick="clearAllScanned()">🗑️ Clear</button>
+          <button class="btn btn-success" onclick="manualGeneratePallet()" id="btn-generate-pallet">
+              📦 Create Pallet from Queue (<span id="queue-count">0</span>)
+          </button>
+          <button class="btn btn-success" onclick="batchRefill()" id="btn-batch-refill">🔄 Refill Queue (0)</button>
+          <button class="btn btn-warning" onclick="batchDeliver()" id="btn-batch-deliver">🚚 Deliver Queue (0)</button>
+          <button class="btn btn-secondary" onclick="batchReturn()" id="btn-batch-return">↩️ Return Queue (0)</button>
+          <button class="btn btn-danger" onclick="clearAllScanned()">🗑️ Clear</button>
       </div>
     </div>
 
@@ -525,6 +575,13 @@
 
 <div class="toast" id="toast"></div>
 
+<audio id="scan-success" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/skipser/micro-sounds/success-low.mp3" type="audio/mpeg">
+</audio>
+<audio id="scan-warning" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/skipser/micro-sounds/alert-simple.mp3" type="audio/mpeg">
+</audio>
+
 <script>
 /* =========================
    GLOBALS
@@ -544,6 +601,11 @@ let deliveryClientMode = 'existing';
 let currentPalletId = '';
 let scannerMode = 'bottle';
 let activePalletScan = null;
+
+let scanSound = {
+    success: null,
+    warning: null
+};
 
 /* =========================
    PERSISTENCE
@@ -767,7 +829,7 @@ function quickReturnPallet() {
    SCANNER INPUT HANDLER
    ========================= */
 function addScannedBarcode(code) {
-  if (!code || code.length < 5) return; // Must be 5+ characters
+  if (!code || code.length < 6) return; // Must be 6+ digits
   
   if (scannerMode === 'pallet') {
     if (/^PAL[-_]/i.test(code)) {
@@ -1309,28 +1371,35 @@ function filterDeliveryClients() {
 }
 
 function updateScannedList() {
-  const host = document.getElementById('scanned-items-container');
-  const count = scannedBarcodes.length;
-  document.getElementById('scanned-count').textContent = String(count);
-  document.getElementById('btn-batch-refill').textContent = `🔄 Refill Queue (${count})`;
-  document.getElementById('btn-batch-deliver').textContent = `🚚 Deliver Queue (${count})`;
-  document.getElementById('btn-batch-return').textContent = `↩️ Return Queue (${count})`;
+    // Get references to all required elements
+    const host = document.getElementById('scanned-items-container');
+    const count = scannedBarcodes.length;
+    
+    // Update all count displays
+    document.getElementById('scanned-count').textContent = String(count);
+    document.getElementById('queue-count').textContent = String(count);
+    document.getElementById('btn-batch-refill').textContent = `🔄 Refill Queue (${count})`;
+    document.getElementById('btn-batch-deliver').textContent = `🚚 Deliver Queue (${count})`;
+    document.getElementById('btn-batch-return').textContent = `↩️ Return Queue (${count})`;
 
-  const pct = Math.min((count / PALLET_CAPACITY * 100), 100).toFixed(0);
-  const fill = document.getElementById('progress-fill');
-  fill.style.width = pct + '%';
-  fill.textContent = `${count} / ${PALLET_CAPACITY}`;
+    // Update progress bar
+    const pct = Math.min((count / PALLET_CAPACITY * 100), 100).toFixed(0);
+    const fill = document.getElementById('progress-fill');
+    fill.style.width = pct + '%';
+    fill.textContent = `${count} / ${PALLET_CAPACITY}`;
 
-  if (!count) {
-    host.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="message">No bottles scanned yet</div></div>';
-    return;
-  }
-  host.innerHTML = scannedBarcodes.map(code => `
-    <div class="scanned-item">
-      <div class="scanned-item-code">🧴 ${code}</div>
-      <button class="remove-btn" onclick="removeFromQueue('${code}')" title="Remove">×</button>
-    </div>
-  `).join('');
+    // Update scanned items list
+    if (!count) {
+        host.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="message">No bottles scanned yet</div></div>';
+        return;
+    }
+
+    host.innerHTML = scannedBarcodes.map(code => `
+        <div class="scanned-item">
+            <div class="scanned-item-code">🧴 ${code}</div>
+            <button class="remove-btn" onclick="removeFromQueue('${code}')" title="Remove">×</button>
+        </div>
+    `).join('');
 }
 
 function removeFromQueue(code) {
@@ -1357,39 +1426,58 @@ function updateAllDisplays() {
    INITIALIZATION
    ========================= */
 document.addEventListener('DOMContentLoaded', () => {
-  loadData();
-  updateAllDisplays();
+    loadData();
+    updateAllDisplays();
+    updateScannedList(); // Add this line
+    
+    // Initialize audio
+    scanSound.success = document.getElementById('scan-success');
+    scanSound.warning = document.getElementById('scan-warning');
+    
+    // Initialize barcode input handler
+    const barcodeInput = document.getElementById('barcode-input');
+    if (barcodeInput) {
+        barcodeInput.focus();
+        
+        let lastScan = '';
+        let scanTimer = null;
+        
+        barcodeInput.addEventListener('input', (e) => {
+            clearTimeout(scanTimer);
+            lastScan = e.target.value;
+            
+            // Wait for complete scan (50ms gap in input)
+            scanTimer = setTimeout(() => {
+                const code = lastScan.trim();
+                if (code.length >= 5) {
+                    addScannedBarcode(code);
+                    // Play success sound
+                    if (scanSound.success) scanSound.success.play().catch(() => {});
+                }
+                barcodeInput.value = ''; // Clear input
+                lastScan = '';
+            }, 50);
+        });
 
-  const inp = document.getElementById('barcode-input');
+        // Prevent form submission on Enter
+        barcodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const code = barcodeInput.value.trim();
+                if (code.length >= 5) {
+                    addScannedBarcode(code);
+                    // Play success sound
+                    if (scanSound.success) scanSound.success.play().catch(() => {});
+                }
+                barcodeInput.value = ''; // Clear input
+            }
+        });
 
-  // Auto-scan on input when 5+ characters
-  inp.addEventListener('input', () => {
-    const code = inp.value.trim();
-    if (code.length >= 5) {
-      addScannedBarcode(code);
-      inp.value = '';
+        // Keep focus on input
+        document.addEventListener('click', () => {
+            barcodeInput.focus();
+        });
     }
-  });
-
-  // Enter also works
-  inp.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const code = inp.value.trim();
-      if (code.length >= 5) {
-        addScannedBarcode(code);
-        inp.value = '';
-      } else if (code.length > 0) {
-        showNotification('Barcode must be 5+ characters', 'warning');
-      }
-    }
-  });
-
-  // Keep focus for hardware scanners
-  setInterval(() => { 
-    if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT' && document.activeElement.tagName !== 'TEXTAREA') {
-      inp.focus(); 
-    }
-  }, 2000);
 });
 
 /**
@@ -1617,12 +1705,42 @@ function addBarcodeToDetails(palletId) {
     wrap.innerHTML = '<div style="color: #dc3545;">Error generating barcode</div>';
   }
 }
+
+/**
+ * Manually generate a pallet from the current bottle queue
+ */
+function manualGeneratePallet() {
+    if (!scannedBarcodes.length) {
+        showNotification('Queue is empty', 'warning');
+        return;
+    }
+
+    // Create new pallet
+    const pallet = createNewPalletRecord();
+    let addedCount = 0;
+
+    // Add bottles to pallet
+    for (const bottleId of scannedBarcodes) {
+        if (addBottleToPallet(pallet, bottleId)) {
+            addedCount++;
+        }
+    }
+
+    if (addedCount > 0) {
+        addActivity(`📦 Manually created pallet ${pallet.id} with ${addedCount} bottles`);
+        showNotification(`✅ Pallet ${pallet.id} created with ${addedCount} bottles!`, 'success', 4000);
+        scannedBarcodes = [];
+        updateScannedList();
+        saveData();
+        updateAllDisplays();
+        document.getElementById('barcode-input').focus();
+    } else {
+        pallets = pallets.filter(p => p.id !== pallet.id);
+        showNotification('❌ Failed to add bottles to pallet', 'error');
+    }
+}
+
 </script>
-
-<!-- COMPACT BARCODE PRINT AREA (2" x 1" Thermal Label) -->
-<div id="print-area" style="display:none;">
-  <div id="print-content"></div>
 </div>
-
 </body>
 </html>
