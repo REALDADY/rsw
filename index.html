@@ -1,1746 +1,2745 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>5-Gallon Bottle Tracking System</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-<style>
-  * { box-sizing: border-box; }
-  body { 
-    background: linear-gradient(135deg,#e3f2fd 0%,#f8f9fa 100%); 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    color: #222; margin: 0; padding: 0; min-height: 100vh;
-  }
-  .container { 
-    max-width: 1300px; margin: 20px auto; background: #fff; 
-    border-radius: 20px; box-shadow: 0 10px 40px rgba(33,150,243,0.1); 
-    padding: 36px 28px; position: relative;
-  }
-  .header { text-align: center; margin-bottom: 32px; position: relative; padding-bottom: 16px; border-bottom: 2px solid #e3f2fd; }
-  .header h1 { margin: 0 0 8px 0; font-size: 2rem; color: #1565c0; }
-  .header .subtitle { font-size: 0.95rem; color: #6c757d; line-height: 1.5; }
-  
-  .export-badge { 
-    position: absolute; top: 0; right: 0; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); 
-    border-radius: 20px; padding: 12px 20px; display: flex; align-items: center; gap: 14px; 
-    box-shadow: 0 4px 12px rgba(67,233,123,0.25); color: white; cursor: pointer;
-    transition: all 0.3s;
-  }
-  .export-badge:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(67,233,123,0.35); }
-  
-  .tabs { 
-    display: flex; justify-content: center; gap: 10px; margin-bottom: 32px; 
-    flex-wrap: wrap; padding: 0 10px;
-  }
-  .tab { 
-    background: linear-gradient(90deg,#2196F3 0%,#20c997 100%); color: #fff; border: none; 
-    border-radius: 28px; padding: 13px 30px; font-size: 1.05rem; font-weight: 600; 
-    cursor: pointer; transition: all 0.3s; box-shadow: 0 3px 10px rgba(33,150,243,0.15);
-    letter-spacing: 0.3px;
-  }
-  .tab:not(.active):hover { 
-    background: linear-gradient(90deg,#20c997 0%,#2196F3 100%); 
-    transform: translateY(-2px); box-shadow: 0 5px 15px rgba(33,150,243,0.25);
-  }
-  .tab.active { 
-    background: linear-gradient(90deg,#1565c0 0%,#43e97b 100%); 
-    box-shadow: 0 5px 20px rgba(33,150,243,0.3);
-    transform: translateY(-1px);
-  }
-  
-  .tab-content { display: none; animation: fadeIn 0.4s ease-in-out; }
-  .tab-content.active { display: block; }
-  @keyframes fadeIn { from {opacity: 0; transform: translateY(20px);} to {opacity:1; transform: translateY(0);} }
-
-  .scanner-container { 
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-    border-radius: 18px; padding: 30px; margin: 20px 0; color: white; text-align: center;
-    box-shadow: 0 8px 24px rgba(102,126,234,0.3);
-  }
-  .scanner-container h3 { margin: 0 0 10px 0; font-size: 1.5rem; }
-  .scanner-status { 
-    margin-top: 10px; padding: 12px 20px; border-radius: 14px; 
-    background: rgba(255,255,255,0.2); display: inline-block; font-weight: 600;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-  }
-  .barcode-input-large { 
-    width: 100%; font-size: 1.3rem; padding: 16px 20px; border-radius: 14px; 
-    border: 3px solid rgba(255,255,255,0.3); outline: none; margin-top: 12px;
-    transition: all 0.3s; font-weight: 600; text-align: center;
-  }
-  .barcode-input-large:focus { 
-    border-color: #43e97b; box-shadow: 0 0 0 4px rgba(67,233,123,0.2);
-    transform: scale(1.02);
-  }
-
-  .mode-toggle { 
-    background: rgba(255,255,255,0.15); border-radius: 12px; padding: 16px; 
-    margin: 16px 0; display: flex; align-items: center; gap: 12px; justify-content: center;
-    flex-wrap: wrap;
-  }
-  .mode-toggle label { 
-    display: flex; align-items: center; gap: 10px; cursor: pointer; 
-    padding: 10px 16px; background: rgba(255,255,255,0.1); border-radius: 10px;
-    transition: all 0.3s;
-  }
-  .mode-toggle label:hover { background: rgba(255,255,255,0.25); }
-  .mode-toggle input[type="radio"] { 
-    width: 20px; height: 20px; cursor: pointer; 
-  }
-
-  .scanned-list { 
-    background: #fff; border-radius: 16px; 
-    box-shadow: 0 4px 12px rgba(33,150,243,0.08); padding: 22px; margin-top: 20px;
-  }
-  .scanned-list h3 { 
-    color: #1565c0; margin: 0 0 12px 0; display: flex; 
-    align-items: center; gap: 10px; font-size: 1.3rem;
-  }
-  .scanned-item { 
-    display: flex; align-items: center; justify-content: space-between; 
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-    border-radius: 12px; padding: 14px 16px; margin: 8px 0;
-    transition: all 0.2s; border-left: 4px solid #2196F3;
-  }
-  .scanned-item:hover { 
-    background: linear-gradient(135deg, #e3f2fd 0%, #d1e7fd 100%); 
-    transform: translateX(4px); box-shadow: 0 2px 8px rgba(33,150,243,0.15);
-  }
-  .scanned-item-code { font-weight: 700; color: #1565c0; font-size: 1.1rem; }
-  .remove-btn { 
-    border: none; background: #dc3545; cursor: pointer; color: white; 
-    font-size: 1rem; width: 32px; height: 32px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-  }
-  .remove-btn:hover { background: #c82333; transform: rotate(90deg) scale(1.1); }
-
-  .bottle-grid, #client-list, #pallet-grid { 
-    display: grid; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); 
-    gap: 20px; margin-top: 20px;
-  }
-  .bottle-card, .pallet-card { 
-    background: #fff; border-radius: 16px; 
-    box-shadow: 0 4px 12px rgba(33,150,243,0.08); padding: 22px; 
-    transition: all 0.3s; position: relative; border: 2px solid transparent;
-  }
-  .bottle-card:hover, .pallet-card:hover { 
-    box-shadow: 0 8px 28px rgba(33,150,243,0.15); 
-    border-color: #2196F3; transform: translateY(-4px);
-  }
-  .bottle-id, .pallet-id { 
-    font-size: 1.2rem; font-weight: bold; color: #1565c0; 
-    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
-  }
-  
-  .status { 
-    display: inline-block; padding: 7px 14px; border-radius: 14px; 
-    font-size: 0.9rem; font-weight: 700; margin-bottom: 10px;
-    text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  .status.available { background: #e3f2fd; color: #1976d2; }
-  .status.with-client { background: #c8e6c9; color: #2e7d32; }
-  .status.needs-refill { background: #fff3cd; color: #856404; }
-  .status.empty { background: #f8d7da; color: #721c24; }
-  .status.partial { background: #ffe5b4; color: #d97706; }
-  .status.full { background: #d1f2eb; color: #0f5132; }
-
-  .btn { 
-    background: linear-gradient(90deg,#2196F3 0%,#20c997 100%); color: #fff; 
-    border: none; border-radius: 28px; padding: 11px 22px; font-size: 1rem; 
-    font-weight: 600; cursor: pointer; margin: 5px; transition: all 0.3s;
-    box-shadow: 0 3px 10px rgba(33,150,243,0.2); letter-spacing: 0.3px;
-  }
-  .btn:hover { 
-    background: linear-gradient(90deg,#20c997 0%,#2196F3 100%); 
-    transform: translateY(-2px); box-shadow: 0 5px 15px rgba(33,150,243,0.3);
-  }
-  .btn:active { transform: translateY(0); }
-  .btn-sm { padding: 8px 16px; font-size: 0.9rem; }
-  .btn-success { background: linear-gradient(90deg,#43e97b 0%,#38f9d7 100%); }
-  .btn-success:hover { background: linear-gradient(90deg,#38f9d7 0%,#43e97b 100%); }
-  .btn-warning { background: linear-gradient(90deg,#ffc107 0%,#ff9800 100%); }
-  .btn-warning:hover { background: linear-gradient(90deg,#ff9800 0%,#ffc107 100%); }
-  .btn-danger { background: linear-gradient(90deg,#dc3545 0%,#ff6a00 100%); }
-  .btn-danger:hover { background: linear-gradient(90deg,#c82333 0%,#e63900 100%); }
-  .btn-secondary { background: linear-gradient(90deg,#6c757d 0%,#b0bec5 100%); }
-  .btn-secondary:hover { background: linear-gradient(90deg,#5a6268 0%,#90a4ae 100%); }
-
-  .small { font-size: 0.95rem; color: #6c757d; margin: 4px 0; }
-  .search-row { 
-    display: flex; flex-wrap: wrap; gap: 14px; align-items: center; 
-    margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-radius: 12px;
-  }
-  .search-input, select, input, textarea { 
-    font-size: 1rem; padding: 13px 16px; border-radius: 12px; 
-    border: 2px solid #e9ecef; flex: 1; min-width: 200px;
-    transition: all 0.3s;
-  }
-  .search-input:focus, select:focus, input:focus, textarea:focus {
-    border-color: #2196F3; outline: none; box-shadow: 0 0 0 3px rgba(33,150,243,0.1);
-  }
-  
-  .modal { 
-    display: none; position: fixed; z-index: 5000; left:0; top:0; 
-    width:100vw; height:100vh; background: rgba(0,0,0,0.5); 
-    align-items: center; justify-content: center; backdrop-filter: blur(4px);
-  }
-  .modal-content { 
-    background: #fff; border-radius: 20px; 
-    box-shadow: 0 10px 50px rgba(0,0,0,0.3); padding: 32px 26px; 
-    max-width: 520px; width: 92vw; position: relative; 
-    animation: modalSlideIn 0.3s ease-out; max-height: 90vh; overflow-y: auto;
-  }
-  @keyframes modalSlideIn { from {opacity:0; transform: scale(0.9) translateY(-20px);} to {opacity:1; transform: scale(1) translateY(0);} }
-  .close { 
-    position: absolute; top: 16px; right: 20px; font-size: 2rem; 
-    color: #2196F3; cursor: pointer; font-weight: bold; 
-    transition: all 0.2s; width: 36px; height: 36px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; background: #e3f2fd;
-  }
-  .close:hover { background: #2196F3; color: white; transform: rotate(90deg); }
-
-  .toast { 
-    position: fixed; right: 20px; top: 20px; z-index: 6000; 
-    display: flex; flex-direction: column; gap: 12px; max-width: 400px;
-  }
-  .toast-item { 
-    background: #fff; border-left: 6px solid #2196F3; border-radius: 12px; 
-    padding: 14px 18px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    animation: toastSlideIn 0.3s ease-out;
-  }
-  @keyframes toastSlideIn { from {opacity:0; transform: translateX(100%);} to {opacity:1; transform: translateX(0);} }
-  .toast-item.success { border-color: #28a745; background: #d4edda; }
-  .toast-item.warning { border-color: #ff9800; background: #fff3cd; }
-  .toast-item.error { border-color: #dc3545; background: #f8d7da; }
-  
-  .right { text-align: right; }
-  .bottle-list-mini { 
-    background: #f8f9fa; border-radius: 10px; padding: 14px; 
-    margin: 12px 0; max-height: 200px; overflow-y: auto;
-    border: 2px solid #e9ecef;
-  }
-  .bottle-list-mini div { padding: 6px 0; font-size: 0.95rem; border-bottom: 1px solid #e9ecef; }
-  .bottle-list-mini div:last-child { border-bottom: none; }
-  
-  .progress-bar { 
-    background: #e9ecef; border-radius: 10px; height: 28px; 
-    overflow: hidden; margin: 12px 0; position: relative;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-  }
-  .progress-fill { 
-    background: linear-gradient(90deg,#43e97b 0%,#38f9d7 100%); 
-    height: 100%; transition: width 0.4s ease; display: flex; 
-    align-items: center; justify-content: center; color: #fff; 
-    font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px;
-  }
-  
-  .badge-danger { 
-    position: absolute; top: 10px; right: 10px; z-index: 10;
-  }
-  
-  .stats-mini { 
-    display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap;
-  }
-  .stats-mini .stat-badge { 
-    background: #e3f2fd; color: #1565c0; padding: 6px 12px; 
-    border-radius: 8px; font-size: 0.85rem; font-weight: 700;
-  }
-  
-  .section-header { 
-    display: flex; justify-content: space-between; align-items: center; 
-    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #e3f2fd;
-  }
-  .section-header h2 { margin: 0; color: #1565c0; font-size: 1.6rem; }
-
-  .empty-state { 
-    text-align: center; padding: 60px 20px; color: #6c757d;
-  }
-  .empty-state .icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.5; }
-  .empty-state .message { font-size: 1.1rem; }
-
-  /* Barcode Print Button Styles */
-  .print-barcode-btn {
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 2px 8px rgba(102,126,234,0.2);
-  }
-  .print-barcode-btn:hover {
-    background: linear-gradient(90deg, #764ba2 0%, #667eea 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102,126,234,0.3);
-  }
-
-  /* Compact print styles for 2" x 1" thermal label */
-  @media print {
-    @page {
-      size: A4 portrait;
-      margin: 0;
-    }
-    body * {
-      visibility: hidden !important;
-    }
-    #print-area,
-    #print-area *,
-    #print-content,
-    #print-content *,
-    #barcode-print-container,
-    #barcode-print-container * {
-      visibility: visible !important;
-    }
-    #print-area {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      display: block !important;
-      z-index: 99999 !important;
-      background: white !important;
-    }
-    #print-content {
-      width: 100% !important;
-      height: 100% !important;
-    }
-    #barcode-print-container {
-      width: 100% !important;
-      min-height: 100% !important;
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
-      justify-content: center !important;
-    }
-  }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5-Gallon Bottle Tracking System</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .store-switcher {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        .excel-badge {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+        
+        .excel-badge:hover {
+            background: #059669;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+            overflow-x: auto;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.3s;
+            white-space: nowrap;
+            min-width: 100px;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .scanner-panel {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .scanner-panel h2 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .status-chip {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+        
+        .scanner-input {
+            width: 100%;
+            max-width: 500px;
+            padding: 15px 20px;
+            font-size: 1.2rem;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 12px;
+            text-align: center;
+            margin: 0 auto;
+            display: block;
+        }
+        
+        .mode-toggle {
+            margin: 20px 0;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .mode-toggle label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .mode-toggle input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .queue-panel {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .queue-header h3 {
+            font-size: 1.2rem;
+            color: #1f2937;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .scanned-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        
+        .scanned-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .scanned-item-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .remove-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .remove-btn:hover {
+            background: #dc2626;
+        }
+        
+        .action-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #d97706;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-info {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #2563eb;
+        }
+        
+        .pallet-quick-actions {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .pallet-summary-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        
+        .card:hover {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .chip {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .chip-available {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .chip-needs-refill {
+            background: #fed7aa;
+            color: #9a3412;
+        }
+        
+        .chip-with-client {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .chip-empty {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        .chip-partial {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .chip-full {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .chip-main {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .chip-driver {
+            background: #fce7f3;
+            color: #831843;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #4b5563;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-bar input,
+        .filter-bar select {
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .kpi-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .kpi-card {
+            flex: 1;
+            min-width: 150px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .kpi-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        
+        .activity-feed {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .activity-item {
+            padding: 15px;
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .activity-time {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        
+        .activity-message {
+            color: #1f2937;
+            font-size: 0.95rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .close-btn:hover {
+            color: #1f2937;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-left: 4px solid;
+            animation: slideIn 0.3s;
+            min-width: 300px;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast-success {
+            border-color: #10b981;
+        }
+        
+        .toast-warning {
+            border-color: #f59e0b;
+        }
+        
+        .toast-error {
+            border-color: #ef4444;
+        }
+        
+        .print-area {
+            display: none;
+        }
+        
+        .transfer-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label:hover {
+            background: #f3f4f6;
+        }
+        
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .print-area,
+            .print-area * {
+                visibility: visible;
+            }
+            .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                display: block !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .tab-btn {
+                font-size: 0.85rem;
+                padding: 12px 10px;
+            }
+            
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scanner-input {
+                font-size: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-<script>
-/* Prevent "function not defined" errors from inline handlers before the main script loads.
-   The real implementations later in the file will override these. */
-window.setScannerMode = window.setScannerMode || function(mode){
-  console.debug('stub setScannerMode called before main script loaded:', mode);
-};
-window.manualGeneratePallet = window.manualGeneratePallet || function(){
-  console.debug('stub manualGeneratePallet called before main script loaded');
-};
-window.batchRefill = window.batchRefill || function(){
-  console.debug('stub batchRefill called before main script loaded');
-};
-window.batchReturn = window.batchReturn || function(){
-  console.debug('stub batchReturn called before main script loaded');
-};
-window.batchDeliver = window.batchDeliver || function(){
-  console.debug('stub batchDeliver called before main script loaded');
-};
-window.clearAllScanned = window.clearAllScanned || function(){
-  console.debug('stub clearAllScanned called before main script loaded');
-};
-</script>
-<script>
-    console.log('Page loading...');
-    // Check XLSX
-    if (typeof XLSX === 'undefined') {
-        console.error('XLSX not loaded');
-        alert('Error: XLSX library not loaded');
-    }
-    // Check JsBarcode
-    if (typeof JsBarcode === 'undefined') {
-        console.error('JsBarcode not loaded');
-        alert('Error: JsBarcode library not loaded');
-    }
-
-    // Add this at the top of your first script tag
-    function openTab(id, btn) {
-        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        document.getElementById('barcode-input').focus();
-    }
-</script>
-<div class="container">
-  <div class="header">
-    <h1>🏭 5-Gallon Bottle Tracking System</h1>
-    <div class="subtitle">Auto-create pallets at 32 bottles • Deliver individually or in bulk • Export comprehensive reports</div>
-    <div class="export-badge" onclick="generateExcelReport()">
-      <div>
-        <div style="font-weight:700; font-size:1.1rem;">📊 Export Excel</div>
-        <div style="font-size:0.8rem; opacity:0.9;">5 detailed sheets</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" onclick="openTab('scanner', this)">📱 Scanner</button>
-    <button class="tab" onclick="openTab('pallets', this)">📦 Pallets</button>
-    <button class="tab" onclick="openTab('inventory', this)">📊 Inventory</button>
-    <button class="tab" onclick="openTab('clients', this)">👥 Clients</button>
-    <button class="tab" onclick="openTab('activity', this)">📋 Activity</button>
-  </div>
-
-  <!-- SCANNER TAB -->
-  <div id="scanner" class="tab-content active">
-    <div class="scanner-container">
-      <div style="font-size:3.5rem;margin-bottom:12px;">🔍</div>
-      <h3>Barcode Scanner Active</h3>
-      <div class="scanner-status" id="scanner-status">🟢 Ready to Scan</div>
-      <div style="margin-top:20px;">
-        <input id="barcode-input" class="barcode-input-large" 
-               placeholder="Auto-add when 5+ characters • Keep scanning..." 
-               autocomplete="off" autofocus>
-      </div>
-      
-      <div class="mode-toggle">
-        <label>
-          <input type="radio" name="scanner-mode" value="bottle" checked onchange="setScannerMode('bottle')">
-          <span style="font-weight:700;">🧴 Bottle Mode</span>
-        </label>
-        <label>
-          <input type="radio" name="scanner-mode" value="pallet" onchange="setScannerMode('pallet')">
-          <span style="font-weight:700;">📦 Pallet Mode</span>
-        </label>
-      </div>
-      
-      <div id="mode-help" class="small" style="opacity:0.9; margin-top:8px; background: rgba(255,255,255,0.15); padding:10px; border-radius:8px;">
-        💡 <strong>Bottle Mode:</strong> Scan bottles (5+ chars) → auto-create pallet at 32
-      </div>
-    </div>
-
-    <!-- Bottle Queue -->
-    <div class="scanned-list" id="bottle-queue">
-      <h3>📋 Bottle Queue (<span id="scanned-count">0</span> / 32)</h3>
-      <div class="progress-bar">
-        <div class="progress-fill" id="progress-fill" style="width:0%;">0 / 32</div>
-      </div>
-      <div id="scanned-items-container">
-        <div class="empty-state">
-          <div class="icon">📋</div>
-          <div class="message">No bottles scanned yet</div>
+    <div class="container">
+        <div class="header">
+            <h1>5-Gallon Bottle Tracking System</h1>
+            <div class="header-actions">
+                <select id="storeSwitcher" class="store-switcher" onchange="switchStore()">
+                    <!-- Populated dynamically -->
+                </select>
+                <button class="excel-badge" onclick="generateExcelReport()">📊 Export Excel</button>
+            </div>
         </div>
-      </div>
-      <!-- Add this inside the "Bottle Queue" div, right before the closing </div> -->
-      <div class="right" style="margin-top:14px;">
-          <button class="btn btn-success" onclick="manualGeneratePallet()" id="btn-generate-pallet">
-              📦 Create Pallet from Queue (<span id="queue-count">0</span>)
-          </button>
-          <button class="btn btn-success" onclick="batchRefill()" id="btn-batch-refill">🔄 Refill Queue (0)</button>
-          <button class="btn btn-warning" onclick="batchDeliver()" id="btn-batch-deliver">🚚 Deliver Queue (0)</button>
-          <button class="btn btn-secondary" onclick="batchReturn()" id="btn-batch-return">↩️ Return Queue (0)</button>
-          <button class="btn btn-danger" onclick="clearAllScanned()">🗑️ Clear</button>
-      </div>
-    </div>
-
-    <!-- Pallet Scanner Panel -->
-    <div class="scanned-list" id="pallet-scanner-panel" style="display:none;">
-      <h3>📦 Pallet Quick Actions</h3>
-      <div id="pallet-scan-info" class="small" style="margin-bottom:12px;">Scan a pallet barcode (e.g., PAL-xxx) to load it for quick actions</div>
-      <div id="pallet-scan-result"></div>
-      <div class="right" style="margin-top:14px;">
-        <button class="btn btn-success" onclick="quickRefillPallet()" id="btn-pallet-refill" disabled>🔄 Refill Pallet</button>
-        <button class="btn btn-warning" onclick="quickDeliverPallet()" id="btn-pallet-deliver" disabled>🚚 Deliver Pallet</button>
-        <button class="btn btn-secondary" onclick="quickReturnPallet()" id="btn-pallet-return" disabled>↩️ Return Pallet</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PALLETS TAB -->
-  <div id="pallets" class="tab-content">
-    <div class="section-header">
-      <h2>📦 Pallets (<span id="pallet-count">0</span>)</h2>
-    </div>
-    <div class="search-row">
-      <input id="search-pallets" class="search-input" placeholder="🔍 Search pallets..." oninput="searchPallets()">
-      <select id="filter-pallet-status" onchange="filterPallets()">
-        <option value="">All Status</option>
-        <option value="empty">Empty</option>
-        <option value="partial">Partial</option>
-        <option value="full">Full</option>
-        <option value="with-client">With Client</option>
-      </select>
-    </div>
-    <div id="pallet-grid" class="bottle-grid"></div>
-  </div>
-
-  <!-- INVENTORY TAB -->
-  <div id="inventory" class="tab-content">
-    <div class="section-header">
-      <h2>📊 Inventory (<span id="bottle-count">0</span>)</h2>
-      <div>
-        <button class="btn btn-sm" onclick="addBottlePrompt()">➕ Add Bottle</button>
-      </div>
-    </div>
-    <div class="search-row">
-      <input id="search-bottles" class="search-input" placeholder="🔍 Search bottles..." oninput="searchBottles()">
-      <select id="filter-status" onchange="filterBottles()">
-        <option value="">All Status</option>
-        <option value="available">Available</option>
-        <option value="with-client">With Client</option>
-        <option value="needs-refill">Needs Refill</option>
-      </select>
-    </div>
-    <div id="bottle-inventory" class="bottle-grid"></div>
-  </div>
-
-  <!-- CLIENTS TAB -->
-  <div id="clients" class="tab-content">
-    <div class="section-header">
-      <h2>👥 Clients (<span id="client-count">0</span>)</h2>
-      <div><button class="btn btn-sm btn-success" onclick="openAddClient()">➕ Add Client</button></div>
-    </div>
-    <div class="search-row">
-      <input id="search-clients" class="search-input" placeholder="🔍 Search clients..." oninput="searchClients()">
-    </div>
-    <div id="client-list" class="bottle-grid"></div>
-  </div>
-
-  <!-- ACTIVITY TAB -->
-  <div id="activity" class="tab-content">
-    <div class="section-header">
-      <h2>📋 Recent Activity</h2>
-      <button class="btn btn-sm btn-success" onclick="generateExcelReport()">📊 Export Excel</button>
-    </div>
-    <div id="activity-list" class="scanned-list"></div>
-  </div>
-</div>
-
-<!-- DELIVERY MODAL -->
-<div id="delivery-modal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeDeliveryModal()">×</span>
-    <h3 style="margin:0 0 16px 0; color:#1565c0; font-size:1.5rem;">🚚 Delivery</h3>
-    <div style="display:flex; gap:10px; margin-bottom:16px;">
-      <button class="btn btn-sm" id="existing-client-btn" onclick="toggleClientMode('existing')" style="flex:1;">Existing Client</button>
-      <button class="btn btn-sm btn-secondary" id="new-client-btn" onclick="toggleClientMode('new')" style="flex:1;">New Client</button>
-    </div>
-    <div id="existing-client-section">
-      <input id="delivery-client-search" placeholder="🔍 Search client..." oninput="filterDeliveryClients()" style="margin-bottom:10px; width:100%;">
-      <select id="delivery-client-select" size="6" style="width:100%;"></select>
-    </div>
-    <div id="new-client-section" style="display:none;">
-      <input id="delivery-new-client-name" placeholder="Client Name *" style="width:100%; margin-bottom:10px;">
-      <input id="delivery-new-client-phone" placeholder="Phone *" style="width:100%; margin-bottom:10px;">
-      <input id="delivery-new-client-address" placeholder="Address (optional)" style="width:100%;">
-    </div>
-    <div style="display:flex; gap:10px; margin:16px 0;">
-      <input type="date" id="delivery-date" style="flex:1;">
-      <input type="time" id="delivery-time" style="flex:1;">
-    </div>
-    <div class="right">
-      <button class="btn btn-success" onclick="confirmBatchDelivery()">✅ Confirm Delivery</button>
-    </div>
-  </div>
-</div>
-
-<!-- PALLET DETAILS MODAL -->
-<div id="pallet-details-modal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closePalletDetails()">×</span>
-    <h3 style="margin:0 0 16px 0; color:#1565c0; font-size:1.5rem;" id="pallet-detail-title">Pallet Details</h3>
-    <div id="pallet-detail-info"></div>
-    <div class="bottle-list-mini" id="pallet-detail-bottles"></div>
-    <div class="right" style="margin-top:16px;">
-      <button class="btn btn-success" onclick="openAddBottlesToPallet(currentPalletId)">➕ Add Bottles</button>
-      <button class="btn btn-success" onclick="refillPalletById(currentPalletId)">🔄 Refill All</button>
-      <button class="btn btn-warning" onclick="deliverPalletById(currentPalletId)">🚚 Deliver All</button>
-      <button class="btn btn-secondary" onclick="returnPalletById(currentPalletId)">↩️ Return All</button>
-      <button class="btn btn-danger" onclick="deletePallet(currentPalletId)">🗑️ Delete</button>
-    </div>
-  </div>
-</div>
-
-<!-- ADD CLIENT MODAL -->
-<div id="add-client-modal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeAddClient()">×</span>
-    <h3 style="margin:0 0 16px 0; color:#1565c0; font-size:1.5rem;">➕ Add New Client</h3>
-    <input id="new-client-name" placeholder="Name *" style="width:100%; margin-bottom:12px;">
-    <input id="new-client-phone" placeholder="Phone *" style="width:100%; margin-bottom:12px;">
-    <input id="new-client-address" placeholder="Address (optional)" style="width:100%; margin-bottom:16px;">
-    <div class="right">
-      <button class="btn btn-success" onclick="createNewClient()">✅ Create Client</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<audio id="scan-success" preload="auto">
-    <source src="https://cdn.jsdelivr.net/gh/skipser/micro-sounds/success-low.mp3" type="audio/mpeg">
-</audio>
-<audio id="scan-warning" preload="auto">
-    <source src="https://cdn.jsdelivr.net/gh/skipser/micro-sounds/alert-simple.mp3" type="audio/mpeg">
-</audio>
-
-<script>
-/* =========================
-   GLOBALS
-   ========================= */
-const STORAGE_KEY = 'bottle_app_v5_excel';
-const PALLET_CAPACITY = 32;
-const MAX_BARCODES = 500;
-
-let bottles = [];
-let clients = [];
-let pallets = [];
-let activityLog = [];
-let deletedRecords = []; // Track deleted bottles/pallets
-let scannedBarcodes = [];
-
-let deliveryClientMode = 'existing';
-let currentPalletId = '';
-let scannerMode = 'bottle';
-let activePalletScan = null;
-
-let scanSound = {
-    success: null,
-    warning: null
-};
-
-/* =========================
-   PERSISTENCE
-   ========================= */
-function saveData() {
-  const payload = { bottles, clients, pallets, activityLog, deletedRecords, lastUpdated: new Date().toISOString() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-}
-
-function loadData() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return;
-  try {
-    const data = JSON.parse(raw);
-    bottles = Array.isArray(data.bottles) ? data.bottles : [];
-    clients = Array.isArray(data.clients) ? data.clients : [];
-    pallets = Array.isArray(data.pallets) ? data.pallets : [];
-    activityLog = Array.isArray(data.activityLog) ? data.activityLog : [];
-    deletedRecords = Array.isArray(data.deletedRecords) ? data.deletedRecords : [];
-  } catch (e) { console.error('Load error:', e); }
-}
-
-function addActivity(msg) {
-  activityLog.unshift({ id: 'act_' + Date.now(), message: msg, timestamp: new Date().toISOString() });
-  updateActivity();
-  saveData();
-}
-
-function showNotification(text, type='info', timeout=3000) {
-  const host = document.getElementById('toast');
-  const el = document.createElement('div');
-  el.className = 'toast-item ' + (type==='success'?'success':type==='warning'?'warning':type==='error'?'error':'');
-  el.textContent = text;
-  host.appendChild(el);
-  setTimeout(() => { if(host.contains(el)) host.removeChild(el); }, timeout);
-}
-
-/* =========================
-   DATA HELPERS
-   ========================= */
-function createNewBottleRecord(id, status='available', palletId='') {
-  const b = { 
-    id, status, palletId, deliveryCount: 0, refillCount: 0, 
-    clientId: '', clientName: '', clientPhone: '', 
-    created: new Date().toISOString(), 
-    lastUpdated: new Date().toISOString(), 
-    history: [{ action: 'Created', timestamp: new Date().toISOString() }] 
-  };
-  bottles.push(b);
-  return b;
-}
-
-function createNewClientRecord({ name, phone, address='' }) {
-  const c = { 
-    id: 'client_' + Date.now(), name, phone, address, 
-    created: new Date().toISOString(), 
-    lastUpdated: new Date().toISOString(), 
-    bottleCount: 0, 
-    history: [{ action: 'Client created', timestamp: new Date().toISOString() }] 
-  };
-  clients.push(c);
-  saveData();
-  return c;
-}
-
-function updateClientBottleCounts() {
-  const counts = {};
-  bottles.forEach(b => { if (b.clientId) counts[b.clientId] = (counts[b.clientId]||0) + 1; });
-  clients.forEach(c => c.bottleCount = counts[c.id] || 0);
-}
-
-/* =========================
-   PALLET HELPERS
-   ========================= */
-function createNewPalletRecord(name='') {
-  const id = 'PAL-' + Date.now();
-  const pallet = { 
-    id, name: name || id, bottleIds: [], capacity: PALLET_CAPACITY, 
-    status: 'empty', clientId: '', 
-    created: new Date().toISOString(), 
-    lastUpdated: new Date().toISOString(), 
-    history: [{ action: 'Pallet created', timestamp: new Date().toISOString() }] 
-  };
-  pallets.push(pallet);
-  return pallet;
-}
-
-function findPalletById(palletId) { return pallets.find(p => p.id === palletId); }
-
-function recalcPalletStatus(pallet) {
-  const count = pallet.bottleIds.length;
-  if (pallet.clientId) pallet.status = 'with-client';
-  else if (count === 0) pallet.status = 'empty';
-  else if (count < pallet.capacity) pallet.status = 'partial';
-  else if (count === pallet.capacity) {
-    const anyNeeds = pallet.bottleIds.some(id => (bottles.find(b => b.id === id)?.status === 'needs-refill'));
-    pallet.status = anyNeeds ? 'needs-refill' : 'full';
-  }
-  pallet.lastUpdated = new Date().toISOString();
-}
-
-function addBottleToPallet(pallet, bottleId) {
-  if (pallet.bottleIds.includes(bottleId)) return false;
-  if (pallet.bottleIds.length >= pallet.capacity) return false;
-  let b = bottles.find(x => x.id === bottleId);
-  if (!b) b = createNewBottleRecord(bottleId, 'available', pallet.id);
-  else b.palletId = pallet.id;
-  pallet.bottleIds.push(bottleId);
-  recalcPalletStatus(pallet);
-  return true;
-}
-
-function removeBottleFromPallet(pallet, bottleId) {
-  pallet.bottleIds = pallet.bottleIds.filter(id => id !== bottleId);
-  const b = bottles.find(x => x.id === bottleId);
-  if (b) b.palletId = '';
-  recalcPalletStatus(pallet);
-  saveData();
-}
-
-function autoRemoveFromPallet(bottleId) {
-  const b = bottles.find(x => x.id === bottleId);
-  if (!b || !b.palletId) return;
-  const pallet = findPalletById(b.palletId);
-  if (!pallet) return;
-  pallet.bottleIds = pallet.bottleIds.filter(id => id !== bottleId);
-  b.palletId = '';
-  recalcPalletStatus(pallet);
-  pallet.history.push({ action: `Bottle ${bottleId} removed (delivered separately)`, timestamp: new Date().toISOString() });
-}
-
-/* =========================
-   AUTO PALLET AT 32
-   ========================= */
-function checkAutoCreatePallet() {
-  if (scannedBarcodes.length === PALLET_CAPACITY) {
-    const pallet = createNewPalletRecord();
-    scannedBarcodes.forEach(bottleId => addBottleToPallet(pallet, bottleId));
-    addActivity(`✅ Auto-created pallet ${pallet.id} with ${PALLET_CAPACITY} bottles`);
-    showNotification(`✅ Pallet ${pallet.id} created with 32 bottles!`, 'success', 4000);
-    scannedBarcodes = [];
-    updateScannedList();
-    saveData();
-    updateAllDisplays();
-  }
-}
-
-/* =========================
-   SCANNER MODES
-   ========================= */
-function setScannerMode(mode) {
-  scannerMode = mode;
-  document.getElementById('bottle-queue').style.display = mode === 'bottle' ? 'block' : 'none';
-  document.getElementById('pallet-scanner-panel').style.display = mode === 'pallet' ? 'block' : 'none';
-  document.getElementById('mode-help').innerHTML = mode === 'bottle' 
-    ? '💡 <strong>Bottle Mode:</strong> Scan bottles (5+ chars) → auto-create pallet at 32'
-    : '💡 <strong>Pallet Mode:</strong> Scan a pallet barcode (PAL-xxx) for quick deliver/return/refill actions';
-  document.getElementById('barcode-input').focus();
-  activePalletScan = null;
-  updatePalletScanUI();
-}
-
-function updatePalletScanUI() {
-  const resultDiv = document.getElementById('pallet-scan-result');
-  const btnRefill = document.getElementById('btn-pallet-refill');
-  const btnDeliver = document.getElementById('btn-pallet-deliver');
-  const btnReturn = document.getElementById('btn-pallet-return');
-  
-  if (!activePalletScan) {
-    resultDiv.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div class="message">Waiting for pallet scan...</div></div>';
-    btnRefill.disabled = true;
-    btnDeliver.disabled = true;
-    btnReturn.disabled = true;
-    return;
-  }
-  
-  const pallet = findPalletById(activePalletScan);
-  if (!pallet) {
-    resultDiv.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="message" style="color:#dc3545;">❌ Pallet not found</div></div>';
-    btnRefill.disabled = true;
-    btnDeliver.disabled = true;
-    btnReturn.disabled = true;
-    return;
-  }
-  
-  resultDiv.innerHTML = `
-    <div class="scanned-item" style="background: linear-gradient(135deg, #e3f2fd 0%, #d1e7fd 100%); border-left: 6px solid #2196F3;">
-      <div>
-        <div class="pallet-id">📦 ${pallet.name}</div>
-        <div class="status ${pallet.status}">${pallet.status.toUpperCase()}</div>
-        <div class="small">Bottles: ${pallet.bottleIds.length} / ${pallet.capacity}</div>
-      </div>
-    </div>
-  `;
-  
-  btnRefill.disabled = false;
-  btnDeliver.disabled = false;
-  btnReturn.disabled = false;
-}
-
-function quickRefillPallet() {
-  if (!activePalletScan) return;
-  refillPalletById(activePalletScan);
-  activePalletScan = null;
-  updatePalletScanUI();
-}
-
-function quickDeliverPallet() {
-  if (!activePalletScan) return;
-  deliverPalletById(activePalletScan);
-}
-
-function quickReturnPallet() {
-  if (!activePalletScan) return;
-  returnPalletById(activePalletScan);
-  activePalletScan = null;
-  updatePalletScanUI();
-}
-
-/* =========================
-   SCANNER INPUT HANDLER
-   ========================= */
-function addScannedBarcode(code) {
-  if (!code || code.length < 6) return; // Must be 6+ digits
-  
-  if (scannerMode === 'pallet') {
-    if (/^PAL[-_]/i.test(code)) {
-      activePalletScan = code;
-      updatePalletScanUI();
-      showNotification(`📦 Pallet ${code} loaded`, 'success');
-    } else {
-      showNotification('⚠️ Invalid pallet ID. Expected PAL-xxx format', 'warning');
-    }
-    return;
-  }
-  
-  // Bottle mode
-  if (scannedBarcodes.length >= MAX_BARCODES) { showNotification('Max batch reached', 'warning'); return; }
-  if (scannedBarcodes.includes(code)) { showNotification('Already in queue', 'warning'); return; }
-  scannedBarcodes.push(code);
-  updateScannedList();
-  showNotification(`✅ Added ${code}`, 'success', 1500);
-  checkAutoCreatePallet();
-}
-
-function clearAllScanned() { 
-  scannedBarcodes = []; 
-  updateScannedList(); 
-  showNotification('Queue cleared', 'info');
-}
-
-/* =========================
-   BOTTLE BATCH ACTIONS
-   ========================= */
-function batchRefill() {
-  if (!scannedBarcodes.length) return showNotification('Queue is empty', 'warning');
-  
-  scannedBarcodes.forEach(id => {
-    let b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'available');
-    b.status = 'available';
-    b.clientId = ''; b.clientName = ''; b.clientPhone = '';
-    b.refillCount = (b.refillCount||0) + 1;
-    b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: 'Batch refilled', timestamp: new Date().toISOString() });
-  });
-  
-  addActivity(`🔄 Batch refilled ${scannedBarcodes.length} bottles`);
-  showNotification(`✅ Refilled ${scannedBarcodes.length} bottles`, 'success');
-  saveData();
-  updateAllDisplays();
-  clearAllScanned();
-}
-
-function batchReturn() {
-  if (!scannedBarcodes.length) return showNotification('Queue is empty', 'warning');
-  
-  scannedBarcodes.forEach(id => {
-    let b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'needs-refill');
-    b.status = 'needs-refill';
-    b.clientId = ''; b.clientName = ''; b.clientPhone = '';
-    b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: 'Batch returned', timestamp: new Date().toISOString() });
-  });
-  
-  addActivity(`↩️ Batch returned ${scannedBarcodes.length} bottles`);
-  showNotification(`✅ Returned ${scannedBarcodes.length} bottles`, 'success');
-  saveData();
-  updateAllDisplays();
-  clearAllScanned();
-}
-
-function batchDeliver() {
-  if (!scannedBarcodes.length) return showNotification('Queue is empty', 'warning');
-  openDeliveryModal();
-}
-
-function confirmBatchDelivery() {
-  let client = null;
-  if (deliveryClientMode === 'existing') {
-    const id = document.getElementById('delivery-client-select').value;
-    client = clients.find(c => c.id === id);
-  } else {
-    const name = document.getElementById('delivery-new-client-name').value.trim();
-    const phone = document.getElementById('delivery-new-client-phone').value.trim();
-    const address = document.getElementById('delivery-new-client-address').value.trim();
-    if (!name || !phone) return alert('Enter client name and phone');
-    client = createNewClientRecord({ name, phone, address });
-  }
-  if (!client) return alert('Select or create client');
-
-  const unavailable = scannedBarcodes.filter(id => {
-    const b = bottles.find(x => x.id === id);
-    return b && b.status !== 'available';
-  });
-  if (unavailable.length) { return alert(`Cannot deliver. ${unavailable.length} not available:\n${unavailable.join(', ')}`); }
-
-  scannedBarcodes.forEach(id => {
-    const b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'available');
-    b.status = 'with-client';
-    b.deliveryCount = (b.deliveryCount||0) + 1;
-    b.clientId = client.id; b.clientName = client.name; b.clientPhone = client.phone;
-    b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: `Delivered to ${client.name}`, timestamp: new Date().toISOString() });
-    autoRemoveFromPallet(id);
-  });
-  
-  updateClientBottleCounts();
-  addActivity(`🚚 Delivered ${scannedBarcodes.length} bottles to ${client.name}`);
-  showNotification(`✅ Delivered ${scannedBarcodes.length} bottles to ${client.name}`, 'success');
-  saveData();
-  updateAllDisplays();
-  closeDeliveryModal();
-  clearAllScanned();
-}
-
-/* =========================
-   PALLET ACTIONS
-   ========================= */
-function deliverPalletById(palletId) {
-  const pallet = findPalletById(palletId);
-  if (!pallet) return alert('Pallet not found');
-  if (!pallet.bottleIds.length) return alert('Pallet is empty');
-  scannedBarcodes = [...pallet.bottleIds];
-  closePalletDetails();
-  batchDeliver();
-}
-
-function returnPalletById(palletId) {
-  const pallet = findPalletById(palletId);
-  if (!pallet) return alert('Pallet not found');
-  
-  pallet.bottleIds.forEach(id => {
-    const b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'needs-refill');
-    b.status = 'needs-refill';
-    b.clientId = ''; b.clientName = ''; b.clientPhone = '';
-    b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: `Returned from pallet ${pallet.id}`, timestamp: new Date().toISOString() });
-  });
-  
-  pallet.clientId = '';
-  pallet.history.push({ action: 'Returned to store', timestamp: new Date().toISOString() });
-  recalcPalletStatus(pallet);
-  addActivity(`↩️ Pallet ${pallet.id} returned (${pallet.bottleIds.length} bottles)`);
-  showNotification(`✅ Pallet ${pallet.id} returned`, 'success');
-  saveData();
-  updateAllDisplays();
-}
-
-function refillPalletById(palletId) {
-  const pallet = findPalletById(palletId);
-  if (!pallet) return alert('Pallet not found');
-  
-  pallet.bottleIds.forEach(id => {
-    const b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'available');
-    b.status = 'available';
-    b.clientId = ''; b.clientName = ''; b.clientPhone = '';
-    b.refillCount = (b.refillCount||0) + 1;
-    b.lastUpdated = new Date().toISOString();
-    b.history.push({ action: `Refilled from pallet ${pallet.id}`, timestamp: new Date().toISOString() });
-  });
-  
-  pallet.history.push({ action: 'Batch refilled', timestamp: new Date().toISOString() });
-  recalcPalletStatus(pallet);
-  addActivity(`🔄 Pallet ${pallet.id} refilled (${pallet.bottleIds.length} bottles)`);
-  showNotification(`✅ Pallet ${pallet.id} refilled`, 'success');
-  saveData();
-  updateAllDisplays();
-}
-
-/* =========================
-   DELETE ACTIONS
-   ========================= */
-function deleteBottle(id) {
-  const b = bottles.find(x => x.id === id);
-  if (!b) return alert('Bottle not found');
-  if (!confirm(`Delete bottle ${id}? This cannot be undone.`)) return;
-
-  // Track deletion
-  deletedRecords.push({
-    type: 'bottle',
-    id: b.id,
-    data: {...b},
-    deletedAt: new Date().toISOString()
-  });
-
-  pallets.forEach(p => {
-    if (p.bottleIds.includes(id)) {
-      p.bottleIds = p.bottleIds.filter(x => x !== id);
-      recalcPalletStatus(p);
-    }
-  });
-
-  scannedBarcodes = scannedBarcodes.filter(x => x !== id);
-  bottles = bottles.filter(x => x.id !== id);
-
-  updateClientBottleCounts();
-  addActivity(`🗑️ Deleted bottle ${id}`);
-  saveData();
-  updateAllDisplays();
-  showNotification(`Bottle ${id} deleted`, 'success');
-}
-
-function deletePallet(palletId) {
-  const pallet = findPalletById(palletId);
-  if (!pallet) return alert('Pallet not found');
-  if (!confirm(`Delete pallet ${palletId}? Bottles will remain in inventory.`)) return;
-
-  // Track deletion
-  deletedRecords.push({
-    type: 'pallet',
-    id: pallet.id,
-    data: {...pallet},
-    deletedAt: new Date().toISOString()
-  });
-
-  pallet.bottleIds.forEach(id => {
-    const b = bottles.find(x => x.id === id);
-    if (b) b.palletId = '';
-  });
-
-  pallets = pallets.filter(p => p.id !== palletId);
-  addActivity(`🗑️ Deleted pallet ${palletId}`);
-  saveData();
-  updateAllDisplays();
-  closePalletDetails();
-  showNotification(`Pallet ${palletId} deleted`, 'success');
-}
-
-/* =========================
-   EXCEL EXPORT
-   ========================= */
-function generateExcelReport() {
-  showNotification('📊 Generating Excel report...', 'info', 2000);
-  
-  // Sheet 1: Delivered Bottles
-  const deliveredBottles = bottles.filter(b => b.status === 'with-client' && b.clientId);
-  const deliveredData = deliveredBottles.map(b => ({
-    'Bottle ID': b.id,
-    'Client Name': b.clientName || '',
-    'Client Phone': b.clientPhone || '',
-    'Delivery Count': b.deliveryCount || 0,
-    'Pallet ID': b.palletId || 'None',
-    'Last Updated': new Date(b.lastUpdated).toLocaleString(),
-    'Created': new Date(b.created).toLocaleString()
-  }));
-
-  // Sheet 2: Refilled Bottles
-  const refilledBottles = bottles.filter(b => b.refillCount > 0);
-  const refilledData = refilledBottles.map(b => ({
-    'Bottle ID': b.id,
-    'Status': b.status,
-    'Refill Count': b.refillCount || 0,
-    'Delivery Count': b.deliveryCount || 0,
-    'Pallet ID': b.palletId || 'None',
-    'Last Updated': new Date(b.lastUpdated).toLocaleString()
-  }));
-
-  // Sheet 3: Deleted Records
-  const deletedData = deletedRecords.map(r => ({
-    'Type': r.type,
-    'ID': r.id,
-    'Deleted At': new Date(r.deletedAt).toLocaleString(),
-    'Details': r.type === 'bottle' ? `Status: ${r.data.status}, Deliveries: ${r.data.deliveryCount || 0}` : `Bottles: ${r.data.bottleIds?.length || 0}`
-  }));
-
-  // Sheet 4: Clients
-  const clientsData = clients.map(c => ({
-    'Client ID': c.id,
-    'Name': c.name,
-    'Phone': c.phone,
-    'Address': c.address || '',
-    'Active Bottles': c.bottleCount || 0,
-    'Created': new Date(c.created).toLocaleString()
-  }));
-
-  // Sheet 5: New Bottles (created in last 30 days)
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const newBottles = bottles.filter(b => new Date(b.created) > thirtyDaysAgo);
-  const newBottlesData = newBottles.map(b => ({
-    'Bottle ID': b.id,
-    'Status': b.status,
-    'Created': new Date(b.created).toLocaleString(),
-    'Delivery Count': b.deliveryCount || 0,
-    'Refill Count': b.refillCount || 0,
-    'Pallet ID': b.palletId || 'None'
-  }));
-
-  // Create workbook
-  const wb = XLSX.utils.book_new();
-  
-  const ws1 = XLSX.utils.json_to_sheet(deliveredData.length ? deliveredData : [{'Info': 'No delivered bottles'}]);
-  XLSX.utils.book_append_sheet(wb, ws1, "Delivered Bottles");
-  
-  const ws2 = XLSX.utils.json_to_sheet(refilledData.length ? refilledData : [{'Info': 'No refilled bottles'}]);
-  XLSX.utils.book_append_sheet(wb, ws2, "Refilled Bottles");
-  
-  const ws3 = XLSX.utils.json_to_sheet(deletedData.length ? deletedData : [{'Info': 'No deleted records'}]);
-  XLSX.utils.book_append_sheet(wb, ws3, "Deleted Records");
-  
-  const ws4 = XLSX.utils.json_to_sheet(clientsData.length ? clientsData : [{'Info': 'No clients'}]);
-  XLSX.utils.book_append_sheet(wb, ws4, "Clients");
-  
-  const ws5 = XLSX.utils.json_to_sheet(newBottlesData.length ? newBottlesData : [{'Info': 'No new bottles in last 30 days'}]);
-  XLSX.utils.book_append_sheet(wb, ws5, "New Bottles (30d)");
-
-  // Generate filename with timestamp
-  const timestamp = new Date().toISOString().split('T')[0];
-  const filename = `Bottle_Tracking_Report_${timestamp}.xlsx`;
-  
-  // Download
-  XLSX.writeFile(wb, filename);
-  
-  showNotification(`✅ Excel report downloaded: ${filename}`, 'success', 4000);
-  addActivity(`📊 Excel report generated: ${filename}`);
-}
-
-/* =========================
-   UI RENDERING
-   ========================= */
-function renderPallets(items=pallets) {
-  const host = document.getElementById('pallet-grid');
-  document.getElementById('pallet-count').textContent = String(pallets.length);
-  if (!items.length) { 
-    host.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div class="message">No pallets yet. Scan 32 bottles to auto-create one!</div></div>'; 
-    return; 
-  }
-  host.innerHTML = items.map(p => `
-    <div class="pallet-card" onclick="openPalletDetails('${p.id}')" style="cursor:pointer;">
-      <div class="pallet-id">📦 ${p.name}</div>
-      <div class="status ${p.status}">${p.status.toUpperCase()}</div>
-      <div class="stats-mini">
-        <div class="stat-badge">🧴 ${p.bottleIds.length}/${p.capacity}</div>
-        <div class="stat-badge">📅 ${new Date(p.created).toLocaleDateString()}</div>
-      </div>
-      <div class="progress-bar" style="margin:10px 0;">
-        <div class="progress-fill" style="width:${(p.bottleIds.length/p.capacity*100).toFixed(0)}%;">${p.bottleIds.length} / ${p.capacity}</div>
-      </div>
-      <button class="btn btn-sm print-barcode-btn" style="position:absolute; top:10px; left:10px;" onclick="event.stopPropagation(); printPalletBarcode('${p.id}', '${p.name}')" title="Print Barcode">🖨️</button>
-      <button class="btn btn-sm btn-danger badge-danger" onclick="event.stopPropagation(); deletePallet('${p.id}')">🗑️</button>
-    </div>
-  `).join('');
-}
-
-function openPalletDetails(palletId) {
-  const pallet = findPalletById(palletId);
-  if (!pallet) return;
-  currentPalletId = pallet.id;
-  document.getElementById('pallet-detail-title').textContent = `📦 ${pallet.name}`;
-  document.getElementById('pallet-detail-info').innerHTML = `
-    <div class="status ${pallet.status}">${pallet.status.toUpperCase()}</div>
-    <div class="stats-mini">
-      <div class="stat-badge">🧴 ${pallet.bottleIds.length}/${pallet.capacity}</div>
-      <div class="stat-badge">📅 ${new Date(pallet.created).toLocaleString()}</div>
-    </div>
-  `;
-  const bottleList = document.getElementById('pallet-detail-bottles');
-  if (!pallet.bottleIds.length) {
-    bottleList.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="message">No bottles in this pallet</div></div>';
-  } else {
-    bottleList.innerHTML = '<div style="font-weight:700; margin-bottom:8px; color:#1565c0;">Bottle IDs:</div>' +
-      pallet.bottleIds.map((id, idx) => {
-        const b = bottles.find(x => x.id === id);
-        return `<div><strong>${idx+1}.</strong> ${id} ${b ? `<span class="status ${b.status}" style="padding:3px 8px; font-size:0.75rem; margin-left:8px;">${b.status}</span>` : ''}</div>`;
-      }).join('');
-  }
-  document.getElementById('pallet-details-modal').style.display = 'flex';
-
-  // Generate and display barcode in modal
-  setTimeout(() => addBarcodeToDetails(palletId), 150);
-}
-
-function closePalletDetails() { document.getElementById('pallet-details-modal').style.display = 'none'; }
-
-function searchPallets() {
-  const q = document.getElementById('search-pallets').value.trim().toLowerCase();
-  const items = pallets.filter(p => p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
-  renderPallets(items);
-}
-
-function filterPallets() {
-  const s = document.getElementById('filter-pallet-status').value;
-  const items = s ? pallets.filter(p => p.status === s) : pallets;
-  renderPallets(items);
-}
-
-function renderInventory(items=bottles) {
-  const host = document.getElementById('bottle-inventory');
-  document.getElementById('bottle-count').textContent = String(bottles.length);
-  if (!items.length) { 
-    host.innerHTML = '<div class="empty-state"><div class="icon">🧴</div><div class="message">No bottles in inventory</div></div>'; 
-    return; 
-  }
-  host.innerHTML = items.map(b => `
-    <div class="bottle-card">
-      <div class="bottle-id">🧴 ${b.id}</div>
-      <div class="status ${b.status}">${b.status}</div>
-      <div class="stats-mini">
-        <div class="stat-badge">📦 ${b.palletId || 'None'}</div>
-        <div class="stat-badge">👤 ${b.clientName || 'No client'}</div>
-      </div>
-      <div class="small">🚚 Deliveries: ${b.deliveryCount||0} • 🔄 Refills: ${b.refillCount||0}</div>
-      <div class="right" style="margin-top:12px;">
-        <button class="btn btn-sm" onclick="setBottleStatus('${b.id}','available')">✅ Available</button>
-        <button class="btn btn-sm btn-secondary" onclick="setBottleStatus('${b.id}','needs-refill')">⚠️ Needs Refill</button>
-        <button class="btn btn-sm btn-warning" onclick="quickReturn('${b.id}')">↩️ Return</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteBottle('${b.id}')">🗑️</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function setBottleStatus(id, status) {
-  let b = bottles.find(x => x.id === id);
-  if (!b) b = createNewBottleRecord(id, status);
-  b.status = status;
-  if (status !== 'with-client') { b.clientId=''; b.clientName=''; b.clientPhone=''; }
-  b.lastUpdated = new Date().toISOString();
-  b.history.push({ action: `Status changed to ${status}`, timestamp: new Date().toISOString() });
-  saveData();
-  updateAllDisplays();
-  showNotification(`Bottle ${id} set to ${status}`, 'success');
-}
-
-function quickReturn(id) {
-  let b = bottles.find(x => x.id === id) || createNewBottleRecord(id, 'needs-refill');
-  b.status = 'needs-refill';
-  b.clientId=''; b.clientName=''; b.clientPhone='';
-  b.lastUpdated = new Date().toISOString();
-  b.history.push({ action: 'Quick returned', timestamp: new Date().toISOString() });
-  saveData();
-  updateAllDisplays();
-  showNotification(`Bottle ${id} returned`, 'success');
-}
-
-function addBottlePrompt() {
-  const id = prompt('Enter new bottle ID (5+ characters):');
-  if (!id) return;
-  if (id.length < 5) return alert('Bottle ID must be 5+ characters');
-  if (bottles.some(x => x.id === id)) return alert('Bottle ID already exists');
-  createNewBottleRecord(id, 'available');
-  saveData();
-  updateAllDisplays();
-  showNotification(`Bottle ${id} added`, 'success');
-}
-
-function searchBottles() {
-  const q = document.getElementById('search-bottles').value.trim().toLowerCase();
-  const items = bottles.filter(b => b.id.toLowerCase().includes(q));
-  renderInventory(items);
-}
-
-function filterBottles() {
-  const s = document.getElementById('filter-status').value;
-  const items = s ? bottles.filter(b => b.status === s) : bottles;
-  renderInventory(items);
-}
-
-function renderClients(items=clients) {
-  const host = document.getElementById('client-list');
-  document.getElementById('client-count').textContent = String(clients.length);
-  if (!items.length) { 
-    host.innerHTML = '<div class="empty-state"><div class="icon">👥</div><div class="message">No clients yet</div></div>'; 
-    return; 
-  }
-  host.innerHTML = items.map(c => `
-    <div class="bottle-card">
-      <div class="bottle-id">👤 ${c.name}</div>
-      <div class="stats-mini">
-        <div class="stat-badge">📞 ${c.phone}</div>
-        <div class="stat-badge">🧴 ${c.bottleCount||0} bottles</div>
-      </div>
-      ${c.address ? `<div class="small">📍 ${c.address}</div>` : ''}
-    </div>
-  `).join('');
-}
-
-function searchClients() {
-  const q = document.getElementById('search-clients').value.trim().toLowerCase();
-  const items = clients.filter(c => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q));
-  renderClients(items);
-}
-
-function openAddClient() { document.getElementById('add-client-modal').style.display = 'flex'; }
-function closeAddClient() { document.getElementById('add-client-modal').style.display = 'none'; }
-function createNewClient() {
-  const name = document.getElementById('new-client-name').value.trim();
-  const phone = document.getElementById('new-client-phone').value.trim();
-  const address = document.getElementById('new-client-address').value.trim();
-  if (!name || !phone) return alert('Enter name and phone');
-  createNewClientRecord({ name, phone, address });
-  closeAddClient();
-  renderClients();
-  populateClientDropdowns();
-  showNotification(`Client ${name} created`, 'success');
-}
-
-function updateActivity() {
-  const host = document.getElementById('activity-list');
-  if (!activityLog.length) { 
-    host.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="message">No activity yet</div></div>'; 
-    return; 
-  }
-  host.innerHTML = activityLog.slice(0,100).map(a => `
-    <div class="scanned-item">
-      <div>
-        <div style="font-weight:600; color:#1565c0;">${a.message}</div>
-        <div class="small">📅 ${new Date(a.timestamp).toLocaleString()}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function openDeliveryModal() {
-  populateClientDropdowns();
-  toggleClientMode('existing');
-  document.getElementById('delivery-date').valueAsDate = new Date();
-  const t = new Date(); 
-  document.getElementById('delivery-time').value = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
-  document.getElementById('delivery-modal').style.display = 'flex';
-}
-
-function closeDeliveryModal() { document.getElementById('delivery-modal').style.display = 'none'; }
-
-function toggleClientMode(mode) {
-  deliveryClientMode = mode;
-  document.getElementById('existing-client-section').style.display = mode==='existing' ? 'block' : 'none';
-  document.getElementById('new-client-section').style.display = mode==='new' ? 'block' : 'none';
-  document.getElementById('existing-client-btn').className = mode==='existing' ? 'btn btn-sm' : 'btn btn-sm btn-secondary';
-  document.getElementById('new-client-btn').className = mode==='new' ? 'btn btn-sm' : 'btn btn-sm btn-secondary';
-}
-
-function populateClientDropdowns() {
-  const sel = document.getElementById('delivery-client-select');
-  sel.innerHTML = clients.map(c => `<option value="${c.id}">${c.name} — ${c.phone}</option>`).join('');
-}
-
-function filterDeliveryClients() {
-  const q = document.getElementById('delivery-client-search').value.trim().toLowerCase();
-  const sel = document.getElementById('delivery-client-select');
-  const items = clients.filter(c => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q));
-  sel.innerHTML = items.map(c => `<option value="${c.id}">${c.name} — ${c.phone}</option>`).join('');
-}
-
-function updateScannedList() {
-    // Get references to all required elements
-    const host = document.getElementById('scanned-items-container');
-    const count = scannedBarcodes.length;
-    
-    // Update all count displays
-    document.getElementById('scanned-count').textContent = String(count);
-    document.getElementById('queue-count').textContent = String(count);
-    document.getElementById('btn-batch-refill').textContent = `🔄 Refill Queue (${count})`;
-    document.getElementById('btn-batch-deliver').textContent = `🚚 Deliver Queue (${count})`;
-    document.getElementById('btn-batch-return').textContent = `↩️ Return Queue (${count})`;
-
-    // Update progress bar
-    const pct = Math.min((count / PALLET_CAPACITY * 100), 100).toFixed(0);
-    const fill = document.getElementById('progress-fill');
-    fill.style.width = pct + '%';
-    fill.textContent = `${count} / ${PALLET_CAPACITY}`;
-
-    // Update scanned items list
-    if (!count) {
-        host.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="message">No bottles scanned yet</div></div>';
-        return;
-    }
-
-    host.innerHTML = scannedBarcodes.map(code => `
-        <div class="scanned-item">
-            <div class="scanned-item-code">🧴 ${code}</div>
-            <button class="remove-btn" onclick="removeFromQueue('${code}')" title="Remove">×</button>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab('scanner', this)">Scanner</button>
+            <button class="tab-btn" onclick="openTab('pallets', this)">Pallets</button>
+            <button class="tab-btn" onclick="openTab('inventory', this)">Inventory</button>
+            <button class="tab-btn" onclick="openTab('clients', this)">Clients</button>
+            <button class="tab-btn" onclick="openTab('activity', this)">Activity</button>
         </div>
-    `).join('');
-}
-
-function removeFromQueue(code) {
-  scannedBarcodes = scannedBarcodes.filter(x => x !== code);
-  updateScannedList();
-}
-
-function openTab(id, btn) {
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('barcode-input').focus();
-}
-
-function updateAllDisplays() {
-  renderInventory();
-  renderClients();
-  renderPallets();
-  updateActivity();
-}
-
-/* =========================
-   INITIALIZATION
-   ========================= */
-document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    updateAllDisplays();
-    updateScannedList(); // Add this line
-    
-    // Initialize audio
-    scanSound.success = document.getElementById('scan-success');
-    scanSound.warning = document.getElementById('scan-warning');
-    
-    // Initialize barcode input handler
-    const barcodeInput = document.getElementById('barcode-input');
-    if (barcodeInput) {
-        barcodeInput.focus();
         
-        let lastScan = '';
-        let scanTimer = null;
-        
-        barcodeInput.addEventListener('input', (e) => {
-            clearTimeout(scanTimer);
-            lastScan = e.target.value;
+        <!-- Scanner Tab -->
+        <div id="scanner" class="tab-content active">
+            <div class="scanner-panel">
+                <h2>🔍 Barcode Scanner Active</h2>
+                <div class="status-chip">🟢 Ready to Scan</div>
+                
+                <div class="mode-toggle">
+                    <label>
+                        <input type="radio" name="scanMode" value="bottle" checked onchange="setScannerMode('bottle')">
+                        Bottle Mode
+                    </label>
+                    <label>
+                        <input type="radio" name="scanMode" value="pallet" onchange="setScannerMode('pallet')">
+                        Pallet Mode
+                    </label>
+                </div>
+                
+                <input 
+                    type="text" 
+                    id="scannerInput" 
+                    class="scanner-input" 
+                    placeholder="Auto-submit on 6+ digits - Keep scanning..."
+                    autocomplete="off"
+                >
+            </div>
             
-            // Wait for complete scan (50ms gap in input)
-            scanTimer = setTimeout(() => {
-                const code = lastScan.trim();
-                if (code.length >= 5) {
-                    addScannedBarcode(code);
-                    // Play success sound
-                    if (scanSound.success) scanSound.success.play().catch(() => {});
-                }
-                barcodeInput.value = ''; // Clear input
-                lastScan = '';
-            }, 50);
-        });
-
-        // Prevent form submission on Enter
-        barcodeInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const code = barcodeInput.value.trim();
-                if (code.length >= 5) {
-                    addScannedBarcode(code);
-                    // Play success sound
-                    if (scanSound.success) scanSound.success.play().catch(() => {});
-                }
-                barcodeInput.value = ''; // Clear input
+            <div id="palletQuickActions" class="pallet-quick-actions" style="display: none;">
+                <h3 style="margin-bottom: 15px;">Quick Pallet Actions</h3>
+                <div id="palletSummaryCard" class="pallet-summary-card"></div>
+                <div class="action-row">
+                    <button class="btn btn-success" onclick="refillPalletById(window.currentScannedPallet)">Refill Pallet</button>
+                    <button class="btn btn-primary" onclick="deliverPalletById(window.currentScannedPallet)">Deliver Pallet</button>
+                    <button class="btn btn-warning" onclick="returnPalletById(window.currentScannedPallet)">Return Pallet</button>
+                </div>
+            </div>
+            
+            <div class="queue-panel">
+                <div class="queue-header">
+                    <h3>Bottle Queue (<span id="queueCount">0</span> / 32)</h3>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;">0%</div>
+                </div>
+                <div class="scanned-list" id="scannedList"></div>
+                <div class="action-row">
+                    <button class="btn btn-primary" onclick="manualGeneratePallet()">Create Pallet from Queue</button>
+                    <button class="btn btn-success" onclick="batchRefill()">Refill Queue</button>
+                    <button class="btn btn-primary" onclick="batchDeliver()">Deliver Queue</button>
+                    <button class="btn btn-warning" onclick="batchReturn()">Return Queue</button>
+                    <button class="btn btn-secondary" onclick="clearAllScanned()">Clear</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pallets Tab -->
+        <div id="pallets" class="tab-content">
+            <div class="filter-bar">
+                <input type="text" id="palletSearch" placeholder="Search by ID or name..." oninput="renderPallets()">
+                <select id="palletStatusFilter" onchange="renderPallets()">
+                    <option value="">All Statuses</option>
+                    <option value="empty">Empty</option>
+                    <option value="partial">Partial</option>
+                    <option value="full">Full</option>
+                    <option value="with-client">With Client</option>
+                    <option value="needs-refill">Needs Refill</option>
+                </select>
+                <button class="btn btn-info" onclick="openBulkTransferPallets()">🔄 Transfer Pallets</button>
+            </div>
+            
+            <div class="kpi-row" id="palletKPIs"></div>
+            
+            <div class="card-grid" id="palletGrid"></div>
+        </div>
+        
+        <!-- Inventory Tab -->
+        <div id="inventory" class="tab-content">
+            <div class="filter-bar">
+                <input type="text" id="inventorySearch" placeholder="Search by ID..." oninput="renderInventory()">
+                <select id="inventoryStatusFilter" onchange="renderInventory()">
+                    <option value="">All Statuses</option>
+                    <option value="available">Available</option>
+                    <option value="needs-refill">Needs Refill</option>
+                    <option value="with-client">With Client</option>
+                </select>
+                <button class="btn btn-primary" onclick="openAddBottle()">+ Add Bottle</button>
+                <button class="btn btn-info" onclick="openBulkTransferBottles()">🔄 Transfer Bottles</button>
+            </div>
+            
+            <div class="kpi-row" id="inventoryKPIs"></div>
+            
+            <div class="card-grid" id="inventoryGrid"></div>
+        </div>
+        
+        <!-- Clients Tab -->
+        <div id="clients" class="tab-content">
+            <div class="filter-bar">
+                <input type="text" id="clientSearch" placeholder="Search by name or phone..." oninput="renderClients()">
+                <button class="btn btn-primary" onclick="openAddClient()">+ Add Client</button>
+            </div>
+            
+            <div class="card-grid" id="clientGrid"></div>
+        </div>
+        
+        <!-- Activity Tab -->
+        <div id="activity" class="tab-content">
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-success" onclick="generateExcelReport()">📊 Export Excel Report</button>
+            </div>
+            <div class="activity-feed" id="activityFeed"></div>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="palletDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Pallet Details</h3>
+                <button class="close-btn" onclick="closePalletDetails()">×</button>
+            </div>
+            <div id="palletDetailsContent"></div>
+        </div>
+    </div>
+    
+    <div id="addClientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Client</h3>
+                <button class="close-btn" onclick="closeAddClient()">×</button>
+            </div>
+            <form onsubmit="createNewClient(event)">
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" id="clientName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone *</label>
+                    <input type="tel" id="clientPhone" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <input type="text" id="clientAddress" class="form-input">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Client</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="deliverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Deliver Bottles</h3>
+                <button class="close-btn" onclick="closeDeliverModal()">×</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Search Client</label>
+                <input type="text" id="clientSearchInput" class="form-input" placeholder="Search by name or phone..." oninput="filterDeliveryClients()">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Select Client *</label>
+                <select id="deliverClientSelect" class="form-input" required>
+                    <option value="">Choose a client...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Delivery Date/Time</label>
+                <input type="datetime-local" id="deliveryDateTime" class="form-input">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="confirmBatchDelivery()">Confirm Delivery</button>
+                <button class="btn btn-secondary" onclick="openAddClient(); closeDeliverModal();">+ New Client</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="transferModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="transferModalTitle">Transfer Inventory</h3>
+                <button class="close-btn" onclick="closeTransferModal()">×</button>
+            </div>
+            <div id="transferContent"></div>
+        </div>
+    </div>
+    
+    <div id="bulkTransferBottlesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Bulk Transfer Bottles</h3>
+                <button class="close-btn" onclick="closeBulkTransferBottles()">×</button>
+            </div>
+            <div id="bulkTransferBottlesContent"></div>
+        </div>
+    </div>
+    
+    <div id="bulkTransferPalletsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Bulk Transfer Pallets</h3>
+                <button class="close-btn" onclick="closeBulkTransferPallets()">×</button>
+            </div>
+            <div id="bulkTransferPalletsContent"></div>
+        </div>
+    </div>
+    
+    <div id="addBottleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Bottle</h3>
+                <button class="close-btn" onclick="closeAddBottle()">×</button>
+            </div>
+            <form onsubmit="createManualBottle(event)">
+                <div class="form-group">
+                    <label class="form-label">Bottle ID (6+ digits)</label>
+                    <input type="text" id="manualBottleId" class="form-input" placeholder="Enter bottle ID..." required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Add Bottle</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- Print Area -->
+    <div id="printArea" class="print-area">
+        <div id="printContent"></div>
+    </div>
+    
+    <!-- Audio Elements -->
+    <audio id="successSound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhAC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4TR0kVhAAAAAAAAAAAAAAAAAAAAAP/7kGQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+5BkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+    </audio>
+    <audio id="warningSound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhAC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4TR0kVhAAAAAAAAAAAAAAAAAAAAAP/7kGQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+5BkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+    </audio>
+    
+    <script>
+        // Constants
+        const STORAGE_KEY = 'bottle_app_v5_excel';
+        const MAX_BARCODES = 500;
+        const PALLET_CAPACITY = 32;
+        
+        // Global State
+        let bottles = [];
+        let pallets = [];
+        let clients = [];
+        let activityLog = [];
+        let deletedRecords = [];
+        let stores = [];
+        let scannedBarcodes = [];
+        let currentStoreId = null;
+        let scannerMode = 'bottle';
+        let debounceTimer = null;
+        
+        // Audio references
+        let successSound, warningSound;
+        
+        // Stub functions to prevent "not defined" errors
+        function openTab() {}
+        function setScannerMode() {}
+        function updatePalletScanUI() {}
+        function addScannedBarcode() {}
+        function clearAllScanned() {}
+        function batchRefill() {}
+        function batchReturn() {}
+        function batchDeliver() {}
+        function confirmBatchDelivery() {}
+        function createNewBottleRecord() {}
+        function createNewClientRecord() {}
+        function updateClientBottleCounts() {}
+        function createNewPalletRecord() {}
+        function findPalletById() {}
+        function recalcPalletStatus() {}
+        function addBottleToPallet() {}
+        function removeBottleFromPallet() {}
+        function autoRemoveFromPallet() {}
+        function deliverPalletById() {}
+        function returnPalletById() {}
+        function refillPalletById() {}
+        function deleteBottle() {}
+        function deletePallet() {}
+        function generateExcelReport() {}
+        function renderPallets() {}
+        function renderInventory() {}
+        function renderClients() {}
+        function updateActivity() {}
+        function openPalletDetails() {}
+        function closePalletDetails() {}
+        function openAddClient() {}
+        function closeAddClient() {}
+        function createNewClient() {}
+        function populateClientDropdowns() {}
+        function filterDeliveryClients() {}
+        function updateScannedList() {}
+        function printPalletBarcode() {}
+        function addBarcodeToDetails() {}
+        function manualGeneratePallet() {}
+        function switchStore() {}
+        function openAddBottle() {}
+        function closeAddBottle() {}
+        function createManualBottle() {}
+        function openTransferBottle() {}
+        function openTransferPallet() {}
+        function closeTransferModal() {}
+        function confirmTransfer() {}
+        function openBulkTransferBottles() {}
+        function closeBulkTransferBottles() {}
+        function openBulkTransferPallets() {}
+        function closeBulkTransferPallets() {}
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            successSound = document.getElementById('successSound');
+            warningSound = document.getElementById('warningSound');
+            
+            loadData();
+            initializeStores();
+            migrateDataToStores();
+            renderStoreSwitcher();
+            setupScanner();
+            updateAllDisplays();
+            
+            // Auto-focus scanner
+            document.getElementById('scannerInput').focus();
+            
+            // Restore last active tab
+            const lastTab = localStorage.getItem('lastActiveTab') || 'scanner';
+            const tabBtn = document.querySelector(`[onclick*="${lastTab}"]`);
+            if (tabBtn) {
+                openTab(lastTab, tabBtn);
             }
         });
-
-        // Keep focus on input
-        document.addEventListener('click', () => {
-            barcodeInput.focus();
-        });
-    }
-});
-
-/**
- * FIXED: Mobile-friendly pallet barcode printing
- * Ensures single page print with visible barcode on all devices
- */
-function _ensurePrintArea() {
-  let printArea = document.getElementById('print-area');
-  if (!printArea) {
-    printArea = document.createElement('div');
-    printArea.id = 'print-area';
-    printArea.style.cssText = `
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 99999;
-      background: white;
-    `;
-    printArea.innerHTML = '<div id="print-content"></div>';
-    document.body.appendChild(printArea);
-  }
-  if (!document.getElementById('print-content')) {
-    printArea.innerHTML = '<div id="print-content"></div>';
-  }
-  return printArea;
-}
-
-/**
- * Print pallet barcode - MOBILE FIXED VERSION
- * Works on phones, tablets, and desktop
- */
-function printPalletBarcode(palletId, palletName = '') {
-  if (!palletId) {
-    showNotification('No pallet id provided', 'warning');
-    return;
-  }
-
-  const printArea = _ensurePrintArea();
-  const printContent = document.getElementById('print-content');
-
-  // Clear any previous content immediately
-  printContent.innerHTML = '';
-
-  // Create print container optimized for mobile
-  const container = document.createElement('div');
-  container.id = 'barcode-print-container';
-  container.style.cssText = `
-    width: 100%;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    padding: 20px;
-    box-sizing: border-box;
-    page-break-after: avoid;
-  `;
-
-  // Title
-  if (palletName) {
-    const title = document.createElement('div');
-    title.textContent = palletName;
-    title.style.cssText = `
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 20px;
-      text-align: center;
-      font-family: Arial, sans-serif;
-      color: #000;
-    `;
-    container.appendChild(title);
-  }
-
-  // Barcode wrapper
-  const barcodeWrap = document.createElement('div');
-  barcodeWrap.style.cssText = `
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    justify-content: center;
-    margin: 20px 0;
-  `;
-
-  // Create unique SVG ID
-  const svgId = 'print-barcode-' + Date.now();
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('id', svgId);
-  svg.style.cssText = 'width: 100%; height: auto;';
-  barcodeWrap.appendChild(svg);
-  container.appendChild(barcodeWrap);
-
-  // Human readable ID
-  const idLabel = document.createElement('div');
-  idLabel.textContent = palletId;
-  idLabel.style.cssText = `
-    font-size: 20px;
-    font-weight: bold;
-    margin-top: 15px;
-    font-family: Arial, sans-serif;
-    text-align: center;
-    color: #000;
-  `;
-  container.appendChild(idLabel);
-
-  printContent.appendChild(container);
-
-  try {
-    // Generate barcode synchronously
-    JsBarcode('#' + svgId, palletId, {
-      format: 'CODE128',
-      width: 3,
-      height: 100,
-      displayValue: false,
-      fontSize: 0,
-      margin: 5,
-      lineColor: '#000',
-      background: '#fff'
-    });
-
-    // Verify SVG was created successfully
-    const generatedSvg = document.getElementById(svgId);
-    if (!generatedSvg || !generatedSvg.innerHTML) {
-      throw new Error('Barcode generation failed');
-    }
-
-    // Show print area
-    printArea.style.display = 'block';
-
-    // Use single setTimeout with proper cleanup
-    setTimeout(() => {
-      try {
-        window.print();
-      } catch (printErr) {
-        console.error('Print error:', printErr);
-        showNotification('Print failed: ' + printErr.message, 'error');
-      } finally {
-        // Cleanup happens in finally block to ensure it runs
-        setTimeout(() => {
-          printArea.style.display = 'none';
-          printContent.innerHTML = '';
-        }, 500);
-      }
-    }, 300);
-
-    showNotification('Print ready: ' + (palletName || palletId), 'success', 2000);
-
-  } catch (err) {
-    console.error('Barcode error:', err);
-    showNotification('Error generating barcode: ' + err.message, 'error');
-    printArea.style.display = 'none';
-    printContent.innerHTML = '';
-  }
-}
-
-/**
- * Render barcode in pallet details modal
- */
-function addBarcodeToDetails(palletId) {
-  if (!palletId) return;
-
-  const host = document.getElementById('pallet-detail-info');
-  if (!host) return;
-
-  const prev = document.getElementById('pallet-detail-barcode');
-  if (prev) prev.remove();
-
-  const wrap = document.createElement('div');
-  wrap.id = 'pallet-detail-barcode';
-  wrap.style.cssText = `
-    margin-top: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: #f8f9fa;
-    padding: 16px;
-    border-radius: 12px;
-  `;
-
-  const svgId = 'pallet-modal-barcode-' + Date.now();
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('id', svgId);
-  svg.style.cssText = 'max-width: 280px; width: 100%;';
-  wrap.appendChild(svg);
-
-  const label = document.createElement('div');
-  label.textContent = palletId;
-  label.style.cssText = `
-    font-size: 13px;
-    font-weight: 700;
-    margin-top: 8px;
-    color: #1565c0;
-  `;
-  wrap.appendChild(label);
-
-  // Print button
-  const printBtn = document.createElement('button');
-  printBtn.className = 'btn btn-sm';
-  printBtn.style.marginTop = '12px';
-  printBtn.innerHTML = '🖨️ Print Label';
-  printBtn.onclick = function(e) {
-    e.stopPropagation();
-    printPalletBarcode(palletId, 'PALLET: ' + palletId);
-  };
-  wrap.appendChild(printBtn);
-
-  host.appendChild(wrap);
-
-  try {
-    JsBarcode('#' + svgId, palletId, {
-      format: 'CODE128',
-      width: 2,
-      height: 70,
-      displayValue: true,
-      fontSize: 14,
-      margin: 8,
-      lineColor: '#000',
-      background: 'transparent'
-    });
-  } catch (err) {
-    console.error('Modal barcode error:', err);
-    wrap.innerHTML = '<div style="color: #dc3545;">Error generating barcode</div>';
-  }
-}
-
-/**
- * Manually generate a pallet from the current bottle queue
- */
-function manualGeneratePallet() {
-    if (!scannedBarcodes.length) {
-        showNotification('Queue is empty', 'warning');
-        return;
-    }
-
-    // Create new pallet
-    const pallet = createNewPalletRecord();
-    let addedCount = 0;
-
-    // Add bottles to pallet
-    for (const bottleId of scannedBarcodes) {
-        if (addBottleToPallet(pallet, bottleId)) {
-            addedCount++;
+        
+        // Data Persistence
+        function saveData() {
+            const data = {
+                bottles,
+                pallets,
+                clients,
+                activityLog: activityLog.slice(0, 100),
+                deletedRecords,
+                stores,
+                currentStoreId,
+                version: 5
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
-    }
-
-    if (addedCount > 0) {
-        addActivity(`📦 Manually created pallet ${pallet.id} with ${addedCount} bottles`);
-        showNotification(`✅ Pallet ${pallet.id} created with ${addedCount} bottles!`, 'success', 4000);
-        scannedBarcodes = [];
-        updateScannedList();
-        saveData();
-        updateAllDisplays();
-        document.getElementById('barcode-input').focus();
-    } else {
-        pallets = pallets.filter(p => p.id !== pallet.id);
-        showNotification('❌ Failed to add bottles to pallet', 'error');
-    }
-}
-
-</script>
-</div>
+        
+        function loadData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    bottles = data.bottles || [];
+                    pallets = data.pallets || [];
+                    clients = data.clients || [];
+                    activityLog = data.activityLog || [];
+                    deletedRecords = data.deletedRecords || [];
+                    stores = data.stores || [];
+                    currentStoreId = data.currentStoreId || null;
+                }
+            } catch (e) {
+                console.error('Error loading data:', e);
+                showToast('Error loading saved data', 'error');
+            }
+        }
+        
+        // Store Management
+        function initializeStores() {
+            if (stores.length === 0) {
+                const now = new Date().toISOString();
+                stores = [
+                    {
+                        id: 'store_main',
+                        name: 'Main Store',
+                        type: 'main',
+                        created: now,
+                        lastUpdated: now
+                    }
+                ];
+                
+                for (let i = 1; i <= 6; i++) {
+                    stores.push({
+                        id: `store_driver${i}`,
+                        name: `Driver ${i}`,
+                        type: 'driver',
+                        created: now,
+                        lastUpdated: now
+                    });
+                }
+                
+                currentStoreId = 'store_main';
+                saveData();
+                addActivity('✨ Initialized 7-store system (1 Main + 6 Drivers)');
+            }
+            
+            if (!currentStoreId) {
+                currentStoreId = 'store_main';
+            }
+        }
+        
+        function migrateDataToStores() {
+            let migrated = false;
+            const mainStore = stores.find(s => s.type === 'main');
+            
+            bottles.forEach(bottle => {
+                if (!bottle.storeId) {
+                    bottle.storeId = mainStore.id;
+                    bottle.storeName = mainStore.name;
+                    migrated = true;
+                }
+            });
+            
+            pallets.forEach(pallet => {
+                if (!pallet.storeId) {
+                    pallet.storeId = mainStore.id;
+                    pallet.storeName = mainStore.name;
+                    migrated = true;
+                }
+            });
+            
+            if (migrated) {
+                saveData();
+                addActivity('🔄 Migrated legacy data to Main Store');
+            }
+        }
+        
+        function renderStoreSwitcher() {
+            const switcher = document.getElementById('storeSwitcher');
+            switcher.innerHTML = stores.map(store => 
+                `<option value="${store.id}" ${store.id === currentStoreId ? 'selected' : ''}>${store.name}</option>`
+            ).join('');
+        }
+        
+        switchStore = function() {
+            const switcher = document.getElementById('storeSwitcher');
+            currentStoreId = switcher.value;
+            const store = stores.find(s => s.id === currentStoreId);
+            saveData();
+            updateAllDisplays();
+            showToast(`📍 Switched to ${store.name}`, 'success');
+        }
+        
+        function getCurrentStore() {
+            return stores.find(s => s.id === currentStoreId);
+        }
+        
+        // Transfer Functions
+        openTransferBottle = function(bottleId) {
+            const bottle = bottles.find(b => b.id === bottleId);
+            if (!bottle) return;
+            
+            const otherStores = stores.filter(s => s.id !== bottle.storeId);
+            
+            const content = `
+                <div class="form-group">
+                    <p><strong>Bottle:</strong> ${bottle.id}</p>
+                    <p><strong>Current Store:</strong> ${bottle.storeName}</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Transfer to Store *</label>
+                    <select id="transferTargetStore" class="form-input">
+                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="confirmTransfer('bottle', '${bottleId}')">Confirm Transfer</button>
+            `;
+            
+            document.getElementById('transferModalTitle').textContent = 'Transfer Bottle';
+            document.getElementById('transferContent').innerHTML = content;
+            document.getElementById('transferModal').classList.add('active');
+        }
+        
+        openTransferPallet = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet) return;
+            
+            const otherStores = stores.filter(s => s.id !== pallet.storeId);
+            
+            const content = `
+                <div class="form-group">
+                    <p><strong>Pallet:</strong> ${pallet.name || pallet.id}</p>
+                    <p><strong>Current Store:</strong> ${pallet.storeName}</p>
+                    <p><strong>Bottles:</strong> ${pallet.bottleIds.length}</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Transfer to Store *</label>
+                    <select id="transferTargetStore" class="form-input">
+                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                </div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 15px;">
+                    Note: All bottles in this pallet will also be transferred to the target store.
+                </p>
+                <button class="btn btn-primary" style="width: 100%;" onclick="confirmTransfer('pallet', '${palletId}')">Confirm Transfer</button>
+            `;
+            
+            document.getElementById('transferModalTitle').textContent = 'Transfer Pallet';
+            document.getElementById('transferContent').innerHTML = content;
+            document.getElementById('transferModal').classList.add('active');
+        }
+        
+        closeTransferModal = function() {
+            document.getElementById('transferModal').classList.remove('active');
+        }
+        
+        confirmTransfer = function(type, id) {
+            const targetStoreId = document.getElementById('transferTargetStore').value;
+            const targetStore = stores.find(s => s.id === targetStoreId);
+            
+            if (!targetStore) return;
+            
+            if (type === 'bottle') {
+                const bottle = bottles.find(b => b.id === id);
+                if (!bottle) return;
+                
+                const fromStore = bottle.storeName;
+                bottle.storeId = targetStore.id;
+                bottle.storeName = targetStore.name;
+                bottle.lastUpdated = new Date().toISOString();
+                bottle.history.push({
+                    action: 'transferred',
+                    from: fromStore,
+                    to: targetStore.name,
+                    timestamp: new Date().toISOString()
+                });
+                
+                addActivity(`🔄 Transferred bottle ${id} from ${fromStore} to ${targetStore.name}`);
+                showToast(`✅ Bottle transferred to ${targetStore.name}`, 'success');
+            } else if (type === 'pallet') {
+                const pallet = findPalletById(id);
+                if (!pallet) return;
+                
+                const fromStore = pallet.storeName;
+                pallet.storeId = targetStore.id;
+                pallet.storeName = targetStore.name;
+                pallet.lastUpdated = new Date().toISOString();
+                pallet.history.push({
+                    action: 'transferred',
+                    from: fromStore,
+                    to: targetStore.name,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Transfer all bottles in the pallet
+                pallet.bottleIds.forEach(bottleId => {
+                    const bottle = bottles.find(b => b.id === bottleId);
+                    if (bottle) {
+                        bottle.storeId = targetStore.id;
+                        bottle.storeName = targetStore.name;
+                        bottle.lastUpdated = new Date().toISOString();
+                        bottle.history.push({
+                            action: 'transferred_with_pallet',
+                            from: fromStore,
+                            to: targetStore.name,
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                });
+                
+                addActivity(`🔄 Transferred pallet ${pallet.name || pallet.id} with ${pallet.bottleIds.length} bottles from ${fromStore} to ${targetStore.name}`);
+                showToast(`✅ Pallet and ${pallet.bottleIds.length} bottles transferred to ${targetStore.name}`, 'success');
+            }
+            
+            saveData();
+            updateAllDisplays();
+            closeTransferModal();
+        }
+        
+        // Bulk Transfer Functions
+        openBulkTransferBottles = function() {
+            const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
+            const otherStores = stores.filter(s => s.id !== currentStoreId);
+            
+            if (storeBottles.length === 0) {
+                showToast('⚠️ No bottles in current store', 'warning');
+                return;
+            }
+            
+            const content = `
+                <div class="form-group">
+                    <p><strong>Current Store:</strong> ${getCurrentStore().name}</p>
+                    <p><strong>Available Bottles:</strong> ${storeBottles.length}</p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Select Bottles to Transfer</label>
+                    <div class="checkbox-group" id="bulkBottleCheckboxes">
+                        ${storeBottles.map(b => `
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="${b.id}" class="bulk-bottle-checkbox">
+                                <span><strong>${b.id}</strong> - ${b.status} ${b.palletId ? `(${b.palletId})` : ''}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Transfer to Store *</label>
+                    <select id="bulkTransferTargetStore" class="form-input">
+                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllBottles(true)">Select All</button>
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllBottles(false)">Deselect All</button>
+                </div>
+                
+                <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="confirmBulkTransferBottles()">Transfer Selected Bottles</button>
+            `;
+            
+            document.getElementById('bulkTransferBottlesContent').innerHTML = content;
+            document.getElementById('bulkTransferBottlesModal').classList.add('active');
+        }
+        
+        closeBulkTransferBottles = function() {
+            document.getElementById('bulkTransferBottlesModal').classList.remove('active');
+        }
+        
+        function selectAllBottles(select) {
+            document.querySelectorAll('.bulk-bottle-checkbox').forEach(cb => {
+                cb.checked = select;
+            });
+        }
+        
+        function confirmBulkTransferBottles() {
+            const selectedBottleIds = Array.from(document.querySelectorAll('.bulk-bottle-checkbox:checked')).map(cb => cb.value);
+            
+            if (selectedBottleIds.length === 0) {
+                showToast('⚠️ Please select at least one bottle', 'warning');
+                return;
+            }
+            
+            const targetStoreId = document.getElementById('bulkTransferTargetStore').value;
+            const targetStore = stores.find(s => s.id === targetStoreId);
+            const fromStore = getCurrentStore();
+            
+            selectedBottleIds.forEach(bottleId => {
+                const bottle = bottles.find(b => b.id === bottleId);
+                if (bottle) {
+                    // Remove from pallet if in different store
+                    if (bottle.palletId) {
+                        const pallet = findPalletById(bottle.palletId);
+                        if (pallet && pallet.storeId !== targetStoreId) {
+                            removeBottleFromPallet(bottleId, bottle.palletId);
+                        }
+                    }
+                    
+                    bottle.storeId = targetStore.id;
+                    bottle.storeName = targetStore.name;
+                    bottle.lastUpdated = new Date().toISOString();
+                    bottle.history.push({
+                        action: 'bulk_transferred',
+                        from: fromStore.name,
+                        to: targetStore.name,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
+            
+            addActivity(`🔄 Bulk transferred ${selectedBottleIds.length} bottles from ${fromStore.name} to ${targetStore.name}`);
+            saveData();
+            updateAllDisplays();
+            closeBulkTransferBottles();
+            showToast(`✅ Transferred ${selectedBottleIds.length} bottles to ${targetStore.name}`, 'success');
+        }
+        
+        openBulkTransferPallets = function() {
+            const storePallets = pallets.filter(p => p.storeId === currentStoreId);
+            const otherStores = stores.filter(s => s.id !== currentStoreId);
+            
+            if (storePallets.length === 0) {
+                showToast('⚠️ No pallets in current store', 'warning');
+                return;
+            }
+            
+            const content = `
+                <div class="form-group">
+                    <p><strong>Current Store:</strong> ${getCurrentStore().name}</p>
+                    <p><strong>Available Pallets:</strong> ${storePallets.length}</p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Select Pallets to Transfer</label>
+                    <div class="checkbox-group" id="bulkPalletCheckboxes">
+                        ${storePallets.map(p => `
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="${p.id}" class="bulk-pallet-checkbox">
+                                <span><strong>${p.name || p.id}</strong> - ${p.status} (${p.bottleIds.length} bottles)</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Transfer to Store *</label>
+                    <select id="bulkTransferTargetStorePallet" class="form-input">
+                        ${otherStores.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllPallets(true)">Select All</button>
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="selectAllPallets(false)">Deselect All</button>
+                </div>
+                
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 15px 0;">
+                    Note: All bottles in selected pallets will also be transferred.
+                </p>
+                
+                <button class="btn btn-primary" style="width: 100%;" onclick="confirmBulkTransferPallets()">Transfer Selected Pallets</button>
+            `;
+            
+            document.getElementById('bulkTransferPalletsContent').innerHTML = content;
+            document.getElementById('bulkTransferPalletsModal').classList.add('active');
+        }
+        
+        closeBulkTransferPallets = function() {
+            document.getElementById('bulkTransferPalletsModal').classList.remove('active');
+        }
+        
+        function selectAllPallets(select) {
+            document.querySelectorAll('.bulk-pallet-checkbox').forEach(cb => {
+                cb.checked = select;
+            });
+        }
+        
+        function confirmBulkTransferPallets() {
+            const selectedPalletIds = Array.from(document.querySelectorAll('.bulk-pallet-checkbox:checked')).map(cb => cb.value);
+            
+            if (selectedPalletIds.length === 0) {
+                showToast('⚠️ Please select at least one pallet', 'warning');
+                return;
+            }
+            
+            const targetStoreId = document.getElementById('bulkTransferTargetStorePallet').value;
+            const targetStore = stores.find(s => s.id === targetStoreId);
+            const fromStore = getCurrentStore();
+            
+            let totalBottles = 0;
+            
+            selectedPalletIds.forEach(palletId => {
+                const pallet = findPalletById(palletId);
+                if (pallet) {
+                    pallet.storeId = targetStore.id;
+                    pallet.storeName = targetStore.name;
+                    pallet.lastUpdated = new Date().toISOString();
+                    pallet.history.push({
+                        action: 'bulk_transferred',
+                        from: fromStore.name,
+                        to: targetStore.name,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Transfer all bottles
+                    pallet.bottleIds.forEach(bottleId => {
+                        const bottle = bottles.find(b => b.id === bottleId);
+                        if (bottle) {
+                            bottle.storeId = targetStore.id;
+                            bottle.storeName = targetStore.name;
+                            bottle.lastUpdated = new Date().toISOString();
+                            bottle.history.push({
+                                action: 'bulk_transferred_with_pallet',
+                                from: fromStore.name,
+                                to: targetStore.name,
+                                timestamp: new Date().toISOString()
+                            });
+                            totalBottles++;
+                        }
+                    });
+                }
+            });
+            
+            addActivity(`🔄 Bulk transferred ${selectedPalletIds.length} pallets with ${totalBottles} bottles from ${fromStore.name} to ${targetStore.name}`);
+            saveData();
+            updateAllDisplays();
+            closeBulkTransferPallets();
+            showToast(`✅ Transferred ${selectedPalletIds.length} pallets and ${totalBottles} bottles to ${targetStore.name}`, 'success');
+        }
+        
+        // Tab Navigation
+        openTab = function(tabId, btn) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-btn').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+            
+            // Auto-focus scanner when switching to Scanner tab
+            if (tabId === 'scanner') {
+                setTimeout(() => {
+                    document.getElementById('scannerInput').focus();
+                }, 100);
+            }
+            
+            // Save last active tab
+            localStorage.setItem('lastActiveTab', tabId);
+        }
+        
+        // Scanner Setup
+        function setupScanner() {
+            const input = document.getElementById('scannerInput');
+            
+            // Auto-submit on 6+ digits with debounce
+            input.addEventListener('input', function(e) {
+                clearTimeout(debounceTimer);
+                
+                // Strip non-digits
+                let value = e.target.value.replace(/\D/g, '');
+                e.target.value = value;
+                
+                if (value.length >= 6) {
+                    debounceTimer = setTimeout(() => {
+                        handleScannerSubmit(value);
+                    }, 120);
+                }
+            });
+            
+            // Enter key fallback
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    clearTimeout(debounceTimer);
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value.length >= 6) {
+                        handleScannerSubmit(value);
+                    } else {
+                        showToast('⚠️ Please enter at least 6 digits', 'warning');
+                        warningSound.play();
+                    }
+                }
+            });
+        }
+        
+        function handleScannerSubmit(barcode) {
+            const input = document.getElementById('scannerInput');
+            
+            if (scannerMode === 'pallet') {
+                handlePalletScan(barcode);
+            } else {
+                addScannedBarcode(barcode);
+            }
+            
+            input.value = '';
+            input.focus();
+        }
+        
+        setScannerMode = function(mode) {
+            scannerMode = mode;
+            updatePalletScanUI();
+            document.getElementById('scannerInput').focus();
+        }
+        
+        updatePalletScanUI = function() {
+            const quickActions = document.getElementById('palletQuickActions');
+            if (scannerMode === 'pallet') {
+                quickActions.style.display = 'block';
+            } else {
+                quickActions.style.display = 'none';
+                window.currentScannedPallet = null;
+            }
+        }
+        
+        function handlePalletScan(palletId) {
+            const formattedId = palletId.startsWith('PAL-') ? palletId : `PAL-${palletId}`;
+            const pallet = findPalletById(formattedId);
+            
+            if (!pallet) {
+                showToast(`⚠️ Pallet ${formattedId} not found`, 'warning');
+                warningSound.play();
+                return;
+            }
+            
+            window.currentScannedPallet = formattedId;
+            
+            const card = document.getElementById('palletSummaryCard');
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <strong style="font-size: 1.1rem;">${pallet.name || pallet.id}</strong>
+                    <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
+                    <span class="badge">📦 ${pallet.bottleIds.length} / ${pallet.capacity}</span>
+                </div>
+            `;
+            
+            successSound.play();
+            showToast(`✅ Loaded ${pallet.name || pallet.id}`, 'success');
+        }
+        
+        // Bottle Queue Management
+        addScannedBarcode = function(barcode) {
+            if (scannedBarcodes.length >= MAX_BARCODES) {
+                showToast('⚠️ Queue is full (500 max)', 'warning');
+                warningSound.play();
+                return;
+            }
+            
+            if (scannedBarcodes.includes(barcode)) {
+                showToast('⚠️ Bottle already in queue', 'warning');
+                warningSound.play();
+                return;
+            }
+            
+            scannedBarcodes.push(barcode);
+            updateScannedList();
+            successSound.play();
+            
+            // Auto-create pallet at 32 bottles
+            if (scannedBarcodes.length === 32) {
+                setTimeout(() => {
+                    autoCreatePallet();
+                }, 300);
+            }
+        }
+        
+        function removeFromQueue(barcode) {
+            scannedBarcodes = scannedBarcodes.filter(b => b !== barcode);
+            updateScannedList();
+        }
+        
+        updateScannedList = function() {
+            const count = scannedBarcodes.length;
+            const percentage = Math.min((count / 32) * 100, 100);
+            
+            document.getElementById('queueCount').textContent = count;
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percentage + '%';
+            progressFill.textContent = Math.round(percentage) + '%';
+            
+            const list = document.getElementById('scannedList');
+            list.innerHTML = scannedBarcodes.map((barcode, index) => `
+                <div class="scanned-item">
+                    <div class="scanned-item-info">
+                        <strong>#${index + 1}</strong>
+                        <span>${barcode}</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeFromQueue('${barcode}')">Remove</button>
+                </div>
+            `).join('');
+        }
+        
+        clearAllScanned = function() {
+            if (scannedBarcodes.length === 0) return;
+            
+            if (confirm(`Clear all ${scannedBarcodes.length} bottles from queue?`)) {
+                scannedBarcodes = [];
+                updateScannedList();
+                showToast('🗑️ Queue cleared', 'success');
+            }
+        }
+        
+        function autoCreatePallet() {
+            if (scannedBarcodes.length !== 32) return;
+            
+            const store = getCurrentStore();
+            const pallet = createNewPalletRecord(store.id, store.name);
+            
+            scannedBarcodes.forEach(bottleId => {
+                let bottle = bottles.find(b => b.id === bottleId);
+                if (!bottle) {
+                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
+                    bottles.push(bottle);
+                }
+                addBottleToPallet(bottle.id, pallet.id);
+            });
+            
+            pallets.push(pallet);
+            recalcPalletStatus(pallet.id);
+            
+            scannedBarcodes = [];
+            updateScannedList();
+            
+            addActivity(`[${store.name}] 🎉 Auto-created ${pallet.name || pallet.id} with 32 bottles`);
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Created ${pallet.name || pallet.id}`, 'success');
+            successSound.play();
+        }
+        
+        manualGeneratePallet = function() {
+            if (scannedBarcodes.length === 0) {
+                showToast('⚠️ Queue is empty', 'warning');
+                return;
+            }
+            
+            const store = getCurrentStore();
+            const pallet = createNewPalletRecord(store.id, store.name);
+            
+            scannedBarcodes.forEach(bottleId => {
+                let bottle = bottles.find(b => b.id === bottleId);
+                if (!bottle) {
+                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
+                    bottles.push(bottle);
+                }
+                addBottleToPallet(bottle.id, pallet.id);
+            });
+            
+            pallets.push(pallet);
+            recalcPalletStatus(pallet.id);
+            
+            addActivity(`[${store.name}] 📦 Created ${pallet.name || pallet.id} with ${scannedBarcodes.length} bottles`);
+            
+            scannedBarcodes = [];
+            updateScannedList();
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Created ${pallet.name || pallet.id}`, 'success');
+        }
+        
+        // Batch Actions
+        batchRefill = function() {
+            if (scannedBarcodes.length === 0) {
+                showToast('⚠️ Queue is empty', 'warning');
+                return;
+            }
+            
+            const store = getCurrentStore();
+            let refilled = 0;
+            
+            scannedBarcodes.forEach(bottleId => {
+                let bottle = bottles.find(b => b.id === bottleId);
+                if (!bottle) {
+                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
+                    bottles.push(bottle);
+                }
+                
+                bottle.status = 'available';
+                bottle.clientId = null;
+                bottle.clientName = null;
+                bottle.clientPhone = null;
+                bottle.refillCount++;
+                bottle.lastUpdated = new Date().toISOString();
+                bottle.history.push({
+                    action: 'refilled',
+                    timestamp: new Date().toISOString()
+                });
+                
+                if (bottle.clientId) {
+                    updateClientBottleCounts(bottle.clientId);
+                }
+                
+                refilled++;
+            });
+            
+            addActivity(`[${store.name}] 🔄 Refilled ${refilled} bottles`);
+            scannedBarcodes = [];
+            updateScannedList();
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Refilled ${refilled} bottles`, 'success');
+        }
+        
+        batchReturn = function() {
+            if (scannedBarcodes.length === 0) {
+                showToast('⚠️ Queue is empty', 'warning');
+                return;
+            }
+            
+            const store = getCurrentStore();
+            let returned = 0;
+            
+            scannedBarcodes.forEach(bottleId => {
+                let bottle = bottles.find(b => b.id === bottleId);
+                if (!bottle) {
+                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
+                    bottles.push(bottle);
+                }
+                
+                const oldClientId = bottle.clientId;
+                
+                bottle.status = 'needs-refill';
+                bottle.clientId = null;
+                bottle.clientName = null;
+                bottle.clientPhone = null;
+                bottle.lastUpdated = new Date().toISOString();
+                bottle.history.push({
+                    action: 'returned',
+                    timestamp: new Date().toISOString()
+                });
+                
+                if (oldClientId) {
+                    updateClientBottleCounts(oldClientId);
+                }
+                
+                returned++;
+            });
+            
+            addActivity(`[${store.name}] ↩️ Returned ${returned} bottles (needs refill)`);
+            scannedBarcodes = [];
+            updateScannedList();
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Returned ${returned} bottles`, 'success');
+        }
+        
+        batchDeliver = function() {
+            if (scannedBarcodes.length === 0) {
+                showToast('⚠️ Queue is empty', 'warning');
+                return;
+            }
+            
+            populateClientDropdowns();
+            document.getElementById('deliverModal').classList.add('active');
+        }
+        
+        confirmBatchDelivery = function() {
+            const clientSelect = document.getElementById('deliverClientSelect');
+            const clientId = clientSelect.value;
+            
+            if (!clientId) {
+                showToast('⚠️ Please select a client', 'warning');
+                return;
+            }
+            
+            const client = clients.find(c => c.id === clientId);
+            const store = getCurrentStore();
+            let delivered = 0;
+            
+            scannedBarcodes.forEach(bottleId => {
+                let bottle = bottles.find(b => b.id === bottleId);
+                if (!bottle) {
+                    bottle = createNewBottleRecord(bottleId, store.id, store.name);
+                    bottles.push(bottle);
+                }
+                
+                if (bottle.status === 'available' || !bottle.status) {
+                    autoRemoveFromPallet(bottle.id);
+                    
+                    bottle.status = 'with-client';
+                    bottle.clientId = client.id;
+                    bottle.clientName = client.name;
+                    bottle.clientPhone = client.phone;
+                    bottle.deliveryCount++;
+                    bottle.lastUpdated = new Date().toISOString();
+                    bottle.history.push({
+                        action: 'delivered',
+                        client: client.name,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    delivered++;
+                }
+            });
+            
+            updateClientBottleCounts(client.id);
+            addActivity(`[${store.name}] 🚚 Delivered ${delivered} bottles to ${client.name}`);
+            
+            scannedBarcodes = [];
+            updateScannedList();
+            closeDeliverModal();
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Delivered ${delivered} bottles to ${client.name}`, 'success');
+        }
+        
+        function closeDeliverModal() {
+            document.getElementById('deliverModal').classList.remove('active');
+        }
+        
+        // Data Model Functions
+        createNewBottleRecord = function(id, storeId, storeName) {
+            return {
+                id,
+                status: 'available',
+                palletId: null,
+                deliveryCount: 0,
+                refillCount: 0,
+                clientId: null,
+                clientName: null,
+                clientPhone: null,
+                storeId,
+                storeName,
+                created: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                history: [{
+                    action: 'created',
+                    timestamp: new Date().toISOString()
+                }]
+            };
+        }
+        
+        createNewClientRecord = function(name, phone, address = '') {
+            return {
+                id: 'client_' + Date.now(),
+                name,
+                phone,
+                address,
+                bottleCount: 0,
+                created: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                history: [{
+                    action: 'created',
+                    timestamp: new Date().toISOString()
+                }]
+            };
+        }
+        
+        updateClientBottleCounts = function(clientId) {
+            const client = clients.find(c => c.id === clientId);
+            if (!client) return;
+            
+            client.bottleCount = bottles.filter(b => b.clientId === clientId).length;
+            client.lastUpdated = new Date().toISOString();
+        }
+        
+        createNewPalletRecord = function(storeId, storeName) {
+            const timestamp = Date.now();
+            return {
+                id: `PAL-${timestamp}`,
+                name: `Pallet ${timestamp}`,
+                bottleIds: [],
+                capacity: PALLET_CAPACITY,
+                status: 'empty',
+                clientId: null,
+                storeId,
+                storeName,
+                created: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                history: [{
+                    action: 'created',
+                    timestamp: new Date().toISOString()
+                }]
+            };
+        }
+        
+        findPalletById = function(palletId) {
+            return pallets.find(p => p.id === palletId);
+        }
+        
+        recalcPalletStatus = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet) return;
+            
+            const count = pallet.bottleIds.length;
+            const palletBottles = bottles.filter(b => pallet.bottleIds.includes(b.id));
+            
+            if (count === 0) {
+                pallet.status = 'empty';
+            } else if (palletBottles.every(b => b.status === 'with-client')) {
+                pallet.status = 'with-client';
+            } else if (palletBottles.some(b => b.status === 'needs-refill')) {
+                pallet.status = 'needs-refill';
+            } else if (count === pallet.capacity) {
+                pallet.status = 'full';
+            } else {
+                pallet.status = 'partial';
+            }
+            
+            pallet.lastUpdated = new Date().toISOString();
+        }
+        
+        addBottleToPallet = function(bottleId, palletId) {
+            const bottle = bottles.find(b => b.id === bottleId);
+            const pallet = findPalletById(palletId);
+            
+            if (!bottle || !pallet) return false;
+            
+            // Check store match
+            if (bottle.storeId !== pallet.storeId) {
+                showToast('⚠️ Bottle and pallet are in different stores', 'warning');
+                return false;
+            }
+            
+            if (pallet.bottleIds.includes(bottleId)) return false;
+            
+            if (bottle.palletId) {
+                removeBottleFromPallet(bottleId, bottle.palletId);
+            }
+            
+            pallet.bottleIds.push(bottleId);
+            bottle.palletId = palletId;
+            bottle.lastUpdated = new Date().toISOString();
+            
+            return true;
+        }
+        
+        removeBottleFromPallet = function(bottleId, palletId) {
+            const bottle = bottles.find(b => b.id === bottleId);
+            const pallet = findPalletById(palletId);
+            
+            if (!bottle || !pallet) return false;
+            
+            pallet.bottleIds = pallet.bottleIds.filter(id => id !== bottleId);
+            bottle.palletId = null;
+            bottle.lastUpdated = new Date().toISOString();
+            
+            recalcPalletStatus(palletId);
+            return true;
+        }
+        
+        autoRemoveFromPallet = function(bottleId) {
+            const bottle = bottles.find(b => b.id === bottleId);
+            if (bottle && bottle.palletId) {
+                removeBottleFromPallet(bottleId, bottle.palletId);
+            }
+        }
+        
+        // Pallet Actions
+        deliverPalletById = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet) return;
+            
+            populateClientDropdowns();
+            
+            const modal = document.getElementById('deliverModal');
+            modal.setAttribute('data-pallet-id', palletId);
+            modal.classList.add('active');
+        }
+        
+        refillPalletById = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet || pallet.bottleIds.length === 0) {
+                showToast('⚠️ Pallet is empty', 'warning');
+                return;
+            }
+            
+            let refilled = 0;
+            pallet.bottleIds.forEach(bottleId => {
+                const bottle = bottles.find(b => b.id === bottleId);
+                if (bottle) {
+                    const oldClientId = bottle.clientId;
+                    
+                    bottle.status = 'available';
+                    bottle.clientId = null;
+                    bottle.clientName = null;
+                    bottle.clientPhone = null;
+                    bottle.refillCount++;
+                    bottle.lastUpdated = new Date().toISOString();
+                    bottle.history.push({
+                        action: 'refilled',
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    if (oldClientId) {
+                        updateClientBottleCounts(oldClientId);
+                    }
+                    
+                    refilled++;
+                }
+            });
+            
+            recalcPalletStatus(palletId);
+            addActivity(`[${pallet.storeName}] 🔄 Refilled ${refilled} bottles in ${pallet.name || pallet.id}`);
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Refilled ${refilled} bottles`, 'success');
+        }
+        
+        returnPalletById = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet || pallet.bottleIds.length === 0) {
+                showToast('⚠️ Pallet is empty', 'warning');
+                return;
+            }
+            
+            let returned = 0;
+            pallet.bottleIds.forEach(bottleId => {
+                const bottle = bottles.find(b => b.id === bottleId);
+                if (bottle) {
+                    const oldClientId = bottle.clientId;
+                    
+                    bottle.status = 'needs-refill';
+                    bottle.clientId = null;
+                    bottle.clientName = null;
+                    bottle.clientPhone = null;
+                    bottle.lastUpdated = new Date().toISOString();
+                    bottle.history.push({
+                        action: 'returned',
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    if (oldClientId) {
+                        updateClientBottleCounts(oldClientId);
+                    }
+                    
+                    returned++;
+                }
+            });
+            
+            recalcPalletStatus(palletId);
+            addActivity(`[${pallet.storeName}] ↩️ Returned ${returned} bottles in ${pallet.name || pallet.id}`);
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Returned ${returned} bottles`, 'success');
+        }
+        
+        // Delete Functions
+        deleteBottle = function(bottleId) {
+            if (!confirm(`Delete bottle ${bottleId}?`)) return;
+            
+            const bottle = bottles.find(b => b.id === bottleId);
+            if (!bottle) return;
+            
+            if (bottle.palletId) {
+                removeBottleFromPallet(bottleId, bottle.palletId);
+            }
+            
+            if (bottle.clientId) {
+                updateClientBottleCounts(bottle.clientId);
+            }
+            
+            deletedRecords.push({
+                ...bottle,
+                deletedAt: new Date().toISOString()
+            });
+            
+            bottles = bottles.filter(b => b.id !== bottleId);
+            addActivity(`[${bottle.storeName}] 🗑️ Deleted bottle ${bottleId}`);
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Deleted bottle ${bottleId}`, 'success');
+        }
+        
+        deletePallet = function(palletId) {
+            if (!confirm(`Delete pallet ${palletId}? All bottles will be removed from it.`)) return;
+            
+            const pallet = findPalletById(palletId);
+            if (!pallet) return;
+            
+            pallet.bottleIds.forEach(bottleId => {
+                const bottle = bottles.find(b => b.id === bottleId);
+                if (bottle) {
+                    bottle.palletId = null;
+                }
+            });
+            
+            deletedRecords.push({
+                ...pallet,
+                deletedAt: new Date().toISOString()
+            });
+            
+            pallets = pallets.filter(p => p.id !== palletId);
+            addActivity(`[${pallet.storeName}] 🗑️ Deleted pallet ${palletId}`);
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Deleted pallet ${palletId}`, 'success');
+        }
+        
+        // Render Functions
+        renderPallets = function() {
+            const search = document.getElementById('palletSearch').value.toLowerCase();
+            const statusFilter = document.getElementById('palletStatusFilter').value;
+            
+            let filtered = pallets.filter(p => p.storeId === currentStoreId);
+            
+            if (search) {
+                filtered = filtered.filter(p => 
+                    p.id.toLowerCase().includes(search) || 
+                    (p.name && p.name.toLowerCase().includes(search))
+                );
+            }
+            
+            if (statusFilter) {
+                filtered = filtered.filter(p => p.status === statusFilter);
+            }
+            
+            // Render KPIs
+            const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
+            const storePallets = pallets.filter(p => p.storeId === currentStoreId);
+            const kpisHtml = `
+                <div class="kpi-card">
+                    <div class="kpi-value">${storePallets.filter(p => p.status === 'empty').length}</div>
+                    <div class="kpi-label">Empty</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">${storePallets.filter(p => p.status === 'partial').length}</div>
+                    <div class="kpi-label">Partial</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">${storePallets.filter(p => p.status === 'full').length}</div>
+                    <div class="kpi-label">Full</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">${storePallets.filter(p => p.status === 'with-client').length}</div>
+                    <div class="kpi-label">With Client</div>
+                </div>
+            `;
+            document.getElementById('palletKPIs').innerHTML = kpisHtml;
+            
+            // Render grid
+            const grid = document.getElementById('palletGrid');
+            if (filtered.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No pallets found</p>';
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(pallet => `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${pallet.name || pallet.id}</div>
+                        <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
+                    </div>
+                    <div class="progress-bar" style="margin-bottom: 10px;">
+                        <div class="progress-fill" style="width: ${(pallet.bottleIds.length / pallet.capacity) * 100}%;">
+                            ${pallet.bottleIds.length} / ${pallet.capacity}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <span class="badge">📦 ${pallet.bottleIds.length} bottles</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary btn-small" onclick="openPalletDetails('${pallet.id}')">Details</button>
+                        <button class="btn btn-info btn-small" onclick="openTransferPallet('${pallet.id}')">🔄 Transfer</button>
+                        <button class="btn btn-secondary btn-small" onclick="printPalletBarcode('${pallet.id}')">🖨️ Print</button>
+                        <button class="btn btn-danger btn-small" onclick="deletePallet('${pallet.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        renderInventory = function() {
+            const search = document.getElementById('inventorySearch').value.toLowerCase();
+            const statusFilter = document.getElementById('inventoryStatusFilter').value;
+            
+            let filtered = bottles.filter(b => b.storeId === currentStoreId);
+            
+            if (search) {
+                filtered = filtered.filter(b => b.id.toLowerCase().includes(search));
+            }
+            
+            if (statusFilter) {
+                filtered = filtered.filter(b => b.status === statusFilter);
+            }
+            
+            // Render KPIs
+            const storeBottles = bottles.filter(b => b.storeId === currentStoreId);
+            const kpisHtml = `
+                <div class="kpi-card">
+                    <div class="kpi-value">${storeBottles.filter(b => b.status === 'available').length}</div>
+                    <div class="kpi-label">Available</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">${storeBottles.filter(b => b.status === 'needs-refill').length}</div>
+                    <div class="kpi-label">Needs Refill</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">${storeBottles.filter(b => b.status === 'with-client').length}</div>
+                    <div class="kpi-label">With Client</div>
+                </div>
+            `;
+            document.getElementById('inventoryKPIs').innerHTML = kpisHtml;
+            
+            // Render grid
+            const grid = document.getElementById('inventoryGrid');
+            if (filtered.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No bottles found</p>';
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(bottle => `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${bottle.id}</div>
+                        <span class="chip ${getStoreChipClass(bottle.storeId)}">${bottle.storeName}</span>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <span class="chip chip-${bottle.status}">${bottle.status.replace('-', ' ').toUpperCase()}</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <span class="badge">🚚 ${bottle.deliveryCount} deliveries</span>
+                        <span class="badge">🔄 ${bottle.refillCount} refills</span>
+                    </div>
+                    ${bottle.palletId ? `<div style="margin-bottom: 10px;"><span class="badge">📦 ${bottle.palletId}</span></div>` : ''}
+                    ${bottle.clientName ? `<div style="margin-bottom: 10px;"><span class="badge">👤 ${bottle.clientName}</span></div>` : ''}
+                    <div class="card-actions">
+                        <button class="btn btn-success btn-small" onclick="setBottleStatus('${bottle.id}', 'available')">Available</button>
+                        <button class="btn btn-warning btn-small" onclick="setBottleStatus('${bottle.id}', 'needs-refill')">Needs Refill</button>
+                        <button class="btn btn-info btn-small" onclick="openTransferBottle('${bottle.id}')">🔄 Transfer</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteBottle('${bottle.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function setBottleStatus(bottleId, status) {
+            const bottle = bottles.find(b => b.id === bottleId);
+            if (!bottle) return;
+            
+            const oldClientId = bottle.clientId;
+            bottle.status = status;
+            
+            if (status === 'available' || status === 'needs-refill') {
+                bottle.clientId = null;
+                bottle.clientName = null;
+                bottle.clientPhone = null;
+            }
+            
+            bottle.lastUpdated = new Date().toISOString();
+            bottle.history.push({
+                action: `status_changed_to_${status}`,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (oldClientId) {
+                updateClientBottleCounts(oldClientId);
+            }
+            
+            if (bottle.palletId) {
+                recalcPalletStatus(bottle.palletId);
+            }
+            
+            addActivity(`[${bottle.storeName}] 📝 Bottle ${bottleId} status: ${status}`);
+            saveData();
+            updateAllDisplays();
+            showToast(`✅ Updated bottle ${bottleId}`, 'success');
+        }
+        
+        renderClients = function() {
+            const search = document.getElementById('clientSearch').value.toLowerCase();
+            
+            let filtered = clients;
+            if (search) {
+                filtered = clients.filter(c => 
+                    c.name.toLowerCase().includes(search) || 
+                    c.phone.toLowerCase().includes(search)
+                );
+            }
+            
+            const grid = document.getElementById('clientGrid');
+            if (filtered.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #6b7280;">No clients found</p>';
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(client => `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${client.name}</div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <span class="badge">📞 ${client.phone}</span>
+                    </div>
+                    ${client.address ? `<div style="margin-bottom: 10px;"><span class="badge">📍 ${client.address}</span></div>` : ''}
+                    <div style="margin-bottom: 10px;">
+                        <span class="badge">📦 ${client.bottleCount} active bottles</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        updateActivity = function() {
+            const feed = document.getElementById('activityFeed');
+            if (activityLog.length === 0) {
+                feed.innerHTML = '<p style="text-align: center; color: #6b7280;">No activity yet</p>';
+                return;
+            }
+            
+            feed.innerHTML = activityLog.slice().reverse().map(item => `
+                <div class="activity-item">
+                    <div class="activity-time">${new Date(item.timestamp).toLocaleString()}</div>
+                    <div class="activity-message">${item.message}</div>
+                </div>
+            `).join('');
+        }
+        
+        function addActivity(message) {
+            activityLog.push({
+                id: Date.now().toString(),
+                message,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Keep only last 100
+            if (activityLog.length > 100) {
+                activityLog = activityLog.slice(-100);
+            }
+        }
+        
+        // Pallet Details Modal
+        openPalletDetails = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet) return;
+            
+            const palletBottles = bottles.filter(b => pallet.bottleIds.includes(b.id));
+            
+            const content = `
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3>${pallet.name || pallet.id}</h3>
+                        <span class="chip ${getStoreChipClass(pallet.storeId)}">${pallet.storeName}</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <span class="chip chip-${pallet.status}">${pallet.status.replace('-', ' ').toUpperCase()}</span>
+                        <span class="badge">📦 ${pallet.bottleIds.length} / ${pallet.capacity}</span>
+                    </div>
+                    <div id="palletBarcode" style="text-align: center; margin: 20px 0;"></div>
+                </div>
+                
+                <h4 style="margin-bottom: 10px;">Bottles in Pallet</h4>
+                <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                    ${palletBottles.length === 0 ? '<p style="color: #6b7280;">No bottles in this pallet</p>' : 
+                        palletBottles.map(b => `
+                            <div style="padding: 10px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>${b.id}</strong>
+                                    <span class="chip chip-${b.status}" style="margin-left: 10px;">${b.status}</span>
+                                </div>
+                                <button class="btn btn-danger btn-small" onclick="removeBottleFromPallet('${b.id}', '${pallet.id}'); openPalletDetails('${pallet.id}'); updateAllDisplays();">Remove</button>
+                            </div>
+                        `).join('')
+                    }
+                </div>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="refillPalletById('${pallet.id}'); closePalletDetails();">Refill All</button>
+                    <button class="btn btn-primary" onclick="deliverPalletById('${pallet.id}'); closePalletDetails();">Deliver All</button>
+                    <button class="btn btn-warning" onclick="returnPalletById('${pallet.id}'); closePalletDetails();">Return All</button>
+                    <button class="btn btn-info" onclick="openTransferPallet('${pallet.id}'); closePalletDetails();">🔄 Transfer</button>
+                    <button class="btn btn-secondary" onclick="printPalletBarcode('${pallet.id}')">🖨️ Print</button>
+                    <button class="btn btn-danger" onclick="deletePallet('${pallet.id}'); closePalletDetails();">Delete</button>
+                </div>
+            `;
+            
+            document.getElementById('palletDetailsContent').innerHTML = content;
+            document.getElementById('palletDetailsModal').classList.add('active');
+            
+            addBarcodeToDetails(pallet.id);
+        }
+        
+        closePalletDetails = function() {
+            document.getElementById('palletDetailsModal').classList.remove('active');
+        }
+        
+        addBarcodeToDetails = function(palletId) {
+            try {
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('id', 'barcodeDetails');
+                document.getElementById('palletBarcode').innerHTML = '';
+                document.getElementById('palletBarcode').appendChild(svg);
+                
+                JsBarcode('#barcodeDetails', palletId, {
+                    format: 'CODE128',
+                    width: 2,
+                    height: 60,
+                    displayValue: true
+                });
+            } catch (e) {
+                console.error('Barcode generation error:', e);
+            }
+        }
+        
+        // Client Management
+        openAddClient = function() {
+            document.getElementById('addClientModal').classList.add('active');
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientPhone').value = '';
+            document.getElementById('clientAddress').value = '';
+        }
+        
+        closeAddClient = function() {
+            document.getElementById('addClientModal').classList.remove('active');
+        }
+        
+        createNewClient = function(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('clientName').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            const address = document.getElementById('clientAddress').value.trim();
+            
+            if (!name || !phone) {
+                showToast('⚠️ Name and phone are required', 'warning');
+                return;
+            }
+            
+            const client = createNewClientRecord(name, phone, address);
+            clients.push(client);
+            
+            addActivity(`👤 Created client: ${name}`);
+            saveData();
+            renderClients();
+            populateClientDropdowns();
+            closeAddClient();
+            showToast(`✅ Created client ${name}`, 'success');
+        }
+        
+        populateClientDropdowns = function() {
+            const select = document.getElementById('deliverClientSelect');
+            select.innerHTML = '<option value="">Choose a client...</option>' + 
+                clients.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+        }
+        
+        filterDeliveryClients = function() {
+            const search = document.getElementById('clientSearchInput').value.toLowerCase();
+            const select = document.getElementById('deliverClientSelect');
+            
+            const filtered = clients.filter(c => 
+                c.name.toLowerCase().includes(search) || 
+                c.phone.toLowerCase().includes(search)
+            );
+            
+            select.innerHTML = '<option value="">Choose a client...</option>' + 
+                filtered.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+        }
+        
+        // Add Bottle
+        openAddBottle = function() {
+            document.getElementById('addBottleModal').classList.add('active');
+            document.getElementById('manualBottleId').value = '';
+        }
+        
+        closeAddBottle = function() {
+            document.getElementById('addBottleModal').classList.remove('active');
+        }
+        
+        createManualBottle = function(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('manualBottleId').value.trim();
+            
+            if (id.length < 6) {
+                showToast('⚠️ Bottle ID must be at least 6 digits', 'warning');
+                return;
+            }
+            
+            if (bottles.find(b => b.id === id)) {
+                showToast('⚠️ Bottle ID already exists', 'warning');
+                return;
+            }
+            
+            const store = getCurrentStore();
+            const bottle = createNewBottleRecord(id, store.id, store.name);
+            bottles.push(bottle);
+            
+            addActivity(`[${store.name}] ➕ Added bottle ${id}`);
+            saveData();
+            updateAllDisplays();
+            closeAddBottle();
+            showToast(`✅ Added bottle ${id}`, 'success');
+        }
+        
+        // Barcode Printing
+        printPalletBarcode = function(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet) return;
+            
+            const printArea = document.getElementById('printArea');
+            const printContent = document.getElementById('printContent');
+            
+            printContent.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h2 style="margin-bottom: 20px;">${pallet.name || pallet.id}</h2>
+                    <svg id="printBarcode"></svg>
+                    <p style="margin-top: 20px; font-size: 1.2rem;">${pallet.storeName}</p>
+                    <p style="margin-top: 10px;">${pallet.bottleIds.length} / ${pallet.capacity} bottles</p>
+                </div>
+            `;
+            
+            try {
+                JsBarcode('#printBarcode', palletId, {
+                    format: 'CODE128',
+                    width: 3,
+                    height: 100,
+                    displayValue: true,
+                    fontSize: 20
+                });
+                
+                setTimeout(() => {
+                    window.print();
+                }, 500);
+            } catch (e) {
+                console.error('Print barcode error:', e);
+                showToast('⚠️ Error generating barcode', 'error');
+            }
+        }
+        
+        // Excel Export
+        generateExcelReport = function() {
+            const wb = XLSX.utils.book_new();
+            
+            // Delivered Bottles
+            const deliveredBottles = bottles.filter(b => b.status === 'with-client');
+            const deliveredData = deliveredBottles.length > 0 ? deliveredBottles.map(b => ({
+                'Bottle ID': b.id,
+                'Client Name': b.clientName || '',
+                'Client Phone': b.clientPhone || '',
+                'Store': b.storeName,
+                'Delivery Count': b.deliveryCount,
+                'Pallet ID': b.palletId || 'None',
+                'Created': new Date(b.created).toLocaleString(),
+                'Last Updated': new Date(b.lastUpdated).toLocaleString()
+            })) : [{ Info: 'No delivered bottles' }];
+            const ws1 = XLSX.utils.json_to_sheet(deliveredData);
+            XLSX.utils.book_append_sheet(wb, ws1, 'Delivered Bottles');
+            
+            // Refilled Bottles
+            const refilledBottles = bottles.filter(b => b.refillCount > 0);
+            const refilledData = refilledBottles.length > 0 ? refilledBottles.map(b => ({
+                'Bottle ID': b.id,
+                'Status': b.status,
+                'Store': b.storeName,
+                'Refill Count': b.refillCount,
+                'Delivery Count': b.deliveryCount,
+                'Pallet ID': b.palletId || 'None',
+                'Created': new Date(b.created).toLocaleString()
+            })) : [{ Info: 'No refilled bottles' }];
+            const ws2 = XLSX.utils.json_to_sheet(refilledData);
+            XLSX.utils.book_append_sheet(wb, ws2, 'Refilled Bottles');
+            
+            // Deleted Records
+            const deletedData = deletedRecords.length > 0 ? deletedRecords.map(r => ({
+                'Type': r.bottleIds ? 'Pallet' : 'Bottle',
+                'ID': r.id,
+                'Store': r.storeName || '',
+                'Status': r.status || '',
+                'Deleted At': new Date(r.deletedAt).toLocaleString()
+            })) : [{ Info: 'No deleted records' }];
+            const ws3 = XLSX.utils.json_to_sheet(deletedData);
+            XLSX.utils.book_append_sheet(wb, ws3, 'Deleted Records');
+            
+            // Clients
+            const clientData = clients.length > 0 ? clients.map(c => ({
+                'Name': c.name,
+                'Phone': c.phone,
+                'Address': c.address || '',
+                'Active Bottles': c.bottleCount,
+                'Created': new Date(c.created).toLocaleString()
+            })) : [{ Info: 'No clients' }];
+            const ws4 = XLSX.utils.json_to_sheet(clientData);
+            XLSX.utils.book_append_sheet(wb, ws4, 'Clients');
+            
+            // New Bottles (last 30 days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const newBottles = bottles.filter(b => new Date(b.created) > thirtyDaysAgo);
+            const newBottlesData = newBottles.length > 0 ? newBottles.map(b => ({
+                'Bottle ID': b.id,
+                'Status': b.status,
+                'Store': b.storeName,
+                'Pallet ID': b.palletId || 'None',
+                'Created': new Date(b.created).toLocaleString()
+            })) : [{ Info: 'No new bottles in last 30 days' }];
+            const ws5 = XLSX.utils.json_to_sheet(newBottlesData);
+            XLSX.utils.book_append_sheet(wb, ws5, 'New Bottles');
+            
+            // Stores Summary
+            const storesSummary = stores.map(store => {
+                const storeBottles = bottles.filter(b => b.storeId === store.id);
+                const storePallets = pallets.filter(p => p.storeId === store.id);
+                
+                return {
+                    'Store Name': store.name,
+                    'Type': store.type,
+                    'Total Bottles': storeBottles.length,
+                    'Available': storeBottles.filter(b => b.status === 'available').length,
+                    'Needs Refill': storeBottles.filter(b => b.status === 'needs-refill').length,
+                    'With Client': storeBottles.filter(b => b.status === 'with-client').length,
+                    'Total Pallets': storePallets.length,
+                    'Empty Pallets': storePallets.filter(p => p.status === 'empty').length,
+                    'Partial Pallets': storePallets.filter(p => p.status === 'partial').length,
+                    'Full Pallets': storePallets.filter(p => p.status === 'full').length
+                };
+            });
+            const ws6 = XLSX.utils.json_to_sheet(storesSummary);
+            XLSX.utils.book_append_sheet(wb, ws6, 'Stores Summary');
+            
+            // Generate file
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            XLSX.writeFile(wb, `Bottle_Tracking_Report_${timestamp}.xlsx`);
+            
+            addActivity('📊 Generated Excel report');
+            showToast('✅ Excel report downloaded', 'success');
+        }
+        
+        // Utility Functions
+        function getStoreChipClass(storeId) {
+            const store = stores.find(s => s.id === storeId);
+            return store && store.type === 'main' ? 'chip-main' : 'chip-driver';
+        }
+        
+        function updateAllDisplays() {
+            renderPallets();
+            renderInventory();
+            renderClients();
+            updateActivity();
+        }
+        
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s reverse';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+    </script>
 </body>
 </html>
