@@ -2752,7 +2752,84 @@ function generateExcelReport() {
     showToast('✅ Excel report downloaded', 'success');
 }
 
-// Utility Functions
+
+        // FIXED PRINT PALLET FUNCTION - Fully compatible with Android
+        function printPalletBarcode(palletId) {
+            const pallet = findPalletById(palletId);
+            if (!pallet) {
+                showToast('⚠️ Pallet not found', 'warning');
+                return;
+            }
+
+            const printContent = document.getElementById('printContent');
+
+            // Create print-friendly content with all pallet details
+            const content = `
+                <div class="print-pallet-card">
+                    <div class="print-pallet-title">${pallet.name || pallet.id}</div>
+                    <div class="print-barcode-container">
+                        <svg id="printBarcodeImage"></svg>
+                    </div>
+                    <div class="print-pallet-info">
+                        <div class="print-pallet-info-row">
+                            <strong>Pallet ID:</strong>
+                            <span>${pallet.id}</span>
+                        </div>
+                        <div class="print-pallet-info-row">
+                            <strong>Store:</strong>
+                            <span>${pallet.storeName}</span>
+                        </div>
+                        <div class="print-pallet-info-row">
+                            <strong>Status:</strong>
+                            <span>${pallet.status.replace('-', ' ').toUpperCase()}</span>
+                        </div>
+                        <div class="print-pallet-info-row">
+                            <strong>Bottles:</strong>
+                            <span>${pallet.bottleIds.length} / ${pallet.capacity}</span>
+                        </div>
+                        <div class="print-pallet-info-row">
+                            <strong>Created:</strong>
+                            <span>${new Date(pallet.created).toLocaleString()}</span>
+                        </div>
+                        <div class="print-pallet-info-row">
+                            <strong>Last Updated:</strong>
+                            <span>${new Date(pallet.lastUpdated).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            printContent.innerHTML = content;
+
+            // Generate barcode and trigger print
+            try {
+                setTimeout(() => {
+                    const svg = document.getElementById('printBarcodeImage');
+                    if (svg) {
+                        JsBarcode(svg, pallet.id, {
+                            format: 'CODE128',
+                            width: 3,
+                            height: 80,
+                            displayValue: true,
+                            fontSize: 16,
+                            margin: 10
+                        });
+
+                        // Wait for barcode to render then print
+                        setTimeout(() => {
+                            window.print();
+                            showToast('✅ Print dialog opened', 'success');
+                        }, 300);
+                    }
+                }, 150);
+            } catch (error) {
+                console.error('Print error:', error);
+                showToast('⚠️ Error generating print preview', 'error');
+            }
+        }
+
+
+        // Utility Functions
 function getStoreChipClass(storeId) {
     const store = stores.find(s => s.id === storeId);
     return store && store.type === 'main' ? 'chip-main' : 'chip-driver';
