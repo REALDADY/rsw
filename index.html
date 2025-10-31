@@ -939,33 +939,73 @@
             }
         }
         
-        // Data Management
-        async function loadData() {
-            if (!supabaseClient) {
-                loadFromLocal();
-                return;
-            }
+        // Data Management with Pagination
+async function loadData() {
+    if (!supabaseClient) {
+        loadFromLocal();
+        return;
+    }
+    
+    try {
+        showToast('📥 Loading bottles from database...', 'success');
+        
+        // Fetch all data with pagination
+        const allBottles = [];
+        let page = 0;
+        const pageSize = 1000; // Fetch 1000 rows at a time
+        let hasMore = true;
+        
+        while (hasMore) {
+            const start = page * pageSize;
+            const end = start + pageSize - 1;
             
-            try {
-                const { data, error } = await supabaseClient.from('bottles').select('*');
-                if (error) throw error;
+            const { data, error, count } = await supabaseClient
+                .from('bottles')
+                .select('*', { count: 'exact' })
+                .range(start, end)
+                .order('last_updated', { ascending: false });
+            
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+                allBottles.push(...data);
+                page++;
                 
-                if (data && data.length > 0) {
-                    bottles = data.map(b => ({
-                        id: b.id,
-                        status: b.status,
-                        refillCount: b.refill_count || 0,
-                        deliveryCount: b.delivery_count || 0,
-                        created: b.created,
-                        lastUpdated: b.last_updated
-                    }));
-                    showToast('📥 Data loaded from cloud', 'success');
+                // Show progress
+                showToast(`📥 Loaded ${allBottles.length} bottles...`, 'success');
+                
+                // Check if there are more rows
+                if (data.length < pageSize) {
+                    hasMore = false;
                 }
-            } catch (error) {
-                console.error('Load error:', error);
-                loadFromLocal();
+            } else {
+                hasMore = false;
             }
         }
+        
+        // Convert to local format
+        if (allBottles.length > 0) {
+            bottles = allBottles.map(b => ({
+                id: b.id,
+                status: b.status,
+                refillCount: b.refill_count || 0,
+                deliveryCount: b.delivery_count || 0,
+                created: b.created,
+                lastUpdated: b.last_updated
+            }));
+            
+            showToast(`✅ Loaded ${bottles.length} bottles from cloud`, 'success');
+        } else {
+            loadFromLocal();
+        }
+        
+    } catch (error) {
+        console.error('Load error:', error);
+        showToast(`❌ Error loading: ${error.message}`, 'error');
+        loadFromLocal();
+    }
+}
+
         
         function loadFromLocal() {
             try {
