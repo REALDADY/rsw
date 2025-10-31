@@ -745,7 +745,7 @@
             
             input.addEventListener('input', function(e) {
                 clearTimeout(debounceTimer);
-                ++++++++
+                
                 let value = e.target.value.replace(/[^\w\-]/g, '');
                 e.target.value = value;
                 
@@ -926,40 +926,16 @@
             showToast(`✅ Bottle ${currentEditBottle.id} updated`, 'success');
         }
         
-        // Fixed deleteBottle function with Supabase integration
-        async function deleteBottle(bottleId) {
+        function deleteBottle(bottleId) {
             if (!confirm(`Are you sure you want to delete bottle ${bottleId}?`)) return;
             
-            // Delete from Supabase database first
-            if (supabaseClient) {
-                try {
-                    const { error } = await supabaseClient
-                        .from('bottles')
-                        .delete()
-                        .eq('id', bottleId);
-                    
-                    if (error) {
-                        console.error('Supabase delete error:', error);
-                        showToast(`❌ Failed to delete from database: ${error.message}`, 'error');
-                        return;
-                    }
-                } catch (error) {
-                    console.error('Delete error:', error);
-                    showToast(`❌ Error deleting bottle: ${error.message}`, 'error');
-                    return;
-                }
-            }
-            
-            // Remove from local array
             const index = bottles.findIndex(b => b.id === bottleId);
             if (index > -1) {
                 bottles.splice(index, 1);
-                // Update localStorage as well
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(bottles));
-                
+                saveData();
                 renderBottles();
                 updateKPIs();
-                showToast(`🗑️ Bottle ${bottleId} deleted`, 'success');
+                showToast(`🗑️ Bottle ${bottleId} deleted`, 'warning');
             }
         }
         
