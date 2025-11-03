@@ -58,7 +58,7 @@
             font-weight: 600;
         }
         
-        .settings-btn, .logout-btn {
+        .settings-btn, .logout-btn, .trace-btn {
             background: rgba(255,255,255,0.2);
             color: white;
             border: none;
@@ -69,7 +69,7 @@
             font-weight: 600;
         }
         
-        .settings-btn:hover, .logout-btn:hover {
+        .settings-btn:hover, .logout-btn:hover, .trace-btn:hover {
             background: rgba(255,255,255,0.3);
         }
         
@@ -128,56 +128,6 @@
             margin-top: 15px;
         }
         
-        .bulk-list {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        .bulk-item {
-            background: rgba(255,255,255,0.9);
-            color: #1f2937;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .remove-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-        
-        .action-panel {
-            background: white;
-            padding: 30px;
-            text-align: center;
-            border-top: 2px solid #e5e7eb;
-        }
-        
-        .action-panel h3 {
-            color: #1f2937;
-            margin-bottom: 20px;
-            font-size: 1.3rem;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
         .btn {
             padding: 15px 30px;
             border: none;
@@ -192,12 +142,6 @@
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
         }
         
         .btn-primary {
@@ -219,6 +163,11 @@
             padding: 6px 12px;
             font-size: 0.85rem;
             min-width: auto;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         
         .content {
@@ -341,7 +290,6 @@
             margin-top: 15px;
         }
         
-        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -496,8 +444,78 @@
             50% { opacity: 0.5; }
         }
         
+        .trace-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .trace-table th {
+            background: #f3f4f6;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .trace-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .trace-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .users-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 6px;
+        }
+        
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .user-role {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
         .hidden {
             display: none !important;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
         @media (max-width: 768px) {
@@ -518,16 +536,8 @@
                 font-size: 1rem;
             }
             
-            .action-buttons {
-                flex-direction: column;
-            }
-            
             .btn {
                 width: 100%;
-            }
-            
-            .card-actions {
-                flex-direction: column;
             }
         }
     </style>
@@ -562,6 +572,7 @@
             <h1>🔍 Bottle Tracking System</h1>
             <div class="header-actions">
                 <div class="user-badge" id="userBadge">👤 User</div>
+                <button class="trace-btn hidden" id="traceBtn" onclick="openTrace()">📋 Activity Trace</button>
                 <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
                 <button class="logout-btn" onclick="handleLogout()">🚪 Logout</button>
             </div>
@@ -578,8 +589,6 @@
                 autocomplete="off"
             >
             <div class="scanned-count">Today's Refills: <span id="scannedCount">0</span> bottles</div>
-            
-            <div class="bulk-list" id="bulkList" style="display:none;"></div>
         </div>
         
         <div class="content">
@@ -599,6 +608,38 @@
             </div>
             
             <div class="card-grid" id="bottleGrid"></div>
+        </div>
+    </div>
+    
+    <!-- Activity Trace Modal (Admin Only) -->
+    <div id="traceModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📋 Activity Trace (Admin Only)</h2>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="traceSearch" placeholder="Search activities..." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;" oninput="renderTrace()">
+            </div>
+            
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <table class="trace-table" id="traceTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="traceBody"></tbody>
+                </table>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary btn-small" onclick="closeTrace()">Close</button>
+                <button class="btn btn-primary btn-small" onclick="exportTrace()">📥 Export CSV</button>
+            </div>
         </div>
     </div>
     
@@ -624,20 +665,33 @@
                 <small>Your Supabase anonymous/public key</small>
             </div>
             
-            <h3 style="margin: 20px 0 15px; color: #1f2937;">User Management</h3>
-            <div class="form-group">
-                <label>Add New User</label>
-                <input type="text" id="newUsername" placeholder="Username">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="newPassword" placeholder="Password">
-            </div>
-            <button class="btn btn-primary btn-small" onclick="addUser()">➕ Add User</button>
+            <button class="btn btn-primary btn-small" onclick="testSupabaseConnection()" style="margin-bottom: 20px;">
+                🔗 Test Connection
+            </button>
             
-            <div style="margin-top: 20px;">
-                <h4 style="color: #4b5563; margin-bottom: 10px;">Registered Users:</h4>
-                <div id="usersList"></div>
+            <div id="adminUserManagement" class="hidden">
+                <h3 style="margin: 20px 0 15px; color: #1f2937;">User Management (Admin Only)</h3>
+                
+                <div class="form-group">
+                    <label>Add New User</label>
+                    <input type="text" id="newUsername" placeholder="Enter username">
+                </div>
+                
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter password">
+                </div>
+                
+                <button class="btn btn-primary btn-small" id="addUserBtn" onclick="addUserToDatabase()" style="margin-bottom: 20px;">
+                    ➕ Add User & Save to Database
+                </button>
+                
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #4b5563; margin-bottom: 10px;">
+                        Registered Users: <span id="usersCount">0</span>
+                    </h4>
+                    <div class="users-list" id="usersList"></div>
+                </div>
             </div>
             
             <div class="modal-actions" style="margin-top: 20px;">
@@ -690,12 +744,12 @@
         // Constants
         const STORAGE_KEY = 'bottle_tracking_data';
         const CONFIG_KEY = 'supabase_config';
-        const USERS_KEY = 'system_users';
+        const TRACE_KEY = 'activity_trace';
         const REFILL_WINDOW_HOURS = 12;
         
         // Global State
         let bottles = [];
-        let scannedBatch = [];
+        let activityTrace = [];
         let currentEditBottle = null;
         let currentUser = null;
         let users = [];
@@ -716,8 +770,8 @@
             successSound = document.getElementById('successSound');
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             loadConfig();
-            loadUsers();
             initializeSupabase();
+            await loadUsersFromDatabase();
             checkAuth();
         });
         
@@ -730,7 +784,6 @@
             const frequency1 = 800;
             const frequency2 = 1200;
             
-            // Play 3 beeps
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => {
                     const oscillator1 = audioContext.createOscillator();
@@ -761,10 +814,117 @@
             }, 1000);
         }
         
-        // Calculate hours difference between two dates
+        // Calculate hours difference
         function getHoursDifference(date1, date2) {
             const diff = Math.abs(date2.getTime() - date1.getTime());
             return diff / (1000 * 60 * 60);
+        }
+        
+        // Activity Trace Functions
+        function loadTrace() {
+            try {
+                const saved = localStorage.getItem(TRACE_KEY);
+                if (saved) {
+                    activityTrace = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Error loading trace:', e);
+            }
+        }
+        
+        function saveTrace() {
+            try {
+                localStorage.setItem(TRACE_KEY, JSON.stringify(activityTrace));
+            } catch (e) {
+                console.error('Error saving trace:', e);
+            }
+        }
+        
+        function logActivity(action, details = '') {
+            const activity = {
+                id: `act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                timestamp: new Date().toISOString(),
+                user: currentUser.username,
+                action: action,
+                details: details
+            };
+            
+            activityTrace.unshift(activity);
+            
+            // Keep only last 10000 activities
+            if (activityTrace.length > 10000) {
+                activityTrace = activityTrace.slice(0, 10000);
+            }
+            
+            saveTrace();
+        }
+        
+        function openTrace() {
+            if (currentUser.username !== 'admin') {
+                showToast('⚠️ Admin access only', 'warning');
+                return;
+            }
+            
+            renderTrace();
+            document.getElementById('traceModal').classList.add('show');
+        }
+        
+        function closeTrace() {
+            document.getElementById('traceModal').classList.remove('show');
+        }
+        
+        function renderTrace() {
+            const search = document.getElementById('traceSearch').value.toLowerCase();
+            let filtered = activityTrace;
+            
+            if (search) {
+                filtered = filtered.filter(a => 
+                    a.user.toLowerCase().includes(search) ||
+                    a.action.toLowerCase().includes(search) ||
+                    a.details.toLowerCase().includes(search)
+                );
+            }
+            
+            const tbody = document.getElementById('traceBody');
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #6b7280;">No activities found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(a => {
+                const date = new Date(a.timestamp);
+                return `
+                    <tr>
+                        <td style="font-size: 0.8rem; white-space: nowrap;">${date.toLocaleString()}</td>
+                        <td><strong>${a.user}</strong></td>
+                        <td>${a.action}</td>
+                        <td style="font-size: 0.85rem; color: #6b7280;">${a.details}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function exportTrace() {
+            const csv = [
+                ['Time', 'User', 'Action', 'Details'],
+                ...activityTrace.map(a => [
+                    new Date(a.timestamp).toLocaleString(),
+                    a.user,
+                    a.action,
+                    a.details
+                ])
+            ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `activity-trace-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('✅ Trace exported to CSV', 'success');
         }
         
         // Authentication
@@ -788,12 +948,24 @@
             document.getElementById('mainApp').classList.remove('hidden');
             document.getElementById('userBadge').textContent = `👤 ${currentUser.username}`;
             
+            // Show admin-only features
+            if (currentUser.username === 'admin') {
+                document.getElementById('traceBtn').classList.remove('hidden');
+                document.getElementById('adminUserManagement').classList.remove('hidden');
+            } else {
+                document.getElementById('traceBtn').classList.add('hidden');
+                document.getElementById('adminUserManagement').classList.add('hidden');
+            }
+            
+            loadTrace();
             await loadData();
             setupScanner();
             renderBottles();
             updateKPIs();
             updateUserFilter();
             document.getElementById('scannerInput').focus();
+            
+            logActivity('LOGIN', 'User logged in');
         }
         
         async function handleLogin(event) {
@@ -808,43 +980,73 @@
                 currentUser = { username: user.username, id: user.id };
                 localStorage.setItem('current_user', JSON.stringify(currentUser));
                 showToast(`✅ Welcome ${username}!`, 'success');
+                document.getElementById('loginUsername').value = '';
+                document.getElementById('loginPassword').value = '';
                 await showMainApp();
             } else {
                 showToast('❌ Invalid username or password', 'error');
+                document.getElementById('loginPassword').value = '';
             }
         }
         
         function handleLogout() {
+            logActivity('LOGOUT', 'User logged out');
             localStorage.removeItem('current_user');
             currentUser = null;
-            scannedBatch = [];
             bottles = [];
             showLoginScreen();
             showToast('👋 Logged out successfully', 'success');
         }
         
-        // User Management
-        function loadUsers() {
+        // User Management with Supabase Database
+        async function loadUsersFromDatabase() {
+            if (!supabaseClient) {
+                loadUsersFromLocal();
+                return;
+            }
+            
             try {
-                const saved = localStorage.getItem(USERS_KEY);
+                const { data, error } = await supabaseClient
+                    .from('users')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    users = data;
+                } else {
+                    loadUsersFromLocal();
+                }
+            } catch (error) {
+                console.error('Error loading users from database:', error);
+                loadUsersFromLocal();
+            }
+        }
+        
+        function loadUsersFromLocal() {
+            try {
+                const saved = localStorage.getItem('system_users');
                 if (saved) {
                     users = JSON.parse(saved);
                 } else {
                     users = [
-                        { id: 'user_1', username: 'admin', password: 'admin123' }
+                        { id: 'user_1', username: 'admin', password: 'admin123', role: 'admin' }
                     ];
-                    saveUsers();
+                    saveUsersLocal();
                 }
             } catch (e) {
-                console.error('Error loading users:', e);
+                console.error('Error loading users from local:', e);
+                users = [
+                    { id: 'user_1', username: 'admin', password: 'admin123', role: 'admin' }
+                ];
             }
         }
         
-        function saveUsers() {
-            localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        function saveUsersLocal() {
+            localStorage.setItem('system_users', JSON.stringify(users));
         }
         
-        function addUser() {
+        async function addUserToDatabase() {
             const username = document.getElementById('newUsername').value.trim();
             const password = document.getElementById('newPassword').value;
             
@@ -853,28 +1055,82 @@
                 return;
             }
             
+            if (username.length < 3) {
+                showToast('⚠️ Username must be at least 3 characters', 'warning');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showToast('⚠️ Password must be at least 6 characters', 'warning');
+                return;
+            }
+            
             if (users.find(u => u.username === username)) {
                 showToast('⚠️ Username already exists', 'warning');
                 return;
             }
             
-            const newUser = {
-                id: `user_${Date.now()}`,
-                username: username,
-                password: password
-            };
+            const addUserBtn = document.getElementById('addUserBtn');
+            addUserBtn.disabled = true;
+            addUserBtn.innerHTML = '<span class="loading-spinner"></span> Adding...';
             
-            users.push(newUser);
-            saveUsers();
-            renderUsersList();
-            
-            document.getElementById('newUsername').value = '';
-            document.getElementById('newPassword').value = '';
-            
-            showToast(`✅ User ${username} added successfully`, 'success');
+            try {
+                const newUser = {
+                    id: `user_${Date.now()}`,
+                    username: username,
+                    password: password,
+                    role: 'operator',
+                    created_at: new Date().toISOString()
+                };
+                
+                // Save to Supabase if configured
+                if (supabaseClient) {
+                    const { data, error } = await supabaseClient
+                        .from('users')
+                        .insert([{
+                            id: newUser.id,
+                            username: newUser.username,
+                            password: newUser.password,
+                            role: newUser.role,
+                            created_at: newUser.created_at
+                        }]);
+                    
+                    if (error) {
+                        // If table doesn't exist, create it first
+                        if (error.code === 'PGRST116') {
+                            showToast('⚠️ Users table not yet created in Supabase. Adding to local storage only.', 'warning');
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+                
+                // Also save to local array
+                users.push(newUser);
+                saveUsersLocal();
+                
+                renderUsersList();
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+                
+                logActivity('USER_ADDED', `Added user: ${username}`);
+                showToast(`✅ User ${username} added successfully and exported to database!`, 'success');
+                
+            } catch (error) {
+                console.error('Error adding user:', error);
+                showToast(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                addUserBtn.disabled = false;
+                addUserBtn.innerHTML = '➕ Add User & Save to Database';
+            }
         }
         
         function deleteUser(userId) {
+            if (currentUser.username !== 'admin') {
+                showToast('⚠️ Admin access only', 'warning');
+                return;
+            }
+            
             if (userId === 'user_1') {
                 showToast('⚠️ Cannot delete admin user', 'warning');
                 return;
@@ -886,17 +1142,31 @@
             if (index > -1) {
                 const username = users[index].username;
                 users.splice(index, 1);
-                saveUsers();
+                saveUsersLocal();
+                
+                // Delete from Supabase if configured
+                if (supabaseClient) {
+                    supabaseClient.from('users').delete().eq('id', userId).catch(err => {
+                        console.error('Error deleting from database:', err);
+                    });
+                }
+                
                 renderUsersList();
+                logActivity('USER_DELETED', `Deleted user: ${username}`);
                 showToast(`🗑️ User ${username} deleted`, 'warning');
             }
         }
         
         function renderUsersList() {
             const listEl = document.getElementById('usersList');
+            document.getElementById('usersCount').textContent = users.length;
+            
             listEl.innerHTML = users.map(user => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f3f4f6; border-radius: 6px; margin-bottom: 8px;">
-                    <span><strong>${user.username}</strong></span>
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-name">${user.username}</div>
+                        <div class="user-role">${user.role || 'operator'}</div>
+                    </div>
                     ${user.id !== 'user_1' ? `<button class="btn btn-danger btn-small" onclick="deleteUser('${user.id}')">Delete</button>` : '<span style="color: #6b7280; font-size: 0.8rem;">Admin</span>'}
                 </div>
             `).join('');
@@ -916,11 +1186,6 @@
                 const saved = localStorage.getItem(CONFIG_KEY);
                 if (saved) {
                     supabaseConfig = JSON.parse(saved);
-                } else {
-                    supabaseConfig = {
-                        url: 'https://ffxzohqudktafssiipwv.supabase.co',
-                        key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmeHpvaHF1ZGt0YWZzc2lpcHd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MTAzNzgsImV4cCI6MjA3NjA4NjM3OH0.9eYRzwjhureZD2i7oJMfpdEoD2GvfmMSTKNATLRXHj0'
-                    };
                 }
             } catch (e) {
                 console.error('Error loading config:', e);
@@ -935,7 +1200,7 @@
             if (supabaseConfig.url && supabaseConfig.key) {
                 try {
                     supabaseClient = supabase.createClient(supabaseConfig.url, supabaseConfig.key);
-                    console.log('Supabase initialized');
+                    console.log('✅ Supabase initialized');
                 } catch (e) {
                     console.error('Error initializing Supabase:', e);
                     supabaseClient = null;
@@ -947,12 +1212,37 @@
             document.getElementById('supabaseUrl').value = supabaseConfig.url;
             document.getElementById('supabaseKey').value = supabaseConfig.key;
             updateConnectionStatus();
-            renderUsersList();
+            if (currentUser.username === 'admin') {
+                renderUsersList();
+            }
             document.getElementById('settingsModal').classList.add('show');
         }
         
         function closeSettings() {
             document.getElementById('settingsModal').classList.remove('show');
+        }
+        
+        async function testSupabaseConnection() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+            
+            if (!url || !key) {
+                showToast('⚠️ Please fill in both URL and Key', 'warning');
+                return;
+            }
+            
+            try {
+                const testClient = supabase.createClient(url, key);
+                const { data, error } = await testClient.from('bottles').select('*').limit(1);
+                
+                if (error && error.code !== 'PGRST116') {
+                    throw error;
+                }
+                
+                showToast('✅ Connection successful!', 'success');
+            } catch (error) {
+                showToast(`❌ Connection failed: ${error.message}`, 'error');
+            }
         }
         
         async function saveSettings() {
@@ -969,38 +1259,34 @@
             saveConfig();
             
             initializeSupabase();
+            await loadUsersFromDatabase();
             
-            const connected = await testConnection();
-            if (connected) {
-                showToast('✅ Successfully connected to Supabase', 'success');
-                closeSettings();
-                await loadData();
-                renderBottles();
-                updateKPIs();
-            } else {
-                showToast('❌ Failed to connect. Check your credentials', 'error');
-            }
-        }
-        
-        async function testConnection() {
-            if (!supabaseClient) return false;
-            
-            try {
-                const { data, error } = await supabaseClient.from('bottles').select('*').limit(1);
-                return !error;
-            } catch (e) {
-                return false;
-            }
+            logActivity('CONFIG_UPDATED', 'Database configuration updated');
+            showToast('✅ Configuration saved successfully', 'success');
+            closeSettings();
+            await loadData();
+            renderBottles();
+            updateKPIs();
         }
         
         async function updateConnectionStatus() {
             const statusEl = document.getElementById('connectionStatus');
-            const connected = await testConnection();
             
-            if (connected) {
-                statusEl.innerHTML = '<div class="connection-status status-connected">🟢 Connected</div>';
-            } else {
+            if (!supabaseClient) {
                 statusEl.innerHTML = '<div class="connection-status status-disconnected">🔴 Not Connected</div>';
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabaseClient.from('bottles').select('*').limit(1);
+                
+                if (error && error.code !== 'PGRST116') {
+                    throw error;
+                }
+                
+                statusEl.innerHTML = '<div class="connection-status status-connected">🟢 Connected</div>';
+            } catch (e) {
+                statusEl.innerHTML = '<div class="connection-status status-disconnected">🔴 Connection Failed</div>';
             }
         }
         
@@ -1037,23 +1323,22 @@
             
             let bottle = bottles.find(b => b.id === barcode);
             
-            // Check 12-hour window for existing bottle
+            // Check 12-hour window
             if (bottle) {
                 const lastUpdate = new Date(bottle.lastUpdated);
                 const now = new Date();
                 const hoursDiff = getHoursDifference(lastUpdate, now);
                 
                 if (hoursDiff < REFILL_WINDOW_HOURS) {
-                    // Within 12-hour window - DUPLICATE!
                     playLoudDuplicateAlarm();
                     showDuplicateAlert(barcode, hoursDiff);
+                    logActivity('DUPLICATE_SCAN_BLOCKED', `Bottle ${barcode} (${hoursDiff.toFixed(1)}h ago)`);
                     input.value = '';
                     return;
                 }
             }
             
             if (!bottle) {
-                // Create new bottle
                 bottle = {
                     id: barcode,
                     status: 'available',
@@ -1064,12 +1349,13 @@
                     lastUpdated: new Date().toISOString()
                 };
                 bottles.push(bottle);
+                logActivity('BOTTLE_ADDED', `Added bottle: ${barcode}`);
             } else {
-                // Auto-refill existing bottle (after 12-hour window)
                 bottle.refillCount++;
                 bottle.status = 'available';
                 bottle.lastUser = currentUser.username;
                 bottle.lastUpdated = new Date().toISOString();
+                logActivity('BOTTLE_REFILLED', `Refilled bottle: ${barcode} (Count: ${bottle.refillCount})`);
             }
             
             successSound.play();
@@ -1134,11 +1420,16 @@
         function saveEdit() {
             if (!currentEditBottle) return;
             
+            const oldStatus = currentEditBottle.status;
+            const oldRefills = currentEditBottle.refillCount;
+            
             currentEditBottle.status = document.getElementById('editStatus').value;
             currentEditBottle.refillCount = parseInt(document.getElementById('editRefillCount').value);
             currentEditBottle.deliveryCount = parseInt(document.getElementById('editDeliveryCount').value);
             currentEditBottle.lastUser = currentUser.username;
             currentEditBottle.lastUpdated = new Date().toISOString();
+            
+            logActivity('BOTTLE_EDITED', `Edited ${currentEditBottle.id}: ${oldStatus}→${currentEditBottle.status}, refills: ${oldRefills}→${currentEditBottle.refillCount}`);
             
             saveData();
             renderBottles();
@@ -1154,6 +1445,7 @@
             const index = bottles.findIndex(b => b.id === bottleId);
             if (index > -1) {
                 bottles.splice(index, 1);
+                logActivity('BOTTLE_DELETED', `Deleted bottle: ${bottleId}`);
                 saveData();
                 renderBottles();
                 updateKPIs();
@@ -1161,7 +1453,7 @@
             }
         }
         
-        // Data Management
+        // Data Management with Pagination
         async function loadData() {
             if (!supabaseClient) {
                 loadFromLocal();
@@ -1184,7 +1476,11 @@
                         .range(start, end)
                         .order('last_updated', { ascending: false });
                     
-                    if (error) throw error;
+                    if (error) {
+                        if (error.code !== 'PGRST116') throw error;
+                        hasMore = false;
+                        break;
+                    }
                     
                     if (data && data.length > 0) {
                         allBottles.push(...data);
