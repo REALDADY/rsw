@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bottle Tracking System - Bulk Scan</title>
+    <title>Bottle Tracking System - Multi-User</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -44,7 +44,21 @@
             font-weight: 600;
         }
         
-        .settings-btn {
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .user-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .settings-btn, .logout-btn {
             background: rgba(255,255,255,0.2);
             color: white;
             border: none;
@@ -55,8 +69,24 @@
             font-weight: 600;
         }
         
-        .settings-btn:hover {
+        .settings-btn:hover, .logout-btn:hover {
             background: rgba(255,255,255,0.3);
+        }
+        
+        .login-screen {
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .login-screen h2 {
+            color: #1f2937;
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+        
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
         }
         
         .scanner-panel {
@@ -170,23 +200,18 @@
             transform: none;
         }
         
-        .btn-refill {
+        .btn-primary {
             background: #10b981;
             color: white;
         }
         
-        .btn-deliver {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .btn-needsrefill {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .btn-clear {
+        .btn-secondary {
             background: #6b7280;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
             color: white;
         }
         
@@ -194,16 +219,6 @@
             padding: 6px 12px;
             font-size: 0.85rem;
             min-width: auto;
-        }
-        
-        .btn-edit {
-            background: #8b5cf6;
-            color: white;
-        }
-        
-        .btn-delete {
-            background: #ef4444;
-            color: white;
         }
         
         .content {
@@ -458,6 +473,33 @@
             border-color: #ef4444;
         }
         
+        .duplicate-alert {
+            background: #fef3c7;
+            border: 3px solid #f59e0b;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 10px 0;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #92400e;
+            animation: shake 0.5s, blink 0.3s 3;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -491,43 +533,53 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="container">
         <div class="header">
             <h1>🔍 Bottle Tracking System</h1>
-            <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
+        </div>
+        <div class="login-screen">
+            <h2>Login to Continue</h2>
+            <form class="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    🔐 Login
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main App -->
+    <div id="mainApp" class="container hidden">
+        <div class="header">
+            <h1>🔍 Bottle Tracking System</h1>
+            <div class="header-actions">
+                <div class="user-badge" id="userBadge">👤 User</div>
+                <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
+                <button class="logout-btn" onclick="handleLogout()">🚪 Logout</button>
+            </div>
         </div>
         
         <div class="scanner-panel">
-            <h2>Scan Multiple Bottles</h2>
-            <div class="status-chip">🟢 Ready to Scan</div>
+            <h2>Scan Bottles for Refill</h2>
+            <div class="status-chip">🟢 Auto-Detection Active (12hr window)</div>
             <input 
                 type="text" 
                 id="scannerInput" 
                 class="scanner-input" 
-                placeholder="Scan bottle barcode..."
+                placeholder="Scan bottle barcode (auto-refill)..."
                 autocomplete="off"
             >
-            <div class="scanned-count">Scanned: <span id="scannedCount">0</span> bottles</div>
+            <div class="scanned-count">Today's Refills: <span id="scannedCount">0</span> bottles</div>
             
             <div class="bulk-list" id="bulkList" style="display:none;"></div>
-        </div>
-        
-        <div class="action-panel">
-            <h3>Choose Action for All Scanned Bottles</h3>
-            <div class="action-buttons">
-                <button class="btn btn-refill" onclick="applyBulkAction('refill')" id="btnRefill" disabled>
-                    🔄 Mark All as Refilled
-                </button>
-                <button class="btn btn-deliver" onclick="applyBulkAction('deliver')" id="btnDeliver" disabled>
-                    📦 Deliver All to Client
-                </button>
-                <button class="btn btn-needsrefill" onclick="applyBulkAction('needs-refill')" id="btnNeedsRefill" disabled>
-                    ⚠️ All Need Refill
-                </button>
-                <button class="btn btn-clear" onclick="clearBulkList()" id="btnClear" disabled>
-                    🗑️ Clear All
-                </button>
-            </div>
         </div>
         
         <div class="content">
@@ -541,6 +593,9 @@
                     <option value="with-client">With Client</option>
                     <option value="needs-refill">Needs Refill</option>
                 </select>
+                <select id="userFilter" onchange="renderBottles()">
+                    <option value="">All Users</option>
+                </select>
             </div>
             
             <div class="card-grid" id="bottleGrid"></div>
@@ -551,9 +606,10 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>⚙️ Supabase Configuration</h2>
+                <h2>⚙️ Settings</h2>
             </div>
             
+            <h3 style="margin-bottom: 15px; color: #1f2937;">Database Configuration</h3>
             <div id="connectionStatus"></div>
             
             <div class="form-group">
@@ -568,9 +624,25 @@
                 <small>Your Supabase anonymous/public key</small>
             </div>
             
-            <div class="modal-actions">
-                <button class="btn btn-clear btn-small" onclick="closeSettings()">Cancel</button>
-                <button class="btn btn-refill btn-small" onclick="saveSettings()">💾 Save & Connect</button>
+            <h3 style="margin: 20px 0 15px; color: #1f2937;">User Management</h3>
+            <div class="form-group">
+                <label>Add New User</label>
+                <input type="text" id="newUsername" placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="newPassword" placeholder="Password">
+            </div>
+            <button class="btn btn-primary btn-small" onclick="addUser()">➕ Add User</button>
+            
+            <div style="margin-top: 20px;">
+                <h4 style="color: #4b5563; margin-bottom: 10px;">Registered Users:</h4>
+                <div id="usersList"></div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary btn-small" onclick="closeSettings()">Close</button>
+                <button class="btn btn-primary btn-small" onclick="saveSettings()">💾 Save Config</button>
             </div>
         </div>
     </div>
@@ -602,8 +674,8 @@
                 <input type="number" id="editDeliveryCount" min="0">
             </div>
             <div class="modal-actions">
-                <button class="btn btn-clear btn-small" onclick="closeEditModal()">Cancel</button>
-                <button class="btn btn-refill btn-small" onclick="saveEdit()">Save Changes</button>
+                <button class="btn btn-secondary btn-small" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary btn-small" onclick="saveEdit()">Save Changes</button>
             </div>
         </div>
     </div>
@@ -616,13 +688,17 @@
     
     <script>
         // Constants
-        const STORAGE_KEY = 'bottle_simple_tracking';
+        const STORAGE_KEY = 'bottle_tracking_data';
         const CONFIG_KEY = 'supabase_config';
+        const USERS_KEY = 'system_users';
+        const REFILL_WINDOW_HOURS = 12;
         
         // Global State
         let bottles = [];
         let scannedBatch = [];
         let currentEditBottle = null;
+        let currentUser = null;
+        let users = [];
         let successSound;
         let debounceTimer = null;
         let supabaseClient = null;
@@ -631,26 +707,216 @@
             key: ''
         };
         
+        // Audio Context for louder duplicate alarm
+        let audioContext;
+        let isAlarmPlaying = false;
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
             successSound = document.getElementById('successSound');
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
             loadConfig();
+            loadUsers();
             initializeSupabase();
+            checkAuth();
+        });
+        
+        // Louder Duplicate Alarm Sound Generator
+        function playLoudDuplicateAlarm() {
+            if (isAlarmPlaying) return;
+            isAlarmPlaying = true;
+            
+            const duration = 0.5;
+            const frequency1 = 800;
+            const frequency2 = 1200;
+            
+            // Play 3 beeps
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const oscillator1 = audioContext.createOscillator();
+                    const oscillator2 = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator1.connect(gainNode);
+                    oscillator2.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator1.frequency.value = frequency1;
+                    oscillator2.frequency.value = frequency2;
+                    oscillator1.type = 'square';
+                    oscillator2.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                    
+                    oscillator1.start(audioContext.currentTime);
+                    oscillator2.start(audioContext.currentTime);
+                    oscillator1.stop(audioContext.currentTime + duration);
+                    oscillator2.stop(audioContext.currentTime + duration);
+                }, i * 200);
+            }
+            
+            setTimeout(() => {
+                isAlarmPlaying = false;
+            }, 1000);
+        }
+        
+        // Calculate hours difference between two dates
+        function getHoursDifference(date1, date2) {
+            const diff = Math.abs(date2.getTime() - date1.getTime());
+            return diff / (1000 * 60 * 60);
+        }
+        
+        // Authentication
+        function checkAuth() {
+            const savedUser = localStorage.getItem('current_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showMainApp();
+            } else {
+                showLoginScreen();
+            }
+        }
+        
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+        
+        async function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('userBadge').textContent = `👤 ${currentUser.username}`;
+            
             await loadData();
             setupScanner();
             renderBottles();
             updateKPIs();
+            updateUserFilter();
             document.getElementById('scannerInput').focus();
-        });
+        }
         
-        // Configuration Management
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                currentUser = { username: user.username, id: user.id };
+                localStorage.setItem('current_user', JSON.stringify(currentUser));
+                showToast(`✅ Welcome ${username}!`, 'success');
+                await showMainApp();
+            } else {
+                showToast('❌ Invalid username or password', 'error');
+            }
+        }
+        
+        function handleLogout() {
+            localStorage.removeItem('current_user');
+            currentUser = null;
+            scannedBatch = [];
+            bottles = [];
+            showLoginScreen();
+            showToast('👋 Logged out successfully', 'success');
+        }
+        
+        // User Management
+        function loadUsers() {
+            try {
+                const saved = localStorage.getItem(USERS_KEY);
+                if (saved) {
+                    users = JSON.parse(saved);
+                } else {
+                    users = [
+                        { id: 'user_1', username: 'admin', password: 'admin123' }
+                    ];
+                    saveUsers();
+                }
+            } catch (e) {
+                console.error('Error loading users:', e);
+            }
+        }
+        
+        function saveUsers() {
+            localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+        
+        function addUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            
+            if (!username || !password) {
+                showToast('⚠️ Please fill in both username and password', 'warning');
+                return;
+            }
+            
+            if (users.find(u => u.username === username)) {
+                showToast('⚠️ Username already exists', 'warning');
+                return;
+            }
+            
+            const newUser = {
+                id: `user_${Date.now()}`,
+                username: username,
+                password: password
+            };
+            
+            users.push(newUser);
+            saveUsers();
+            renderUsersList();
+            
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            
+            showToast(`✅ User ${username} added successfully`, 'success');
+        }
+        
+        function deleteUser(userId) {
+            if (userId === 'user_1') {
+                showToast('⚠️ Cannot delete admin user', 'warning');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            
+            const index = users.findIndex(u => u.id === userId);
+            if (index > -1) {
+                const username = users[index].username;
+                users.splice(index, 1);
+                saveUsers();
+                renderUsersList();
+                showToast(`🗑️ User ${username} deleted`, 'warning');
+            }
+        }
+        
+        function renderUsersList() {
+            const listEl = document.getElementById('usersList');
+            listEl.innerHTML = users.map(user => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f3f4f6; border-radius: 6px; margin-bottom: 8px;">
+                    <span><strong>${user.username}</strong></span>
+                    ${user.id !== 'user_1' ? `<button class="btn btn-danger btn-small" onclick="deleteUser('${user.id}')">Delete</button>` : '<span style="color: #6b7280; font-size: 0.8rem;">Admin</span>'}
+                </div>
+            `).join('');
+        }
+        
+        function updateUserFilter() {
+            const filter = document.getElementById('userFilter');
+            const currentValue = filter.value;
+            filter.innerHTML = '<option value="">All Users</option>' + 
+                users.map(u => `<option value="${u.username}">${u.username}</option>`).join('');
+            filter.value = currentValue;
+        }
+        
+        // Configuration
         function loadConfig() {
             try {
                 const saved = localStorage.getItem(CONFIG_KEY);
                 if (saved) {
                     supabaseConfig = JSON.parse(saved);
                 } else {
-                    // Default config
                     supabaseConfig = {
                         url: 'https://ffxzohqudktafssiipwv.supabase.co',
                         key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmeHpvaHF1ZGt0YWZzc2lpcHd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MTAzNzgsImV4cCI6MjA3NjA4NjM3OH0.9eYRzwjhureZD2i7oJMfpdEoD2GvfmMSTKNATLRXHj0'
@@ -681,6 +947,7 @@
             document.getElementById('supabaseUrl').value = supabaseConfig.url;
             document.getElementById('supabaseKey').value = supabaseConfig.key;
             updateConnectionStatus();
+            renderUsersList();
             document.getElementById('settingsModal').classList.add('show');
         }
         
@@ -701,10 +968,8 @@
             supabaseConfig.key = key;
             saveConfig();
             
-            // Reinitialize Supabase
             initializeSupabase();
             
-            // Test connection
             const connected = await testConnection();
             if (connected) {
                 showToast('✅ Successfully connected to Supabase', 'success');
@@ -739,7 +1004,7 @@
             }
         }
         
-        // Scanner Setup
+        // Scanner with 12-Hour Window & Loud Duplicate Alarm
         function setupScanner() {
             const input = document.getElementById('scannerInput');
             
@@ -751,7 +1016,7 @@
                 
                 if (value.length >= 6) {
                     debounceTimer = setTimeout(() => {
-                        handleScan(value);
+                        handleAutoRefill(value);
                     }, 120);
                 }
             });
@@ -761,134 +1026,90 @@
                     clearTimeout(debounceTimer);
                     const value = e.target.value.trim();
                     if (value.length >= 1) {
-                        handleScan(value);
+                        handleAutoRefill(value);
                     }
                 }
             });
         }
         
-        function handleScan(barcode) {
+        function handleAutoRefill(barcode) {
             const input = document.getElementById('scannerInput');
             
-            // Check if already in batch
-            if (scannedBatch.includes(barcode)) {
-                showToast(`⚠️ Bottle ${barcode} already scanned`, 'warning');
-                input.value = '';
-                return;
+            let bottle = bottles.find(b => b.id === barcode);
+            
+            // Check 12-hour window for existing bottle
+            if (bottle) {
+                const lastUpdate = new Date(bottle.lastUpdated);
+                const now = new Date();
+                const hoursDiff = getHoursDifference(lastUpdate, now);
+                
+                if (hoursDiff < REFILL_WINDOW_HOURS) {
+                    // Within 12-hour window - DUPLICATE!
+                    playLoudDuplicateAlarm();
+                    showDuplicateAlert(barcode, hoursDiff);
+                    input.value = '';
+                    return;
+                }
             }
             
-            // Add to batch
-            scannedBatch.push(barcode);
-            successSound.play();
-            showToast(`✅ Added ${barcode} to batch`, 'success');
+            if (!bottle) {
+                // Create new bottle
+                bottle = {
+                    id: barcode,
+                    status: 'available',
+                    refillCount: 1,
+                    deliveryCount: 0,
+                    lastUser: currentUser.username,
+                    created: new Date().toISOString(),
+                    lastUpdated: new Date().toISOString()
+                };
+                bottles.push(bottle);
+            } else {
+                // Auto-refill existing bottle (after 12-hour window)
+                bottle.refillCount++;
+                bottle.status = 'available';
+                bottle.lastUser = currentUser.username;
+                bottle.lastUpdated = new Date().toISOString();
+            }
             
-            // Update UI
-            updateBulkList();
+            successSound.play();
+            saveData();
+            renderBottles();
+            updateKPIs();
             updateScannedCount();
-            enableActionButtons();
+            
+            showToast(`✅ ${barcode} refilled! (Count: ${bottle.refillCount})`, 'success');
             
             input.value = '';
             input.focus();
         }
         
-        function updateBulkList() {
-            const listEl = document.getElementById('bulkList');
+        function showDuplicateAlert(barcode, hoursDiff) {
+            const hoursRemaining = (REFILL_WINDOW_HOURS - hoursDiff).toFixed(1);
             
-            if (scannedBatch.length === 0) {
-                listEl.style.display = 'none';
-                return;
-            }
+            const toast = document.createElement('div');
+            toast.className = 'toast duplicate-alert';
+            toast.innerHTML = `
+                <strong>🚨 DUPLICATE SCAN BLOCKED! 🚨</strong><br>
+                Bottle <strong>${barcode}</strong> was refilled ${hoursDiff.toFixed(1)} hours ago!<br>
+                <small>Wait ${hoursRemaining} more hours before next refill</small>
+            `;
             
-            listEl.style.display = 'block';
-            listEl.innerHTML = scannedBatch.map((id, index) => `
-                <div class="bulk-item">
-                    <span><strong>${id}</strong></span>
-                    <button class="remove-btn" onclick="removeFromBatch(${index})">Remove</button>
-                </div>
-            `).join('');
-        }
-        
-        function removeFromBatch(index) {
-            const removed = scannedBatch.splice(index, 1);
-            showToast(`🗑️ Removed ${removed[0]} from batch`, 'warning');
-            updateBulkList();
-            updateScannedCount();
-            enableActionButtons();
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
         }
         
         function updateScannedCount() {
-            document.getElementById('scannedCount').textContent = scannedBatch.length;
-        }
-        
-        function enableActionButtons() {
-            const hasBottles = scannedBatch.length > 0;
-            document.getElementById('btnRefill').disabled = !hasBottles;
-            document.getElementById('btnDeliver').disabled = !hasBottles;
-            document.getElementById('btnNeedsRefill').disabled = !hasBottles;
-            document.getElementById('btnClear').disabled = !hasBottles;
-        }
-        
-        function applyBulkAction(action) {
-            if (scannedBatch.length === 0) return;
+            const today = new Date().toDateString();
+            const todayRefills = bottles.filter(b => {
+                const lastUpdate = new Date(b.lastUpdated).toDateString();
+                return lastUpdate === today && b.lastUser === currentUser.username;
+            }).length;
             
-            let actionMsg = '';
-            let processedCount = 0;
-            
-            scannedBatch.forEach(barcode => {
-                let bottle = bottles.find(b => b.id === barcode);
-                
-                if (!bottle) {
-                    // Create new bottle
-                    bottle = {
-                        id: barcode,
-                        status: 'available',
-                        refillCount: 0,
-                        deliveryCount: 0,
-                        created: new Date().toISOString(),
-                        lastUpdated: new Date().toISOString()
-                    };
-                    bottles.push(bottle);
-                }
-                
-                switch(action) {
-                    case 'refill':
-                        bottle.refillCount++;
-                        bottle.status = 'available';
-                        bottle.lastUpdated = new Date().toISOString();
-                        actionMsg = '🔄 All bottles marked as refilled';
-                        break;
-                        
-                    case 'deliver':
-                        bottle.deliveryCount++;
-                        bottle.status = 'with-client';
-                        bottle.lastUpdated = new Date().toISOString();
-                        actionMsg = '📦 All bottles delivered to client';
-                        break;
-                        
-                    case 'needs-refill':
-                        bottle.status = 'needs-refill';
-                        bottle.lastUpdated = new Date().toISOString();
-                        actionMsg = '⚠️ All bottles marked as needs refill';
-                        break;
-                }
-                
-                processedCount++;
-            });
-            
-            saveData();
-            renderBottles();
-            updateKPIs();
-            
-            showToast(`${actionMsg} (${processedCount} bottles)`, 'success');
-            clearBulkList();
-        }
-        
-        function clearBulkList() {
-            scannedBatch = [];
-            updateBulkList();
-            updateScannedCount();
-            enableActionButtons();
-            document.getElementById('scannerInput').focus();
+            document.getElementById('scannedCount').textContent = todayRefills;
         }
         
         // Edit Functions
@@ -916,6 +1137,7 @@
             currentEditBottle.status = document.getElementById('editStatus').value;
             currentEditBottle.refillCount = parseInt(document.getElementById('editRefillCount').value);
             currentEditBottle.deliveryCount = parseInt(document.getElementById('editDeliveryCount').value);
+            currentEditBottle.lastUser = currentUser.username;
             currentEditBottle.lastUpdated = new Date().toISOString();
             
             saveData();
@@ -939,73 +1161,59 @@
             }
         }
         
-        // Data Management with Pagination
-async function loadData() {
-    if (!supabaseClient) {
-        loadFromLocal();
-        return;
-    }
-    
-    try {
-        showToast('📥 Loading bottles from database...', 'success');
-        
-        // Fetch all data with pagination
-        const allBottles = [];
-        let page = 0;
-        const pageSize = 1000; // Fetch 1000 rows at a time
-        let hasMore = true;
-        
-        while (hasMore) {
-            const start = page * pageSize;
-            const end = start + pageSize - 1;
+        // Data Management
+        async function loadData() {
+            if (!supabaseClient) {
+                loadFromLocal();
+                return;
+            }
             
-            const { data, error, count } = await supabaseClient
-                .from('bottles')
-                .select('*', { count: 'exact' })
-                .range(start, end)
-                .order('last_updated', { ascending: false });
-            
-            if (error) throw error;
-            
-            if (data && data.length > 0) {
-                allBottles.push(...data);
-                page++;
+            try {
+                const allBottles = [];
+                let page = 0;
+                const pageSize = 1000;
+                let hasMore = true;
                 
-                // Show progress
-                showToast(`📥 Loaded ${allBottles.length} bottles...`, 'success');
-                
-                // Check if there are more rows
-                if (data.length < pageSize) {
-                    hasMore = false;
+                while (hasMore) {
+                    const start = page * pageSize;
+                    const end = start + pageSize - 1;
+                    
+                    const { data, error } = await supabaseClient
+                        .from('bottles')
+                        .select('*')
+                        .range(start, end)
+                        .order('last_updated', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        allBottles.push(...data);
+                        page++;
+                        if (data.length < pageSize) hasMore = false;
+                    } else {
+                        hasMore = false;
+                    }
                 }
-            } else {
-                hasMore = false;
+                
+                if (allBottles.length > 0) {
+                    bottles = allBottles.map(b => ({
+                        id: b.id,
+                        status: b.status,
+                        refillCount: b.refill_count || 0,
+                        deliveryCount: b.delivery_count || 0,
+                        lastUser: b.last_user || 'unknown',
+                        created: b.created,
+                        lastUpdated: b.last_updated
+                    }));
+                } else {
+                    loadFromLocal();
+                }
+                
+            } catch (error) {
+                console.error('Load error:', error);
+                loadFromLocal();
             }
         }
-        
-        // Convert to local format
-        if (allBottles.length > 0) {
-            bottles = allBottles.map(b => ({
-                id: b.id,
-                status: b.status,
-                refillCount: b.refill_count || 0,
-                deliveryCount: b.delivery_count || 0,
-                created: b.created,
-                lastUpdated: b.last_updated
-            }));
-            
-            showToast(`✅ Loaded ${bottles.length} bottles from cloud`, 'success');
-        } else {
-            loadFromLocal();
-        }
-        
-    } catch (error) {
-        console.error('Load error:', error);
-        showToast(`❌ Error loading: ${error.message}`, 'error');
-        loadFromLocal();
-    }
-}
-
         
         function loadFromLocal() {
             try {
@@ -1019,10 +1227,8 @@ async function loadData() {
         }
         
         async function saveData() {
-            // Save to local storage
             localStorage.setItem(STORAGE_KEY, JSON.stringify(bottles));
             
-            // Save to Supabase
             if (!supabaseClient) return;
             
             try {
@@ -1031,6 +1237,7 @@ async function loadData() {
                     status: b.status,
                     refill_count: b.refillCount,
                     delivery_count: b.deliveryCount,
+                    last_user: b.lastUser,
                     pallet_id: null,
                     client_id: null,
                     client_name: null,
@@ -1051,6 +1258,7 @@ async function loadData() {
         function renderBottles() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
+            const userFilter = document.getElementById('userFilter').value;
             let filtered = bottles;
             
             if (search) {
@@ -1061,6 +1269,10 @@ async function loadData() {
                 filtered = filtered.filter(b => b.status === statusFilter);
             }
             
+            if (userFilter) {
+                filtered = filtered.filter(b => b.lastUser === userFilter);
+            }
+            
             const grid = document.getElementById('bottleGrid');
             
             if (filtered.length === 0) {
@@ -1068,7 +1280,13 @@ async function loadData() {
                 return;
             }
             
-            grid.innerHTML = filtered.sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)).map(bottle => `
+            grid.innerHTML = filtered.sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)).map(bottle => {
+                const lastUpdate = new Date(bottle.lastUpdated);
+                const now = new Date();
+                const hoursSinceRefill = getHoursDifference(lastUpdate, now);
+                const hoursUntilNext = Math.max(0, REFILL_WINDOW_HOURS - hoursSinceRefill);
+                
+                return `
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">${bottle.id}</div>
@@ -1078,19 +1296,25 @@ async function loadData() {
                         <span class="badge">🔄 ${bottle.refillCount} refills</span>
                         <span class="badge">📦 ${bottle.deliveryCount} deliveries</span>
                     </div>
-                    <div style="font-size: 0.8rem; color: #6b7280; margin-bottom: 15px;">
-                        Last updated: ${new Date(bottle.lastUpdated).toLocaleString()}
+                    ${hoursUntilNext > 0 ? `
+                    <div style="background: #fef3c7; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 0.8rem; color: #92400e;">
+                        ⏱️ Next refill in: <strong>${hoursUntilNext.toFixed(1)}h</strong>
+                    </div>
+                    ` : ''}
+                    <div style="font-size: 0.8rem; color: #6b7280; margin-bottom: 10px;">
+                        Last by: <strong>${bottle.lastUser || 'unknown'}</strong><br>
+                        ${lastUpdate.toLocaleString()}
                     </div>
                     <div class="card-actions">
-                        <button class="btn btn-edit btn-small" onclick="editBottle('${bottle.id}')">
+                        <button class="btn btn-primary btn-small" onclick="editBottle('${bottle.id}')">
                             ✏️ Edit
                         </button>
-                        <button class="btn btn-delete btn-small" onclick="deleteBottle('${bottle.id}')">
+                        <button class="btn btn-danger btn-small" onclick="deleteBottle('${bottle.id}')">
                             🗑️ Delete
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
         
         function updateKPIs() {
