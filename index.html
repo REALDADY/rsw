@@ -6,6 +6,8 @@
     <title>Bottle Refill Tracking System</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         * {
@@ -353,6 +355,20 @@
             transform: translateY(-2px);
         }
 
+        .btn-edit {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .btn-edit:hover {
+            background: #138496;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -648,7 +664,10 @@
                     <div class="table-container">
                         <div class="table-header">
                             <h3>Bottle Refill History</h3>
-                            <button class="btn-primary" onclick="showAddBottleModal()">+ Add Bottle</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-primary" onclick="exportBottlesToPDF()">📄 Export PDF</button>
+                                <button class="btn-primary" onclick="showAddBottleModal()">+ Add Bottle</button>
+                            </div>
                         </div>
                         <div class="filters">
                             <input type="text" class="filter-input" id="filterBottleId" placeholder="Search Bottle ID" oninput="filterBottles()">
@@ -707,6 +726,7 @@
                                 <option value="refill">Refill</option>
                                 <option value="duplicate">Duplicate Scan</option>
                                 <option value="add_bottle">Add Bottle</option>
+                                <option value="edit_bottle">Edit Bottle</option>
                                 <option value="delete_bottle">Delete Bottle</option>
                                 <option value="add_user">Add User</option>
                                 <option value="delete_user">Delete User</option>
@@ -769,17 +789,41 @@
         </div>
     </div>
 
+    <div id="editBottleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Bottle</h3>
+                <button class="close-btn" onclick="closeModal('editBottleModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Bottle ID (Cannot be changed)</label>
+                <input type="text" id="editBottleId" disabled style="background: #f0f0f0;">
+            </div>
+            <div class="form-group">
+                <label>Refill Count</label>
+                <input type="number" id="editRefillCount" min="0" placeholder="Enter refill count">
+            </div>
+            <div class="form-group">
+                <label>Last Refill Date/Time</label>
+                <input type="datetime-local" id="editLastRefill">
+            </div>
+            <div class="form-group">
+                <label>Last User</label>
+                <input type="text" id="editLastUser" placeholder="Enter last user">
+            </div>
+            <button class="btn-primary" onclick="updateBottle()">Save Changes</button>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <script>
-        // Supabase Configuration
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const SUPABASE_URL = 'https://ffxzohqudktafssiipwv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmeHpvaHF1ZGt0YWZzc2lpcHd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MTAzNzgsImV4cCI6MjA3NjA4NjM3OH0.9eYRzwjhureZD2i7oJMfpdEoD2GvfmMSTKNATLRXHj0';
 
         let supabaseClient = null;
         let isOnline = false;
 
-        // Try to initialize Supabase
         if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
             try {
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -789,14 +833,12 @@
             }
         }
 
-        // Global State - IN MEMORY ONLY
         let currentUser = null;
         let bottles = [];
         let users = [];
         let activityTrace = [];
         let recentScans = [];
 
-        // Initialize
         async function init() {
             await checkConnection();
             await loadData();
@@ -805,7 +847,6 @@
             updateConnectionStatus();
         }
 
-        // Check Supabase connection
         async function checkConnection() {
             if (!supabaseClient) {
                 isOnline = false;
@@ -835,7 +876,6 @@
             }
         }
 
-        // AUTO-SUBMIT SETUP
         function setupAutoSubmit() {
             const input = document.getElementById('workerBarcodeInput');
             if (input) {
@@ -850,13 +890,10 @@
             }
         }
 
-        // Data Management - PRIORITIZE SUPABASE
         async function loadData() {
             if (isOnline && supabaseClient) {
-                // ONLINE: Load from Supabase ONLY
                 await loadDataFromSupabase();
             } else {
-                // OFFLINE: Load from memory (empty on first load when offline)
                 console.log('📴 Offline mode - Using in-memory data');
                 showToast('Offline: Data will sync when online', 'warning');
             }
@@ -896,7 +933,6 @@
                     console.log(`✅ Loaded ${activityTrace.length} activity records`);
                 }
 
-                // Load recent scans from last 10 activity traces
                 recentScans = activityTrace
                     .filter(t => t.action === 'refill')
                     .slice(0, 10)
@@ -916,14 +952,12 @@
             }
         }
 
-        // Sync pending data when coming back online
         async function syncPendingData() {
             if (!isOnline || !supabaseClient) return;
 
             console.log('🔄 Syncing pending data to Supabase...');
 
             try {
-                // Get pending operations from localStorage
                 const pendingOps = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
                 
                 if (pendingOps.length === 0) {
@@ -954,12 +988,10 @@
                     }
                 }
 
-                // Clear pending operations
                 localStorage.removeItem('pendingOperations');
                 console.log('✅ All pending data synced successfully');
                 showToast('✅ Synced offline data to database', 'success');
 
-                // Reload fresh data from Supabase
                 await loadDataFromSupabase();
 
             } catch (error) {
@@ -967,7 +999,6 @@
             }
         }
 
-        // Add operation to pending queue (when offline)
         function addPendingOperation(type, table, data, match = null) {
             const pendingOps = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
             pendingOps.push({
@@ -1013,7 +1044,6 @@
             }
         }
 
-        // Login
         async function login() {
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
@@ -1079,7 +1109,6 @@
             document.getElementById('loginPassword').value = '';
         }
 
-        // Worker Interface
         async function workerScan() {
             const input = document.getElementById('workerBarcodeInput');
             const barcode = input.value.trim();
@@ -1090,7 +1119,6 @@
 
             let bottle = bottles.find(b => b.bottle_id === barcode);
 
-            // Auto-create bottle if it doesn't exist
             if (!bottle) {
                 bottle = {
                     bottle_id: barcode,
@@ -1109,7 +1137,6 @@
                 }
             }
 
-            // Check for duplicate scan (within 12 hours)
             const now = Date.now();
             const twelveHours = 12 * 60 * 60 * 1000;
             const lastRefillTime = bottle.last_refill ? new Date(bottle.last_refill).getTime() : 0;
@@ -1128,12 +1155,10 @@
                 return;
             }
 
-            // Process refill
             bottle.refill_count = (bottle.refill_count || 0) + 1;
             bottle.last_refill = new Date().toISOString();
             bottle.last_user = currentUser.username;
 
-            // Update in Supabase or add to pending queue
             if (isOnline && supabaseClient) {
                 await supabaseClient
                     .from('bottles')
@@ -1154,14 +1179,12 @@
                 );
             }
 
-            // Log activity
             await logActivity('refill', {
                 bottle_id: barcode,
                 refill_count: bottle.refill_count,
                 username: currentUser.username
             });
 
-            // Add to recent scans
             recentScans.unshift({
                 bottle_id: barcode,
                 timestamp: new Date().toISOString(),
@@ -1195,7 +1218,6 @@
             `).join('');
         }
 
-        // Admin Interface
         function showAdminSection(section) {
             document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1264,6 +1286,7 @@
                         <td>${bottle.last_user || 'N/A'}</td>
                         <td>${status}</td>
                         <td>
+                            <button class="btn-edit" onclick="showEditBottleModal('${bottle.bottle_id}')">Edit</button>
                             <button class="btn-danger" onclick="deleteBottle('${bottle.bottle_id}')">Delete</button>
                         </td>
                     </tr>
@@ -1345,7 +1368,182 @@
             updateKPIs();
         }
 
-        // User Management
+        function showEditBottleModal(bottleId) {
+            const bottle = bottles.find(b => b.bottle_id === bottleId);
+            if (!bottle) {
+                showToast('Bottle not found', 'error');
+                return;
+            }
+
+            document.getElementById('editBottleId').value = bottle.bottle_id;
+            document.getElementById('editRefillCount').value = bottle.refill_count || 0;
+            
+            if (bottle.last_refill) {
+                const date = new Date(bottle.last_refill);
+                const localDateTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+                    .toISOString()
+                    .slice(0, 16);
+                document.getElementById('editLastRefill').value = localDateTime;
+            } else {
+                document.getElementById('editLastRefill').value = '';
+            }
+            
+            document.getElementById('editLastUser').value = bottle.last_user || '';
+            
+            document.getElementById('editBottleModal').classList.add('active');
+        }
+
+        async function updateBottle() {
+            const bottleId = document.getElementById('editBottleId').value;
+            const refillCount = parseInt(document.getElementById('editRefillCount').value);
+            const lastRefillInput = document.getElementById('editLastRefill').value;
+            const lastUser = document.getElementById('editLastUser').value.trim();
+
+            if (isNaN(refillCount) || refillCount < 0) {
+                showToast('Please enter a valid refill count', 'error');
+                return;
+            }
+
+            const lastRefill = lastRefillInput ? new Date(lastRefillInput).toISOString() : null;
+
+            const bottle = bottles.find(b => b.bottle_id === bottleId);
+            if (!bottle) {
+                showToast('Bottle not found', 'error');
+                return;
+            }
+
+            bottle.refill_count = refillCount;
+            bottle.last_refill = lastRefill;
+            bottle.last_user = lastUser || null;
+
+            if (isOnline && supabaseClient) {
+                await supabaseClient
+                    .from('bottles')
+                    .update({
+                        refill_count: bottle.refill_count,
+                        last_refill: bottle.last_refill,
+                        last_user: bottle.last_user
+                    })
+                    .eq('bottle_id', bottleId);
+            } else {
+                addPendingOperation('update', 'bottles',
+                    {
+                        refill_count: bottle.refill_count,
+                        last_refill: bottle.last_refill,
+                        last_user: bottle.last_user
+                    },
+                    { bottle_id: bottleId }
+                );
+            }
+
+            await logActivity('edit_bottle', {
+                bottle_id: bottleId,
+                refill_count: refillCount,
+                last_refill: lastRefill,
+                last_user: lastUser,
+                username: currentUser.username
+            });
+
+            showToast('Bottle updated successfully', 'success');
+            closeModal('editBottleModal');
+            renderBottlesTable();
+            updateKPIs();
+        }
+
+        // Export Bottles to PDF
+        function exportBottlesToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.setTextColor(102, 126, 234);
+            doc.text('Bottle Refill Tracking Report', 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+            
+            doc.setFontSize(11);
+            doc.setTextColor(0);
+            doc.text(`Total Bottles: ${bottles.length}`, 14, 38);
+            const totalRefills = bottles.reduce((sum, b) => sum + (b.refill_count || 0), 0);
+            doc.text(`Total Refills: ${totalRefills}`, 14, 45);
+            const activeBottles = bottles.filter(b => (b.refill_count || 0) < 30).length;
+            doc.text(`Active: ${activeBottles} | Expired: ${bottles.length - activeBottles}`, 14, 52);
+
+            const tableData = bottles.map(bottle => {
+                const refillCount = bottle.refill_count || 0;
+                const status = refillCount >= 30 ? 'Expired' : 'Active';
+                const lifeRemaining = Math.max(0, 30 - refillCount);
+                
+                return [
+                    bottle.bottle_id,
+                    refillCount.toString(),
+                    `${lifeRemaining} / 30`,
+                    bottle.last_refill ? new Date(bottle.last_refill).toLocaleDateString() : 'Never',
+                    bottle.last_user || 'N/A',
+                    status
+                ];
+            });
+
+            doc.autoTable({
+                startY: 60,
+                head: [['Bottle Serial Number', 'Refill Count', 'Life Remaining', 'Last Refill', 'Last User', 'Status']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [102, 126, 234],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 4,
+                    overflow: 'linebreak',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { cellWidth: 40, fontStyle: 'bold' },
+                    1: { cellWidth: 25 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 30 },
+                    4: { cellWidth: 25 },
+                    5: { cellWidth: 25, halign: 'center' }
+                },
+                didParseCell: function(data) {
+                    if (data.column.index === 5 && data.section === 'body') {
+                        if (data.cell.text[0] === 'Expired') {
+                            data.cell.styles.textColor = [220, 53, 69];
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            data.cell.styles.textColor = [40, 167, 69];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                },
+                margin: { top: 60 }
+            });
+
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Page ${i} of ${pageCount}`,
+                    doc.internal.pageSize.getWidth() / 2,
+                    doc.internal.pageSize.getHeight() - 10,
+                    { align: 'center' }
+                );
+            }
+
+            const timestamp = new Date().toISOString().slice(0, 10);
+            doc.save(`Bottle_Report_${timestamp}.pdf`);
+            
+            showToast('PDF report generated successfully', 'success');
+        }
+
         function renderUsersTable() {
             const tbody = document.getElementById('usersTableBody');
 
@@ -1438,7 +1636,6 @@
             renderUsersTable();
         }
 
-        // Activity Trace
         function renderTraceTable() {
             const tbody = document.getElementById('traceTableBody');
             const filteredTrace = getFilteredTrace();
@@ -1527,12 +1724,10 @@
             URL.revokeObjectURL(url);
         }
 
-        // Modals
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
         }
 
-        // Toast Notifications
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1543,7 +1738,6 @@
             }, 3000);
         }
 
-        // Sound Effects
         function playSuccessSound() {
             try {
                 const audio = new AudioContext();
@@ -1580,7 +1774,6 @@
             }
         }
 
-        // Online/Offline Event Listeners
         window.addEventListener('online', async () => {
             console.log('🌐 Back online!');
             showToast('Connection restored. Syncing...', 'success');
@@ -1600,22 +1793,18 @@
             showToast('Offline: Changes will sync when online', 'warning');
         });
 
-        // Periodic connection check (every 30 seconds)
         setInterval(async () => {
             const wasOnline = isOnline;
             await checkConnection();
             
             if (!wasOnline && isOnline) {
-                // Just came back online
                 updateConnectionStatus();
                 await syncPendingData();
             } else if (wasOnline && !isOnline) {
-                // Just went offline
                 updateConnectionStatus();
             }
         }, 30000);
 
-        // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
             const loginPassword = document.getElementById('loginPassword');
             if (loginPassword) {
