@@ -881,7 +881,7 @@
             if (input) {
                 input.addEventListener('input', function(e) {
                     const value = e.target.value.trim();
-                    if (value.length >= 6) {
+                    if (value.length >= 4) {
                         setTimeout(() => {
                             workerScan();
                         }, 100);
@@ -1455,6 +1455,15 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
+            // Get filtered bottles instead of all bottles
+            const filteredBottles = getFilteredBottles();
+
+            // Check if there are bottles to export
+            if (filteredBottles.length === 0) {
+                showToast('No bottles to export with current filters', 'warning');
+                return;
+            }
+
             doc.setFontSize(18);
             doc.setTextColor(102, 126, 234);
             doc.text('Bottle Refill Tracking Report', 14, 20);
@@ -1462,20 +1471,32 @@
             doc.setFontSize(10);
             doc.setTextColor(100);
             doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-            
+
+            // Check if filter is applied
+            const idFilter = document.getElementById('filterBottleId')?.value.toLowerCase();
+            const isFiltered = idFilter && idFilter.trim() !== '';
+
             doc.setFontSize(11);
             doc.setTextColor(0);
-            doc.text(`Total Bottles: ${bottles.length}`, 14, 38);
-            const totalRefills = bottles.reduce((sum, b) => sum + (b.refill_count || 0), 0);
-            doc.text(`Total Refills: ${totalRefills}`, 14, 45);
-            const activeBottles = bottles.filter(b => (b.refill_count || 0) < 30).length;
-            doc.text(`Active: ${activeBottles} | Expired: ${bottles.length - activeBottles}`, 14, 52);
 
-            const tableData = bottles.map(bottle => {
+            // Show filter info if applied
+            if (isFiltered) {
+                doc.setTextColor(220, 53, 69); // Red color to indicate filtered
+                doc.text(`FILTERED REPORT - Search: "${idFilter}"`, 14, 38);
+                doc.setTextColor(0); // Back to black
+            }
+
+            doc.text(`Total Bottles: ${filteredBottles.length}${isFiltered ? ' (filtered)' : ''}`, 14, isFiltered ? 45 : 38);
+            const totalRefills = filteredBottles.reduce((sum, b) => sum + (b.refill_count || 0), 0);
+            doc.text(`Total Refills: ${totalRefills}`, 14, isFiltered ? 52 : 45);
+            const activeBottles = filteredBottles.filter(b => (b.refill_count || 0) < 30).length;
+            doc.text(`Active: ${activeBottles} | Expired: ${filteredBottles.length - activeBottles}`, 14, isFiltered ? 59 : 52);
+
+            const tableData = filteredBottles.map(bottle => {
                 const refillCount = bottle.refill_count || 0;
                 const status = refillCount >= 30 ? 'Expired' : 'Active';
                 const lifeRemaining = Math.max(0, 30 - refillCount);
-                
+
                 return [
                     bottle.bottle_id,
                     refillCount.toString(),
@@ -1487,7 +1508,7 @@
             });
 
             doc.autoTable({
-                startY: 60,
+                startY: isFiltered ? 67 : 60,
                 head: [['Bottle Serial Number', 'Refill Count', 'Life Remaining', 'Last Refill', 'Last User', 'Status']],
                 body: tableData,
                 theme: 'grid',
@@ -1522,7 +1543,7 @@
                         }
                     }
                 },
-                margin: { top: 60 }
+                margin: { top: isFiltered ? 67 : 60 }
             });
 
             const pageCount = doc.internal.getNumberOfPages();
@@ -1539,9 +1560,13 @@
             }
 
             const timestamp = new Date().toISOString().slice(0, 10);
-            doc.save(`Bottle_Report_${timestamp}.pdf`);
-            
-            showToast('PDF report generated successfully', 'success');
+            const filename = isFiltered ? 
+                `Bottle_Report_${idFilter.replace(/[^a-z0-9]/gi, '_')}_${timestamp}.pdf` : 
+                `Bottle_Report_${timestamp}.pdf`;
+
+            doc.save(filename);
+
+            showToast(`PDF report generated successfully (${filteredBottles.length} bottles)`, 'success');
         }
 
         function renderUsersTable() {
